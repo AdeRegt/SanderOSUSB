@@ -8,6 +8,7 @@ void kernel_main();
 void printstring(char* msg);
 void putc(char a);
 void init_video();
+void hexdump(unsigned long msg);
 
 // GDT
 void init_gdt();
@@ -21,6 +22,7 @@ void setNormalInt(unsigned char num,unsigned long base);
 // TIMER MOD
 void init_timer();
 int getTicks();
+void resetTicks();
 
 // PS2
 void init_ps2();
@@ -275,6 +277,7 @@ void init_pci(){
 #define PS2_DATA 0x60
 #define PS2_STATUS 0x64
 #define PS2_COMMAND 0x64
+#define PS2_TIMEOUT 10
 
 char getPS2StatusRegisterText(){
 	return inportb(PS2_STATUS);
@@ -288,19 +291,35 @@ int getPS2ReadyToWrite(){
 	return getPS2StatusRegisterText() & 0b00000010;
 }
 
-void writeToFirstPS2Port(unsigned char data){
-	while(getPS2ReadyToWrite()>0){}
+int writeToFirstPS2Port(unsigned char data){
+	resetTicks();
+	while(getPS2ReadyToWrite()>0){
+		if(getTicks()==PS2_TIMEOUT){
+			return 0;
+		}
+	}
 	outportb(PS2_DATA,data);
+	return 1;
 }
 
-void writeToSecondPS2Port(unsigned char data){
+int writeToSecondPS2Port(unsigned char data){
 	outportb(PS2_COMMAND,0xD4);
-	while(getPS2ReadyToWrite()>0){}
+	resetTicks();
+	while(getPS2ReadyToWrite()>0){
+		if(getTicks()==PS2_TIMEOUT){return 0;}
+	}
 	outportb(PS2_DATA,data);
+	return 1;
 }
 
-void waitforps2ok(){
-	while(inportb(PS2_DATA)!=0xFA){}
+int waitforps2ok(){
+	resetTicks();
+	while(inportb(PS2_DATA)!=0xFA){
+		if(getTicks()==PS2_TIMEOUT){
+			return 0;
+		}
+	}
+	return 1;
 }
 
 void printps2devicetype(unsigned char a){
@@ -321,9 +340,24 @@ extern void keyboardirq();
 int csr_y = 12;
 int csr_x = 40;
 volatile int csr_t = 0;
-
+volatile int ccr_x = 50;
+volatile int ccr_y = 50;
+volatile int ccr_a = 0;
+volatile int ccr_b = 0;
 void irq_mouse(){
-	if(csr_t==1){
+	if(csr_t==0){
+		char A = inportb(PS2_DATA);
+		if(ccr_b){
+			if((ccr_y+A)<200){
+				ccr_y += A;
+			}
+		}else{
+			if((ccr_y-A)>0){
+				ccr_y -= A;
+			}
+		}
+		csr_t = 1;
+	}else if(csr_t==1){
 		char A = inportb(PS2_DATA);
 		if((A & 0b00000001)>0){
 			printstring("_LEFT");
@@ -333,18 +367,46 @@ void irq_mouse(){
 		}
 		if((A & 0b00000100)>0){
 			printstring("_MIDDLE");
+			ccr_x = 50;
+			ccr_y = 50;
+			csr_y = 12;
+			csr_x = 40;
 		}
-		csr_t++;
-	}else{
+		if((A & 0b00001000)>0){
+			ccr_a = 1;
+		}else{
+			ccr_a = 0;
+		}
+		if((A & 0b00010000)>0){
+			ccr_b = 1;
+		}else{
+			ccr_b = 0;
+		}
+		csr_t = 2;
+	}else if(csr_t==2){
 		char A = inportb(PS2_DATA);
-		csr_t++;
-		if(csr_t==3){
-			csr_t = 0;
+		if(ccr_a){
+			if((ccr_x+A)<1600){
+				ccr_x += A;
+			}
+		}else{
+			if((ccr_x-A)>0){
+				ccr_x -= A;
+			}
 		}
+		csr_t = 0;
 	}
 	
 	// hardware cursor updaten
 	unsigned temp;
+	csr_x = ccr_x/20;
+	csr_y = ccr_y/20;
+	if(csr_x>75){
+		csr_x = 70;
+	}
+	if(csr_y>24){
+		csr_y = 20;
+	}
     	temp = csr_y * 80 + csr_x;
     	outportb(0x3D4, 14);
     	outportb(0x3D5, temp >> 8);
@@ -403,6 +465,99 @@ void irq_keyboard(){
 	outportb(0x20,0x20);
 }
 
+int init_ps2_keyboard(){
+	
+	// detectie
+	if(!writeToFirstPS2Port(0xF5)){goto error;}
+	if(!waitforps2ok()){goto error;}
+	if(!writeToFirstPS2Port(0xF2)){goto error;}
+	if(!waitforps2ok()){goto error;}
+	resetTicks();
+	while(getPS2ReadyToRead()==0){
+		if(getTicks()==PS2_TIMEOUT){
+			goto error;
+		}
+	}
+	unsigned char a = inportb(PS2_DATA);
+	resetTicks();
+	while(getPS2ReadyToRead()==0){
+		if(getTicks()==PS2_TIMEOUT){
+			goto error;
+		}
+	}
+	unsigned char b = inportb(PS2_DATA);
+	printps2devicetype(a);
+	printps2devicetype(b);
+	
+	if(!writeToFirstPS2Port(0xFF)){goto error;}
+	resetTicks();
+	while(inportb(PS2_DATA)!=0xAA){
+		if(getTicks()==PS2_TIMEOUT){
+			goto error;
+		}
+	}
+	if(!writeToFirstPS2Port(0xF6)){goto error;}
+	if(!waitforps2ok()){goto error;}
+	if(!writeToFirstPS2Port(0xF4)){goto error;}
+	if(!waitforps2ok()){goto error;}
+	
+    	setNormalInt(1,(unsigned long)keyboardirq);
+    	return 1;
+    	
+    	error:
+    	return 0;
+}
+
+int init_ps2_mouse(){
+	
+	// detectie
+	if(!writeToSecondPS2Port(0xFF)){goto error;}
+	resetTicks();
+	while(inportb(PS2_DATA)!=0xAA){
+		if(getTicks()==PS2_TIMEOUT){
+			goto error;
+		}
+	}
+	if(!writeToSecondPS2Port(0xF5)){goto error;}
+	if(!waitforps2ok()){goto error;}
+	if(!writeToSecondPS2Port(0xF2)){goto error;}
+	if(!waitforps2ok()){goto error;}
+	resetTicks();
+	while(getPS2ReadyToRead()==0){
+		if(getTicks()==PS2_TIMEOUT){
+			goto error;
+		}
+	}
+	unsigned char c = inportb(PS2_DATA);
+	resetTicks();
+	while(getPS2ReadyToRead()==0){
+		if(getTicks()==PS2_TIMEOUT){
+			goto error;
+		}
+	}
+	unsigned char d = inportb(PS2_DATA);
+	printps2devicetype(c);
+	printps2devicetype(d);
+	
+	if(!writeToSecondPS2Port(0xFF)){goto error;}
+	resetTicks();
+	while(inportb(PS2_DATA)!=0xAA){
+		if(getTicks()==PS2_TIMEOUT){
+			goto error;
+		}
+	}
+	if(!writeToSecondPS2Port(0xF6)){goto error;}
+	if(!waitforps2ok()){goto error;}
+	if(!writeToSecondPS2Port(0xF4)){goto error;}
+	if(!waitforps2ok()){goto error;}
+	
+    	setNormalInt(12,(unsigned long)mouseirq);
+    	return 1;
+    	
+    	error:
+    	return 0;
+}
+
 void init_ps2(){
 	char ps2status = getPS2StatusRegisterText();
 	if((ps2status & 0b00000001)>0){
@@ -422,7 +577,7 @@ void init_ps2(){
 	while(getPS2ReadyToWrite()!=0){}
 	outportb(PS2_COMMAND,0x20);
 	while(getPS2ReadyToRead()==0){
-		if(getTicks()>=10){
+		if(getTicks()>=PS2_TIMEOUT){
 			printstring("__TIMEOUT__\n");
 			break;
 		}
@@ -462,55 +617,17 @@ void init_ps2(){
 	//		break;
 	//	}
 	//}
+	if(init_ps2_keyboard()){
+		printstring("PS2: keyboard enabled!\n");
+	}else{
+		printstring("PS2: keyboard disabled!\n");
+	}
+	if(init_ps2_mouse()){
+		printstring("PS2: mouse enabled!\n");
+	}else{
+		printstring("PS2: mouse disabled!\n");
+	}
 	
-	// detectie
-	printstring("PS2: first port detection:\n");
-	writeToFirstPS2Port(0xF5);
-	waitforps2ok();
-	writeToFirstPS2Port(0xF2);
-	waitforps2ok();
-	while(getPS2ReadyToRead()==0){}
-	unsigned char a = inportb(PS2_DATA);
-	while(getPS2ReadyToRead()==0){}
-	unsigned char b = inportb(PS2_DATA);
-	printps2devicetype(a);
-	printps2devicetype(b);
-	
-	// detectie
-	printstring("PS2: second port detection:\n");
-	writeToSecondPS2Port(0xFF);
-	while(inportb(PS2_DATA)!=0xAA){}
-	writeToSecondPS2Port(0xF5);
-	waitforps2ok();
-	writeToSecondPS2Port(0xF2);
-	waitforps2ok();
-	while(getPS2ReadyToRead()==0){}
-	unsigned char c = inportb(PS2_DATA);
-	while(getPS2ReadyToRead()==0){}
-	unsigned char d = inportb(PS2_DATA);
-	printps2devicetype(c);
-	printps2devicetype(d);
-	
-	// activatie
-	printstring("PS2: activating port 1\n");
-	writeToFirstPS2Port(0xFF);
-	while(inportb(PS2_DATA)!=0xAA){}
-	writeToFirstPS2Port(0xF6);
-	waitforps2ok();
-	writeToFirstPS2Port(0xF4);
-	waitforps2ok();
-	
-	printstring("PS2: activating port 2\n");
-	writeToSecondPS2Port(0xFF);
-	while(inportb(PS2_DATA)!=0xAA){}
-	writeToSecondPS2Port(0xF6);
-	waitforps2ok();
-	writeToSecondPS2Port(0xF4);
-	waitforps2ok();
-	
-	printstring("PS2: activating inthandler\n");
-    	setNormalInt(12,(unsigned long)mouseirq);
-    	setNormalInt(1,(unsigned long)keyboardirq);
     	
 }
 
@@ -526,6 +643,10 @@ volatile int ticks = 0;
 
 int getTicks(){
 	return ticks;
+}
+
+void resetTicks(){
+	ticks = 0;
 }
 
 void irq_timer(struct Registers *reg){
@@ -566,6 +687,12 @@ int curx = 0;
 int cury = 0;
 
 void init_video(){
+	// set cursor shape
+	outportb(0x3D4, 0x0A);
+	outportb(0x3D5, (inportb(0x3D5) & 0xC0) | 0);
+	outportb(0x3D4, 0x0B);
+	outportb(0x3D5, (inportb(0x3D5) & 0xE0) | 15);
+	// set cursor location
 	vidpnt = 0;
 	curx = 0;
 	cury = 0;
@@ -602,6 +729,51 @@ void putc(char a){
 			}
 		}
 	}
+}
+
+// FROM: https://wiki.osdev.org/Printing_To_Screen
+char * itoa( int value, char * str, int base )
+{
+    char * rc;
+    char * ptr;
+    char * low;
+    // Check for supported base.
+    if ( base < 2 || base > 36 )
+    {
+        *str = '\0';
+        return str;
+    }
+    rc = ptr = str;
+    // Set '-' for negative decimals.
+    if ( value < 0 && base == 10 )
+    {
+        *ptr++ = '-';
+    }
+    // Remember where the numbers start.
+    low = ptr;
+    // The actual conversion.
+    do
+    {
+        // Modulo is negative for negative value. This trick makes abs() unnecessary.
+        *ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz"[35 + value % base];
+        value /= base;
+    } while ( value );
+    // Terminating the string.
+    *ptr-- = '\0';
+    // Invert the numbers.
+    while ( low < ptr )
+    {
+        char tmp = *low;
+        *low++ = *ptr;
+        *ptr-- = tmp;
+    }
+    return rc;
+}
+
+void hexdump(unsigned long a){
+	char msg[10];
+	itoa(a,msg,16);
+	printstring(msg);
 }
 
 //
