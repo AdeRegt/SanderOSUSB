@@ -1,3 +1,4 @@
+#include "stdarg.h"
 unsigned char inportb (unsigned short _port);
 void outportb (unsigned short _port, unsigned char _data);
 unsigned long inportl(unsigned short _port);
