@@ -57,7 +57,7 @@ void kernel_main(){
 	init_ps2();
 	printstring("=> PCI...\n");
 	init_pci();
-	printf("Shashwat %d",1);
+	printf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
 	for(;;);
 }
@@ -749,12 +749,14 @@ void printf(char* format,...)
 	
 	for(traverse = format; *traverse != '\0'; traverse++) 
 	{ 
-		while( *traverse != '%' ) 
+		while( *traverse != '%' && *traverse != '\0' ) 
 		{ 
 			putc(*traverse);
 			traverse++; 
 		} 
-		
+		if(*traverse =='\0'){
+		    break; 
+		}
 		traverse++; 
 		
 		//Module 2: Fetching and executing arguments
@@ -784,6 +786,7 @@ void printf(char* format,...)
 			case 'x': i = va_arg(arg,unsigned int); //Fetch Hexadecimal representation
 						printstring(convert(i,16));
 						break; 
+				
 		}	
 	} 
 	
