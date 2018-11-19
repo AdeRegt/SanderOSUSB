@@ -1,4 +1,7 @@
 #include "stdarg.h"
+
+void printf(char *,...); 				//Our printf function
+char* convert(unsigned int, int); 		//Convert integer number into octal, hex, etc.
 unsigned char inportb (unsigned short _port);
 void outportb (unsigned short _port, unsigned char _data);
 unsigned long inportl(unsigned short _port);
@@ -54,6 +57,7 @@ void kernel_main(){
 	init_ps2();
 	printstring("=> PCI...\n");
 	init_pci();
+	printf("Shashwat %d",1);
 	printstring("\nEnd of loading system!\n");
 	for(;;);
 }
@@ -730,6 +734,79 @@ void putc(char a){
 			}
 		}
 	}
+}
+
+
+void printf(char* format,...) 
+{ 
+	char *traverse; 
+	unsigned int i; 
+	char *s; 
+	
+	//Module 1: Initializing Myprintf's arguments 
+	va_list arg; 
+	va_start(arg, format); 
+	
+	for(traverse = format; *traverse != '\0'; traverse++) 
+	{ 
+		while( *traverse != '%' ) 
+		{ 
+			putc(*traverse);
+			traverse++; 
+		} 
+		
+		traverse++; 
+		
+		//Module 2: Fetching and executing arguments
+		switch(*traverse) 
+		{ 
+			case 'c' : i = va_arg(arg,int);		//Fetch char argument
+						putc(i);
+						break; 
+						
+			case 'd' : i = va_arg(arg,int); 		//Fetch Decimal/Integer argument
+						if(i<0) 
+						{ 
+							i = -i;
+							putc('-'); 
+						} 
+						printstring(convert(i,10));
+						break; 
+						
+			case 'o': i = va_arg(arg,unsigned int); //Fetch Octal representation
+						printstring(convert(i,8));
+						break; 
+						
+			case 's': s = va_arg(arg,char *); 		//Fetch string
+						printstring(s); 
+						break; 
+						
+			case 'x': i = va_arg(arg,unsigned int); //Fetch Hexadecimal representation
+						printstring(convert(i,16));
+						break; 
+		}	
+	} 
+	
+	//Module 3: Closing argument list to necessary clean-up
+	va_end(arg); 
+} 
+ 
+char *convert(unsigned int num, int base) 
+{ 
+	static char Representation[]= "0123456789ABCDEF";
+	static char buffer[50]; 
+	char *ptr; 
+	
+	ptr = &buffer[49]; 
+	*ptr = '\0'; 
+	
+	do 
+	{ 
+		*--ptr = Representation[num%base]; 
+		num /= base; 
+	}while(num != 0); 
+	
+	return(ptr); 
 }
 
 // FROM: https://wiki.osdev.org/Printing_To_Screen
