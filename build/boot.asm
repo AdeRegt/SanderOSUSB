@@ -117,6 +117,12 @@ idt_load:
     lidt [idtp]
     ret
     
+global serialirq
+extern irq_serial
+serialirq:
+    call irq_serial
+    iret
+    
 global keyboardirq
 extern irq_keyboard
 keyboardirq:
@@ -152,6 +158,7 @@ timerirq:
     popa
     add esp, 8
     iret
+    
 
 global irq_common_stub
 extern irq_handler
