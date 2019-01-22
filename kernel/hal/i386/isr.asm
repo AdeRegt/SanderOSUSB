@@ -1,0 +1,122 @@
+
+
+; This will set up our new segment registers. We need to do
+; something special in order to set CS. We do what is called a
+; far jump. A jump that includes a segment as well as an offset.
+; This is declared in C as 'extern void gdt_flush();'
+global gdt_flush     ; Allows the C code to link to this
+extern gp            ; Says that '_gp' is in another file
+gdt_flush:
+    lgdt [gp]        ; Load the GDT with our '_gp' which is a special pointer
+    mov ax, 0x10      ; 0x10 is the offset in the GDT to our data segment
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+    jmp 0x08:flush2   ; 0x08 is the offset to our code segment: Far jump!
+flush2:
+    ret               ; Returns back to the C code!
+    
+; Loads the IDT defined in '_idtp' into the processor.
+; This is declared in C as 'extern void idt_load();'
+global idt_load
+extern idtp
+idt_load:
+    lidt [idtp]
+    ret
+    
+global ideirq
+extern irq_ide
+ideirq:
+    call irq_ide
+    iret
+    
+global serialirq
+extern irq_serial
+serialirq:
+    call irq_serial
+    iret
+    
+global keyboardirq
+extern irq_keyboard
+keyboardirq:
+    call irq_keyboard
+    iret
+
+global mouseirq
+extern irq_mouse
+mouseirq:
+	call irq_mouse
+    iret
+    
+
+global timerirq
+extern irq_timer
+timerirq:
+	push byte 0
+	push byte 0
+    pusha
+    push ds
+    push es
+    push fs
+    push gs
+    mov eax, esp
+    push eax
+    mov eax, irq_timer
+    call eax
+    pop eax
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popa
+    add esp, 8
+    iret
+    
+
+global irq_common_stub
+extern irq_handler
+irq_common_stub:
+	push byte 0
+	push byte 0
+    pusha
+    push ds
+    push es
+    push fs
+    push gs
+    mov eax, esp
+    push eax
+    mov eax, irq_handler
+    call eax
+    pop eax
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popa
+    add esp, 8
+    iret
+    
+global isr_common_stub
+extern fault_handler    
+isr_common_stub:
+	push byte 0
+	push byte 0
+    pusha
+    push ds
+    push es
+    push fs
+    push gs
+    mov eax, esp   ; Push us the stack
+    push eax
+    mov eax, fault_handler
+    call eax       ; A special call, preserves the 'eip' register
+    pop eax
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popa
+    add esp, 8     ; Cleans up the pushed error code and pushed ISR number
+    iret           ; pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP!
