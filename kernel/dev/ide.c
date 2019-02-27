@@ -6,6 +6,7 @@
 //
 
 extern void ideirq();
+extern void iso_9660_dir();
 
 volatile int ideXirq = 0;
 void irq_ide(){
@@ -61,6 +62,19 @@ char getIDEError(IDEDevice cdromdevice){
 	}
 	return 0;
 }
+
+void atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location){
+	IDEDevice ide;
+	ide.command 	= dev->arg1;
+	ide.control 	= dev->arg2;
+	ide.irq 	= dev->arg3;
+	ide.slave 	= dev->arg4;
+	atapi_read_sector(ide,lba,count,location);
+}
+
+void atapi_write_raw(Device dev,unsigned long lba,unsigned char count,unsigned short *location){}
+
+void atapi_reset_raw(Device dev){}
 
 char read_cmd[12] = { 0xA8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
@@ -199,6 +213,21 @@ void init_ide_device(IDEDevice device){
 				printf("ATAPI: unknown filesystem\n");
 			}else{
 				printf("ATAPI: known filesystem ISO 9660\n");
+				
+				Device *regdev = getNextFreeDevice();
+				
+				regdev->readRawSector 	= &atapi_read_raw;
+				regdev->writeRawSector 	= &atapi_write_raw;
+				regdev->reinitialise 	= &atapi_reset_raw;
+//				regdev->eject 		= atapi_eject_raw;
+				
+				regdev->dir		= &iso_9660_dir;
+				
+				// .command= 0x1f0,.control=0x3f6,.irq=14,.slave=0
+				regdev->arg1 = device.command;
+				regdev->arg2 = device.control;
+				regdev->arg3 = device.irq;
+				regdev->arg4 = device.slave;
 			}
 		}
 	}

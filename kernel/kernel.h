@@ -50,6 +50,56 @@ void init_serial();
 // IDE
 void init_ide(unsigned short BAR);
 
+
+typedef struct{
+
+	//
+	// Blockdevice settings
+	//
+	
+	unsigned long readRawSector;
+	unsigned long writeRawSector;
+	unsigned long reinitialise;
+	unsigned long eject;
+	
+	//
+	// Filesystem settings
+	//
+	
+	unsigned long dir;
+	unsigned long readFile;
+	unsigned long writeFile;
+	unsigned long existsFile;
+	unsigned long newFile;
+	unsigned long deleteFile;
+	unsigned long renameFile;
+	unsigned long copyfile;
+	
+	//
+	// Misc
+	//
+	
+	unsigned char readonly;
+	
+	//
+	// Advanced
+	//
+	
+	unsigned long arg1;
+	unsigned long arg2;
+	unsigned long arg3;
+	unsigned long arg4;
+	unsigned long arg5;
+	unsigned long arg6;
+	unsigned long arg7;
+	unsigned long arg8;
+	unsigned long arg9;
+}Device;
+
+Device *getNextFreeDevice();
+char* dir(char* path);
+
+
 struct Registers{
     unsigned int gs, fs, es, ds;      /* pushed the segs last */
     unsigned int edi, esi, ebp, esp, ebx, edx, ecx, eax;  /* pushed by 'pusha' */

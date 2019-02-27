@@ -13,15 +13,14 @@ void kernel_main(){
 	init_timer();
 	printstring("=> PS2...\n");
 	init_ps2();
-//	printstring("=> BLOCKDEVICES...\n");
-//	init_blockdevice();
 	printstring("=> PCI...\n");
 	init_pci();
 	printstring("=> Serial ports...\n");
 	init_serial();
 	printf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
-//	dirdev();
+	char *filesystemtext = dir("A@");
+	printf("We are happy to announce the following filesystems: %s\n",filesystemtext);
 	for(;;);
 }
 
