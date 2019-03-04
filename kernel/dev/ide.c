@@ -10,7 +10,7 @@ extern void iso_9660_dir();
 
 volatile int ideXirq = 0;
 void irq_ide(){
-	printstring("IRQ: irq for ide fired!\n");
+	//printstring("IRQ: irq for ide fired!\n");
 	ideXirq = 1;
 	outportb(0x20,0x20);
 	outportb(0xA0,0x20);
@@ -63,23 +63,11 @@ char getIDEError(IDEDevice cdromdevice){
 	return 0;
 }
 
-void atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location){
-	IDEDevice ide;
-	ide.command 	= dev->arg1;
-	ide.control 	= dev->arg2;
-	ide.irq 	= dev->arg3;
-	ide.slave 	= dev->arg4;
-	atapi_read_sector(ide,lba,count,location);
-}
-
-void atapi_write_raw(Device dev,unsigned long lba,unsigned char count,unsigned short *location){}
-
-void atapi_reset_raw(Device dev){}
 
 char read_cmd[12] = { 0xA8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 void atapi_read_sector(IDEDevice cdromdevice,unsigned long lba,unsigned char count, unsigned short *location){
-	printf("ATAPI: reading LBA %x and copy to %x \n",lba,location);
+	//printf("ATAPI: reading LBA %x and copy to %x \n",lba,location);
 	getIDEError(cdromdevice);
     	while((inportb (cdromdevice.command+7)) & 0x80){}
 	outportb(cdromdevice.command+6,cdromdevice.slave==1?0xB0:0xA0);
@@ -109,7 +97,7 @@ void atapi_read_sector(IDEDevice cdromdevice,unsigned long lba,unsigned char cou
     	while((inportb (cdromdevice.command+7)) & 0x80){}
     	int mp = 0;
     	for (unsigned short i = 0; i < (size / 2); i++) {
-    		getIDEError(cdromdevice);
+    		if(getIDEError(cdromdevice)==1){return;}
     		location[mp++] = inportw(cdromdevice.command+0);
 //        	unsigned short d = inportw(cdromdevice.command+0);
 //        	unsigned char A = d;
@@ -119,6 +107,19 @@ void atapi_read_sector(IDEDevice cdromdevice,unsigned long lba,unsigned char cou
         }
     	while((inportb (cdromdevice.command+7)) & 0x80){}
 }
+
+void atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location){
+	IDEDevice ide;
+	ide.command 	= dev->arg1;
+	ide.control 	= dev->arg2;
+	ide.irq 	= dev->arg3;
+	ide.slave 	= dev->arg4;
+	atapi_read_sector(ide,lba,count,location);
+}
+
+void atapi_write_raw(Device dev,unsigned long lba,unsigned char count,unsigned short *location){}
+
+void atapi_reset_raw(Device dev){}
 
 void init_ide_device(IDEDevice device){
 	setNormalInt(device.irq,(unsigned long)ideirq);
@@ -262,5 +263,3 @@ void init_ide(unsigned short BAR){
 	init_ide_device(ata3);
 	init_ide_device(ata4);
 }
-
-

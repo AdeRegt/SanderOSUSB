@@ -30,7 +30,7 @@ char* dir(char* path){
 			
 		}else{
 			void* (*foo)(Device *,char*,char *) = (void*)devices[z].dir;
-			foo((Device *)&devices[z],path,whoopsie);
+			foo((Device *)&devices[z],(unsigned char*)&path[2],whoopsie);
 		}
 	}
 	return (char*) whoopsie;

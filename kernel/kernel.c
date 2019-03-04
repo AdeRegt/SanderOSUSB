@@ -20,7 +20,11 @@ void kernel_main(){
 	printf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
 	char *filesystemtext = dir("A@");
-	printf("We are happy to announce the following filesystems: %s\n",filesystemtext);
+	if(filesystemtext[0]==0x00){
+		printf("Unable to allocate directory\n");
+	}else{
+		printf("We are happy to announce the following filesystems: %s\n",filesystemtext);
+	}
 	for(;;);
 }
 
