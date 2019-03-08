@@ -11,8 +11,10 @@ unsigned long charstoint(unsigned char a,unsigned char b,unsigned char c,unsigne
 }
 
 	unsigned char pathpart[30];
+	unsigned char selfloor = 1;
+	volatile unsigned char* isobuffer = 0x1000;
 	
-unsigned long iso_9660_target(Device *device,char* path,char *buffer){
+unsigned long iso_9660_target(Device *device,char* path){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	
 	//
@@ -21,8 +23,8 @@ unsigned long iso_9660_target(Device *device,char* path,char *buffer){
 	
 	int primairesector = 0;
 	for(int i = 0 ; i < 10 ; i++){
-		readraw(device,0x10+i,1,(unsigned short *)buffer);
-		if(buffer[0]==0x01&&buffer[1]=='C'&&buffer[2]=='D'&&buffer[3]=='0'&&buffer[4]=='0'&&buffer[5]=='1'){
+		readraw(device,0x10+i,1,(unsigned short *)isobuffer);
+		if(isobuffer[0]==0x01&&isobuffer[1]=='C'&&isobuffer[2]=='D'&&isobuffer[3]=='0'&&isobuffer[4]=='0'&&isobuffer[5]=='1'){
 			primairesector = 0x10+i;
 			break;
 		}
@@ -32,10 +34,10 @@ unsigned long iso_9660_target(Device *device,char* path,char *buffer){
 		printf("ISO: primairy sector not found!\n");for(;;);
 	}
 	
-	unsigned long dt = charstoint(buffer[148],buffer[149],buffer[150],buffer[151]);
-	readraw(device,dt,1,(unsigned short *)buffer);
+	unsigned long dt = charstoint(isobuffer[148],isobuffer[149],isobuffer[150],isobuffer[151]);
+	readraw(device,dt,1,(unsigned short *)isobuffer);
 	
-	unsigned long res = charstoint(buffer[2],buffer[3],buffer[4],buffer[5]);
+	unsigned long res = charstoint(isobuffer[2],isobuffer[3],isobuffer[4],isobuffer[5]);
 	if(path[0]==0){
 		return res;
 	}
@@ -47,7 +49,7 @@ unsigned long iso_9660_target(Device *device,char* path,char *buffer){
 	tcnt = 0;
 	for(int i = 0 ; i < 30 ; i++){
 		char deze = path[pathpointer++];
-		if(deze==0x00||deze=='/'||deze=='#'){
+		if(deze==0x00||deze=='/'){
 			pathpart[i]=0;
 			tcnt = i;
 			break;
@@ -59,9 +61,9 @@ unsigned long iso_9660_target(Device *device,char* path,char *buffer){
 	char prx = 0;
 	int i = 0;
 	for(int y = 0 ; y < 10 ; y++){
-		char ttutA = buffer[i+0];
-		char ttutB = buffer[i+1];
-		char ttutC = buffer[i+7];
+		char ttutA = isobuffer[i+0];
+		char ttutB = isobuffer[i+1];
+		char ttutC = isobuffer[i+7];
 		if(tot==ttutC){
 //			putc('\"');
 //			for(int z = 0 ; z < ttutA ; z++){
@@ -71,7 +73,7 @@ unsigned long iso_9660_target(Device *device,char* path,char *buffer){
 			if(tcnt==ttutA){
 				found = 1;
 				for(int z = 0 ; z < ttutA ; z++){
-					char A = buffer[i+8+z];
+					char A = isobuffer[i+8+z];
 					char B = pathpart[z];
 					if(A!=B){
 						found = 0;
@@ -79,7 +81,8 @@ unsigned long iso_9660_target(Device *device,char* path,char *buffer){
 				}
 				if(found==1){
 					tot = y+1;
-					res = charstoint(buffer[i+2],buffer[i+3],buffer[i+4],buffer[i+5]);
+					res = charstoint(isobuffer[i+2],isobuffer[i+3],isobuffer[i+4],isobuffer[i+5]);
+					selfloor = tot;
 				}
 			}
 		}
@@ -96,9 +99,11 @@ unsigned long iso_9660_target(Device *device,char* path,char *buffer){
 		}else{
 			goto nextpathelem;
 		}
+	}else if(path[pathpointer-1]==0x00){
+		return res;
+	}else{
+		return 0;
 	}
-	res = 0;
-	return res;
 	
 	foundyay:
 	return res;
@@ -108,17 +113,39 @@ void iso_9660_dir(Device *device,char* path,char *buffer){
 	//atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location)
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	
-	int target = iso_9660_target(device,path,buffer);
+	int target = iso_9660_target(device,path);
 	if(target!=0){
-		readraw(device,target,1,(unsigned short *)buffer);
 		int tor = 0;
+		int i = 0;
 		int gz = 0;
-		for(int i = 0 ; i < 1000 ; i++){
+		for(int y = 0 ; y < 10 ; y++){
+			char ttutA = isobuffer[i+0];
+			char ttutB = isobuffer[i+1];
+			char ttutC = isobuffer[i+7];
+			if(selfloor==ttutC){
+				if(gz){
+					buffer[tor++] = ';';
+				}
+				if(isobuffer[i+8]!=0x00){
+					for(int z = 0 ; z < ttutA ; z++){
+						buffer[tor++] = isobuffer[i+8+z];
+					}
+					gz++;
+				}
+			}
+			int z = ttutA+ttutB+8;
+			if(z%2!=0){
+				z++;
+			}
+			i += z;
+		}
+		readraw(device,target,1,(unsigned short *)isobuffer);
+		for(i = 0 ; i < 1000 ; i++){
 			int t = 2;
-			if(buffer[i]==';'&&buffer[i+1]=='1'){
+			if(isobuffer[i]==';'&&isobuffer[i+1]=='1'){
 				int fnd = 0;
 				for(int z = 1 ; z < 30 ; z++){
-					if(buffer[i-z]==t){
+					if(isobuffer[i-z]==t){
 						fnd = z;
 						break;
 					}
@@ -130,7 +157,7 @@ void iso_9660_dir(Device *device,char* path,char *buffer){
 						buffer[tor++] = ';';
 					}
 					for(int z = 2 ; z < t ; z++){
-						buffer[tor++] = buffer[(i-t)+z];
+						buffer[tor++] = isobuffer[(i-t)+z];
 					}
 					gz++;
 				}
