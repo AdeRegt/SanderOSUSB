@@ -18,8 +18,8 @@ gcc -T linker.ld -o myos.bin -m32 -ffreestanding -O2 -nostdlib boot.o kernel.o i
 
 cp myos.bin ../kernel.bin
 cd ..
+nasm programs/*.asm
 rm cdrom.iso
 cd ..
 grub-mkrescue -o SanderOSUSB/cdrom.iso SanderOSUSB
 cd SanderOSUSB
-qemu-system-i386 -kernel kernel.bin

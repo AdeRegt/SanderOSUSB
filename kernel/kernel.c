@@ -19,13 +19,13 @@ void kernel_main(){
 	init_serial();
 	printf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
-	char *filesystemtext = dir("A@");
-	filesystemtext = fread("A@kernel.bin");
-	if(filesystemtext[0]==0x00){
-		printf("Unable to allocate directory\n");
-	}else{
-		printf("We are happy to announce the following filesystems: %s\n",filesystemtext);
-	}
+	char *filesystemtext = dir("@");
+	printf("All available drivers: %s \n",filesystemtext);
+	filesystemtext = dir("A@programs");
+	printf("All available bootdevices: %s \n",filesystemtext);
+	fread("A@programs/voorbeel.",(unsigned char*)0x2000);
+	asm volatile ("call 0x2000");
+	printf("We are happy to announce the following filesystems: %s\n",filesystemtext);
 	for(;;);
 }
 

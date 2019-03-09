@@ -49,6 +49,7 @@ void setNormalInt(unsigned char num,unsigned long base){
 
 extern void isr_common_stub();
 extern void irq_common_stub();
+extern void isr_special_stub();
 
 void fault_handler(){
 	printstring(" -= KERNEL PANIC =- ");
@@ -60,6 +61,14 @@ void fault_handler(){
 void irq_handler(){
 	outportb(0x20, 0x20);
 	
+}
+
+//
+// EAX
+void special_handler(Register *r){
+	outportb(0x20,0x20);
+	outportb(0xA0,0x20);
+        
 }
 
 /* Installs the IDT */
@@ -88,6 +97,7 @@ void init_idt(){
 		idt_set_gate(32+i, (unsigned)irq_common_stub, 0x08, 0x8E);
 	}
     	/* Points the processor's internal register to the new IDT */
+	idt_set_gate(0x80, (unsigned)isr_special_stub, 0x08, 0x8E);
     	idt_load();
     	asm("sti");
 }

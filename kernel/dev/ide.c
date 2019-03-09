@@ -118,9 +118,6 @@ void atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned s
 	atapi_read_sector(ide,lba,count,location);
 }
 
-void atapi_write_raw(Device dev,unsigned long lba,unsigned char count,unsigned short *location){}
-
-void atapi_reset_raw(Device dev){}
 
 void init_ide_device(IDEDevice device){
 	setNormalInt(device.irq,(unsigned long)ideirq);
@@ -218,13 +215,13 @@ void init_ide_device(IDEDevice device){
 				
 				Device *regdev = getNextFreeDevice();
 				
-				regdev->readRawSector 	= &atapi_read_raw;
-				regdev->writeRawSector 	= &atapi_write_raw;
-				regdev->reinitialise 	= &atapi_reset_raw;
-//				regdev->eject 		= atapi_eject_raw;
+				regdev->readRawSector 	= (unsigned long)&atapi_read_raw;
+//				regdev->writeRawSector 	= (unsigned long)&atapi_write_raw;
+//				regdev->reinitialise 	= (unsigned long)&atapi_reset_raw;
+//				regdev->eject 		= (unsigned long)&atapi_eject_raw;
 				
-				regdev->dir		= &iso_9660_dir;
-				regdev->readFile	= &iso_9660_read;
+				regdev->dir		= (unsigned long)&iso_9660_dir;
+				regdev->readFile	= (unsigned long)&iso_9660_read;
 				
 				// .command= 0x1f0,.control=0x3f6,.irq=14,.slave=0
 				regdev->arg1 = device.command;

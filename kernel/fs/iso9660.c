@@ -12,7 +12,7 @@ unsigned long charstoint(unsigned char a,unsigned char b,unsigned char c,unsigne
 
 	unsigned char pathpart[30];
 	unsigned char selfloor = 1;
-	volatile unsigned char* isobuffer = 0x1000;
+	volatile unsigned char* isobuffer = (volatile unsigned char*)0x1000;
 	unsigned long isonameloc = 0;
 	
 unsigned long iso_9660_target(Device *device,char* path){
@@ -60,7 +60,6 @@ unsigned long iso_9660_target(Device *device,char* path){
 	}
 	
 	int found = 0;
-	char prx = 0;
 	int i = 0;
 	for(int y = 0 ; y < 10 ; y++){
 		char ttutA = isobuffer[i+0];
