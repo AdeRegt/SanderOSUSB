@@ -95,6 +95,9 @@ void atapi_read_sector(IDEDevice cdromdevice,unsigned long lba,unsigned char cou
     	getIDEError(cdromdevice);
     	waitForIDEFire();
     	unsigned short size = (((int) inportb(cdromdevice.command+5)) << 8) | (int) (inportb(cdromdevice.command+4));
+//    	if(size!=(count*ATAPI_SECTOR_SIZE)){
+//    		printf("SIZE IS OTHER AS COUNT: EXP %x FND %x ",size,(count*ATAPI_SECTOR_SIZE));
+//    	}
     	while((inportb (cdromdevice.command+7)) & 0x80){}
     	int mp = 0;
     	for (unsigned short i = 0; i < (size / 2); i++) {

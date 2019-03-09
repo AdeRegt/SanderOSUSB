@@ -207,7 +207,9 @@ void iso_9660_read(Device *device,char* path,char *buffer){
 						int bt0k = tocbse+14;
 						unsigned long lba = charstoint(isobuffer[btok],isobuffer[btok+1],isobuffer[btok+2],isobuffer[btok+3]);
 						unsigned long cnt = (charstoint(isobuffer[bt0k],isobuffer[bt0k+1],isobuffer[bt0k+2],isobuffer[bt0k+3])/device->arg5)+1;
-						readraw(device,lba,cnt,(unsigned short *)buffer);
+						for(int q = 0 ; q < cnt ; q++){
+							readraw(device,lba+q,1,(unsigned short *)(buffer+(device->arg5*q)));
+						}
 						return;
 					}
 				}

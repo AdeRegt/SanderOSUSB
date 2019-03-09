@@ -68,7 +68,15 @@ void irq_handler(){
 void special_handler(Register *r){
 	outportb(0x20,0x20);
 	outportb(0xA0,0x20);
-        
+	if(r->eax==0x04){
+		for(int i = 0 ; i < r->edx ; i++){
+			printf("%c",((unsigned char*)r->ecx)[i]);
+		}
+		
+	}else{
+		printf("UNKNOWN SYSCALL %x \n",r->eax);
+		for(;;);
+	}
 }
 
 /* Installs the IDT */
