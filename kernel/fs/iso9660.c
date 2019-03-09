@@ -13,6 +13,7 @@ unsigned long charstoint(unsigned char a,unsigned char b,unsigned char c,unsigne
 	unsigned char pathpart[30];
 	unsigned char selfloor = 1;
 	volatile unsigned char* isobuffer = 0x1000;
+	unsigned long isonameloc = 0;
 	
 unsigned long iso_9660_target(Device *device,char* path){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
@@ -47,6 +48,7 @@ unsigned long iso_9660_target(Device *device,char* path){
 	
 	nextpathelem:
 	tcnt = 0;
+	isonameloc = pathpointer;
 	for(int i = 0 ; i < 30 ; i++){
 		char deze = path[pathpointer++];
 		if(deze==0x00||deze=='/'){
@@ -160,6 +162,55 @@ void iso_9660_dir(Device *device,char* path,char *buffer){
 						buffer[tor++] = isobuffer[(i-t)+z];
 					}
 					gz++;
+				}
+			}
+		}
+		buffer[tor++] = 0x00;
+	}else{
+		buffer[0]=0x00;
+	}
+}
+
+void iso_9660_read(Device *device,char* path,char *buffer){
+	//atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location)
+	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
+	
+	int target = iso_9660_target(device,path);
+	if(target!=0){
+		int tor = 0;
+		int i = 0;
+		int gz = 0;
+		readraw(device,target,1,(unsigned short *)isobuffer);
+		unsigned char* fname = (unsigned char*)(path+isonameloc);
+		for(i = 0 ; i < 1000 ; i++){
+			int t = 2;
+			if(isobuffer[i]==';'&&isobuffer[i+1]=='1'){
+				int fnd = 0;
+				for(int z = 1 ; z < 30 ; z++){
+					if(isobuffer[i-z]==t){
+						fnd = z;
+						break;
+					}
+					t++;
+				}
+				if(fnd){
+					//t -= 2;
+					int w = 0;
+					gz = 1;
+					for(int z = 2 ; z < t ; z++){
+						if(fname[w++]!=isobuffer[(i-t)+z]){
+							gz = 0;
+						}
+					}
+					if(gz){
+						int tocbse = (((i-t)+1)-32);
+						int btok = tocbse+6;
+						int bt0k = tocbse+14;
+						unsigned long lba = charstoint(isobuffer[btok],isobuffer[btok+1],isobuffer[btok+2],isobuffer[btok+3]);
+						unsigned long cnt = (charstoint(isobuffer[bt0k],isobuffer[bt0k+1],isobuffer[bt0k+2],isobuffer[bt0k+3])/device->arg5)+1;
+						readraw(device,lba,cnt,(unsigned short *)buffer);
+						return;
+					}
 				}
 			}
 		}

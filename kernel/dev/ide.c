@@ -7,6 +7,7 @@
 
 extern void ideirq();
 extern void iso_9660_dir();
+extern void iso_9660_read();
 
 volatile int ideXirq = 0;
 void irq_ide(){
@@ -223,12 +224,14 @@ void init_ide_device(IDEDevice device){
 //				regdev->eject 		= atapi_eject_raw;
 				
 				regdev->dir		= &iso_9660_dir;
+				regdev->readFile	= &iso_9660_read;
 				
 				// .command= 0x1f0,.control=0x3f6,.irq=14,.slave=0
 				regdev->arg1 = device.command;
 				regdev->arg2 = device.control;
 				regdev->arg3 = device.irq;
 				regdev->arg4 = device.slave;
+				regdev->arg5 = ATAPI_SECTOR_SIZE;
 			}
 		}
 	}
