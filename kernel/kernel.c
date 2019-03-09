@@ -13,15 +13,19 @@ void kernel_main(){
 	init_timer();
 	printstring("=> PS2...\n");
 	init_ps2();
-//	printstring("=> BLOCKDEVICES...\n");
-//	init_blockdevice();
 	printstring("=> PCI...\n");
 	init_pci();
 	printstring("=> Serial ports...\n");
 	init_serial();
 	printf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
-//	dirdev();
+	char *filesystemtext = dir("A@");
+	filesystemtext = fread("A@kernel.bin");
+	if(filesystemtext[0]==0x00){
+		printf("Unable to allocate directory\n");
+	}else{
+		printf("We are happy to announce the following filesystems: %s\n",filesystemtext);
+	}
 	for(;;);
 }
 
