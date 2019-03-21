@@ -68,13 +68,22 @@ void irq_handler(){
 void special_handler(Register *r){
 	outportb(0x20,0x20);
 	outportb(0xA0,0x20);
-	if(r->eax==0x04){
-		for(int i = 0 ; i < r->edx ; i++){
-			printf("%c",((unsigned char*)r->ecx)[i]);
+	if(r->eax==0x04){ // F-WRITE
+		if(r->ebx==1){ // TO STDOUT
+			for(int i = 0 ; i < r->edx ; i++){
+				printf("%c",((unsigned char*)r->ecx)[i]);
+			}
+		}else{ // TO FILE
+			printf("INT0x80: unknown read (%x)\n",r->ebx);
 		}
-		
+		r->eax=r->edx;
+	}else if(r->eax=0x05){ // OPEN FILE
+		printf("%s \n",(unsigned char*)r->ebx);
+	}else if(r->eax==0x4E){ // GET SYSTEMTIME
+		r->eax=0;
+		printf("INT0x80: asked for systemtime\n");
 	}else{
-		printf("UNKNOWN SYSCALL %x \n",r->eax);
+		printf("INT0x80: UNKNOWN SYSCALL %x \n",r->eax);
 		for(;;);
 	}
 }
