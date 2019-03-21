@@ -29,14 +29,14 @@ char* dir(char* path){
 		if(devices[z].dir==0){
 			
 		}else{
-			void* (*foo)(Device *,char*,char *) = (void*)devices[z].dir;
+			void* (*foo)(Device *,unsigned char*,char *) = (void*)devices[z].dir;
 			foo((Device *)&devices[z],(unsigned char*)&path[2],whoopsie);
 		}
 	}
 	return (char*) whoopsie;
 }
 
-char* fread(char* path){
+void fread(char* path,unsigned char* buffer){
 	for(int i = 0 ; i < 100 ; i++){
 		whoopsie[i] = 0x00;
 	}
@@ -53,9 +53,8 @@ char* fread(char* path){
 		if(devices[z].dir==0){
 			
 		}else{
-			void* (*foo)(Device *,char*,char *) = (void*)devices[z].readFile;
-			foo((Device *)&devices[z],(unsigned char*)&path[2],whoopsie);
+			void* (*foo)(Device *,unsigned char*,unsigned char *) = (void*)devices[z].readFile;
+			foo((Device *)&devices[z],(unsigned char*)&path[2],buffer);
 		}
 	}
-	return (char*) whoopsie;
 }

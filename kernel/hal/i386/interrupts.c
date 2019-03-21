@@ -49,6 +49,7 @@ void setNormalInt(unsigned char num,unsigned long base){
 
 extern void isr_common_stub();
 extern void irq_common_stub();
+extern void isr_special_stub();
 
 void fault_handler(){
 	printstring(" -= KERNEL PANIC =- ");
@@ -60,6 +61,31 @@ void fault_handler(){
 void irq_handler(){
 	outportb(0x20, 0x20);
 	
+}
+
+//
+// EAX
+void special_handler(Register *r){
+	outportb(0x20,0x20);
+	outportb(0xA0,0x20);
+	if(r->eax==0x04){ // F-WRITE
+		if(r->ebx==1){ // TO STDOUT
+			for(int i = 0 ; i < r->edx ; i++){
+				printf("%c",((unsigned char*)r->ecx)[i]);
+			}
+		}else{ // TO FILE
+			printf("INT0x80: unknown read (%x)\n",r->ebx);
+		}
+		r->eax=r->edx;
+	}else if(r->eax=0x05){ // OPEN FILE
+		printf("%s \n",(unsigned char*)r->ebx);
+	}else if(r->eax==0x4E){ // GET SYSTEMTIME
+		r->eax=0;
+		printf("INT0x80: asked for systemtime\n");
+	}else{
+		printf("INT0x80: UNKNOWN SYSCALL %x \n",r->eax);
+		for(;;);
+	}
 }
 
 /* Installs the IDT */
@@ -88,6 +114,7 @@ void init_idt(){
 		idt_set_gate(32+i, (unsigned)irq_common_stub, 0x08, 0x8E);
 	}
     	/* Points the processor's internal register to the new IDT */
+	idt_set_gate(0x80, (unsigned)isr_special_stub, 0x08, 0x8E);
     	idt_load();
     	asm("sti");
 }

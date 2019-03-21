@@ -12,7 +12,7 @@ unsigned long charstoint(unsigned char a,unsigned char b,unsigned char c,unsigne
 
 	unsigned char pathpart[30];
 	unsigned char selfloor = 1;
-	volatile unsigned char* isobuffer = 0x1000;
+	volatile unsigned char* isobuffer = (volatile unsigned char*)0x1000;
 	unsigned long isonameloc = 0;
 	
 unsigned long iso_9660_target(Device *device,char* path){
@@ -60,7 +60,6 @@ unsigned long iso_9660_target(Device *device,char* path){
 	}
 	
 	int found = 0;
-	char prx = 0;
 	int i = 0;
 	for(int y = 0 ; y < 10 ; y++){
 		char ttutA = isobuffer[i+0];
@@ -208,7 +207,9 @@ void iso_9660_read(Device *device,char* path,char *buffer){
 						int bt0k = tocbse+14;
 						unsigned long lba = charstoint(isobuffer[btok],isobuffer[btok+1],isobuffer[btok+2],isobuffer[btok+3]);
 						unsigned long cnt = (charstoint(isobuffer[bt0k],isobuffer[bt0k+1],isobuffer[bt0k+2],isobuffer[bt0k+3])/device->arg5)+1;
-						readraw(device,lba,cnt,(unsigned short *)buffer);
+						for(int q = 0 ; q < cnt ; q++){
+							readraw(device,lba+q,1,(unsigned short *)(buffer+(device->arg5*q)));
+						}
 						return;
 					}
 				}
