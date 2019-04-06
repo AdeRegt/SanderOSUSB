@@ -191,11 +191,12 @@ void init_ide_device(IDEDevice device){
 			printstring("IDE: device does not exist!\n");
 			return;
 		}
-		printstring("IDE: device is ATAPI\n");
-		for(int i = 0 ; i < 256 ; i++){
-			inportw(device.command);
-		}	
 		if(getIDEError(device)==0){
+			printstring("IDE: device is ATAPI\n");
+			for(int i = 0 ; i < 256 ; i++){
+				inportw(device.command);
+			}	
+		
 			unsigned char *buffer = (unsigned char*) 0x2000;
 			atapi_read_sector(device,0,1, (unsigned short *)buffer);
 			if(buffer[510]==0x55&&buffer[511]==0xAA){
@@ -263,6 +264,6 @@ void init_ide(unsigned short BAR){
 	
 	init_ide_device(ata1);
 	init_ide_device(ata2);
-	init_ide_device(ata3);
-	init_ide_device(ata4);
+//	init_ide_device(ata3);
+//	init_ide_device(ata4);
 }

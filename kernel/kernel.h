@@ -24,6 +24,11 @@ void putc(char a);
 void init_video();
 void hexdump(unsigned long msg);
 
+// VIDEO
+int init_graph_vga(int width, int height,int chain4);
+void cls();
+void putpixel(int x,int y, int color);
+
 // GDT
 void init_gdt();
 
