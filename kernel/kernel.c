@@ -19,6 +19,12 @@ void kernel_main(){
 	init_serial();
 	printf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
+	//320,200
+	if(init_graph_vga(320,200,1)==0){
+		printf("VGA: failed to set!\n");
+		for(;;);
+	}
+	cls();
 	char *filesystemtext = dir("@");
 	printf("All available drivers: %s \n",filesystemtext);
 	filesystemtext = dir("A@");
