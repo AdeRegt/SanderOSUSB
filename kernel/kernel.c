@@ -25,6 +25,7 @@ void kernel_main(){
 		for(;;);
 	}
 	cls();
+	printf("kernel created by sander de regt and shashwat shagun");
 	char *filesystemtext = dir("@");
 	printf("All available drivers: %s \n",filesystemtext);
 	filesystemtext = dir("A@");

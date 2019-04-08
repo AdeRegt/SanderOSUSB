@@ -26,6 +26,14 @@ unsigned short pciConfigReadWord (unsigned char bus, unsigned char slot, unsigne
     return (tmp);
 }
 
+unsigned long getBARaddress(int bus,int slot,int function,int barNO){
+	unsigned long result = 0;
+	unsigned long partA = pciConfigReadWord(bus,slot,function,barNO);
+	unsigned long partB = pciConfigReadWord(bus,slot,function,barNO+2);
+	result = ((partB<<16) | ((partA) & 0xffff));
+	return result;
+}
+
 void init_pci(){
 	printstring("PCI: detecting devices....\n");
 	for(int bus = 0 ; bus < 256 ; bus++){
@@ -208,6 +216,12 @@ void init_pci(){
 						printstring("UNKNOWN");
 					}
 					printstring("\n");
+					if(vendor==0x80EE){
+						printstring("VBOX: Guestadditions found!!\n");
+						unsigned long bx = getBARaddress(bus,slot,function,0x10);
+						unsigned char tx = pciConfigReadWord(bus,slot,function,0x3C)&0xFF;
+						init_vbox(bx,tx);
+					}
 				}
 			}
 		}

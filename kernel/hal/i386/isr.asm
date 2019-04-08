@@ -26,6 +26,12 @@ idt_load:
     lidt [idtp]
     ret
     
+global vbirq
+extern irq_vb
+vbirq:
+    call irq_vb
+    iret
+    
 global ideirq
 extern irq_ide
 ideirq:
