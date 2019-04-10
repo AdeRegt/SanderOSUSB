@@ -5,6 +5,10 @@
 Device devices['Z'-'A'];
 int deviceint = 0;
 
+int getDeviceCount(){
+	return deviceint;
+}
+
 Device *getNextFreeDevice(){
 	int now = deviceint;
 	deviceint++;
