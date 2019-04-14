@@ -76,5 +76,4 @@ void init_vbox(unsigned long BAR ,unsigned char irq){
 
 	vbox_mouse->header.requestType = VBOX_REQUEST_GET_MOUSE;
 	
-	for(;;);
 }
