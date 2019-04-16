@@ -17,5 +17,5 @@ void init_xhci(unsigned long BAR1,unsigned long BAR2,unsigned long capabilityreg
 	}
 	xhci_operational_bar = capabilityregs+capoffset;
 	printf("XHCI: status register should be 1 by default and is now %x \n",xhci_readUSBStatusRegister());
-	for(;;);
+	//for(;;);
 }

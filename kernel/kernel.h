@@ -104,7 +104,7 @@ typedef struct{
 Device *getNextFreeDevice();
 char* dir(char* path);
 void fread(char* path,unsigned char* buffer);
-
+int getDeviceCount();
 int iself(unsigned char* buffer);
 unsigned long loadelf(void * buffer);
 

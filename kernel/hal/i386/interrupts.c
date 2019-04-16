@@ -70,15 +70,21 @@ void special_handler(Register *r){
 	outportb(0xA0,0x20);
 	if(r->eax==0x04){ // F-WRITE
 		if(r->ebx==1){ // TO STDOUT
-			for(int i = 0 ; i < r->edx ; i++){
+			for(unsigned int i = 0 ; i < r->edx ; i++){
 				printf("%c",((unsigned char*)r->ecx)[i]);
 			}
 		}else{ // TO FILE
 			printf("INT0x80: unknown read (%x)\n",r->ebx);
 		}
 		r->eax=r->edx;
-	}else if(r->eax=0x05){ // OPEN FILE
-		printf("%s \n",(unsigned char*)r->ebx);
+	}else if(r->eax==0x05){ // OPEN FILE
+		unsigned char* file = ((unsigned char*)r->ebx);
+		printf("INT0x80: Looking for %s \n",file);
+		if(fexists(file)){
+			printf("INT0x80: file exists\n");
+		}else{
+			printf("INT0x80: file NOT exists\n");
+		}
 	}else if(r->eax==0x4E){ // GET SYSTEMTIME
 		r->eax=0;
 		printf("INT0x80: asked for systemtime\n");

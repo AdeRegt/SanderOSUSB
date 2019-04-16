@@ -32,18 +32,24 @@ void kernel_main(){
 		filesystemtext = dir("A@");
 		printf("All available bootdevices: %s \n",filesystemtext);
 		unsigned char* buffer = (unsigned char*)0x2000;
-		fread("A@fasm.",buffer);
-		if(iself(buffer)){
-			printf("ELF: program is ELF!\n");
-			unsigned long gamma = loadelf(buffer);
-			if(gamma==0){
-				printf("ELF: Unable to load ELF!\n");
+		if(fexists("A@fasm.")){
+			fread("A@fasm.",buffer);
+			if(iself(buffer)){
+				printf("ELF: program is ELF!\n");
+				unsigned long gamma = loadelf(buffer);
+				if(gamma==0){
+					printf("ELF: Unable to load ELF!\n");
+				}else{
+					cls();
+					void* (*foo)() = (void*) gamma;
+					foo();
+				}
 			}else{
-				void* (*foo)() = (void*) gamma;
-				foo();
+				cls();
+				asm volatile ("call 0x2000");
 			}
 		}else{
-			asm volatile ("call 0x2000");
+			printf("==END==");
 		}
 	}else{
 		printf("panic: no devices present!\n");

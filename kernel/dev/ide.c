@@ -8,10 +8,10 @@
 extern void ideirq();
 extern void iso_9660_dir();
 extern void iso_9660_read();
+extern char iso_9660_exists();
 
 volatile int ideXirq = 0;
 void irq_ide(){
-	//printstring("IRQ: irq for ide fired!\n");
 	ideXirq = 1;
 	outportb(0x20,0x20);
 	outportb(0xA0,0x20);
@@ -22,7 +22,13 @@ void resetIDEFire(){
 }
 
 void waitForIDEFire(){
-	while(ideXirq==0){}
+	resetTicks();
+	while(ideXirq==0){
+		if(getTicks()==5){
+//			printf("IDE: timeout!\n");
+			break;
+		}
+	}
 }
 
 typedef struct{
@@ -64,18 +70,45 @@ char getIDEError(IDEDevice cdromdevice){
 	return 0;
 }
 
+#define ATA_SR_BSY     0x80    // Busy
+#define ATA_SR_DRDY    0x40    // Drive ready
+#define ATA_SR_DF      0x20    // Drive write fault
+#define ATA_SR_DSC     0x10    // Drive seek complete
+#define ATA_SR_DRQ     0x08    // Data request ready
+#define ATA_SR_CORR    0x04    // Corrected data
+#define ATA_SR_IDX     0x02    // Index
+#define ATA_SR_ERR     0x01    // Error
+
+void ide_wait_for_ready(IDEDevice cdromdevice){
+	unsigned char dev = 0x00;
+	resetTicks();
+	while((dev = inportb (cdromdevice.command+7)) & ATA_SR_BSY){
+		if(dev & ATA_SR_DF){
+			printf("IDE: ERROR1\n");for(;;);
+		}
+		if(dev & ATA_SR_ERR){
+			printf("IDE: ERROR2\n");for(;;);
+		}
+		if(getTicks()==5){
+//			printf("IDE: TIMEOUT\n");
+			break;
+		}
+	}
+}
+
 
 char read_cmd[12] = { 0xA8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-void atapi_eject(IDEDevice cdromdevice){
+void atapi_eject_raw(IDEDevice cdromdevice){
 	getIDEError(cdromdevice);
-    	while((inportb (cdromdevice.command+7)) & 0x80){}
+	
+    	ide_wait_for_ready(cdromdevice);
 	outportb(cdromdevice.command+6,cdromdevice.slave==1?0xB0:0xA0);
     	outportb(cdromdevice.command+1,0x00);
     	outportb(cdromdevice.command+7,0xA0);
     	
     	getIDEError(cdromdevice);
-    	while((inportb (cdromdevice.command+7)) & 0x80){}
+    	ide_wait_for_ready(cdromdevice);
     	
     	read_cmd[ 0] = 0x1B;
     	read_cmd[ 1] = 0x00;
@@ -92,21 +125,23 @@ void atapi_eject(IDEDevice cdromdevice){
     	 
     	resetIDEFire();
     	getIDEError(cdromdevice);
+    	ide_wait_for_ready(cdromdevice);
     	unsigned short *mdx = (unsigned short*)&read_cmd;
     	for(int f = 0 ; f < 6 ; f++){
         	outportw(cdromdevice.command+0,mdx[f]);
     	}
     	getIDEError(cdromdevice);
     	waitForIDEFire();
-    	while((inportb (cdromdevice.command+7)) & 0x80){}
+    	ide_wait_for_ready(cdromdevice);
     	getIDEError(cdromdevice);
-    	while((inportb (cdromdevice.command+7)) & 0x80){}
+    	ide_wait_for_ready(cdromdevice);
 }
 
 void atapi_read_sector(IDEDevice cdromdevice,unsigned long lba,unsigned char count, unsigned short *location){
-	//printf("ATAPI: reading LBA %x and copy to %x \n",lba,location);
+	
 	getIDEError(cdromdevice);
-    	while((inportb (cdromdevice.command+7)) & 0x80){}
+    	ide_wait_for_ready(cdromdevice);
+    	
 	outportb(cdromdevice.command+6,cdromdevice.slave==1?0xB0:0xA0);
     	outportb(cdromdevice.command+1,0x00);
     	outportb(cdromdevice.command+4,ATAPI_SECTOR_SIZE & 0xff);
@@ -114,7 +149,8 @@ void atapi_read_sector(IDEDevice cdromdevice,unsigned long lba,unsigned char cou
     	outportb(cdromdevice.command+7,0xA0);
     	
     	getIDEError(cdromdevice);
-    	while((inportb (cdromdevice.command+7)) & 0x80){}
+    	
+    	ide_wait_for_ready(cdromdevice);
     	
     	read_cmd[9] = count;
     	read_cmd[2] = (lba >> 0x18) & 0xFF;   /* most sig. byte of LBA */
@@ -125,28 +161,24 @@ void atapi_read_sector(IDEDevice cdromdevice,unsigned long lba,unsigned char cou
     	 
     	resetIDEFire();
     	getIDEError(cdromdevice);
+    	ide_wait_for_ready(cdromdevice);
     	unsigned short *mdx = (unsigned short*)&read_cmd;
+    	ide_wait_for_ready(cdromdevice);
     	for(int f = 0 ; f < 6 ; f++){
         	outportw(cdromdevice.command+0,mdx[f]);
     	}
     	getIDEError(cdromdevice);
     	waitForIDEFire();
+    	ide_wait_for_ready(cdromdevice);
     	unsigned short size = (((int) inportb(cdromdevice.command+5)) << 8) | (int) (inportb(cdromdevice.command+4));
-//    	if(size!=(count*ATAPI_SECTOR_SIZE)){
-//    		printf("SIZE IS OTHER AS COUNT: EXP %x FND %x ",size,(count*ATAPI_SECTOR_SIZE));
-//    	}
-    	while((inportb (cdromdevice.command+7)) & 0x80){}
+    	ide_wait_for_ready(cdromdevice);
     	int mp = 0;
     	for (unsigned short i = 0; i < (size / 2); i++) {
     		if(getIDEError(cdromdevice)==1){return;}
+    		ide_wait_for_ready(cdromdevice);
     		location[mp++] = inportw(cdromdevice.command+0);
-//        	unsigned short d = inportw(cdromdevice.command+0);
-//        	unsigned char A = d;
-//        	unsigned char B = (unsigned char)(d >> 8);
-//        	((unsigned char*)location)[mp++] = A;
-//        	((unsigned char*)location)[mp++] = B;
         }
-    	while((inportb (cdromdevice.command+7)) & 0x80){}
+    	ide_wait_for_ready(cdromdevice);
 }
 
 void atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location){
@@ -267,10 +299,11 @@ void init_ide_device(IDEDevice device){
 				regdev->readRawSector 	= (unsigned long)&atapi_read_raw;
 //				regdev->writeRawSector 	= (unsigned long)&atapi_write_raw;
 //				regdev->reinitialise 	= (unsigned long)&atapi_reset_raw;
-//				regdev->eject 		= (unsigned long)&atapi_eject_raw;
+				regdev->eject 		= (unsigned long)&atapi_eject_raw;
 				
 				regdev->dir		= (unsigned long)&iso_9660_dir;
 				regdev->readFile	= (unsigned long)&iso_9660_read;
+				regdev->existsFile	= (unsigned long)&iso_9660_exists;
 				
 				// .command= 0x1f0,.control=0x3f6,.irq=14,.slave=0
 				regdev->arg1 = device.command;
