@@ -176,7 +176,6 @@ char iso_9660_exists(Device *device,char* path){
 	
 	int target = iso_9660_target(device,path);
 	if(target!=0){
-		int tor = 0;
 		int i = 0;
 		int gz = 0;
 		readraw(device,target,1,(unsigned short *)isobuffer);
@@ -248,7 +247,7 @@ void iso_9660_read(Device *device,char* path,char *buffer){
 						int bt0k = tocbse+14;
 						unsigned long lba = charstoint(isobuffer[btok],isobuffer[btok+1],isobuffer[btok+2],isobuffer[btok+3]);
 						unsigned long cnt = (charstoint(isobuffer[bt0k],isobuffer[bt0k+1],isobuffer[bt0k+2],isobuffer[bt0k+3])/device->arg5)+1;
-						for(int q = 0 ; q < cnt ; q++){
+						for(unsigned int q = 0 ; q < cnt ; q++){
 							readraw(device,lba+q,1,(unsigned short *)(buffer+(device->arg5*q)));
 						}
 						return;

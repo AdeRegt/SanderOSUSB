@@ -60,7 +60,7 @@ void fault_handler(){
 
 void irq_handler(){
 	outportb(0x20, 0x20);
-	
+	outportb(0xA0, 0x20);
 }
 
 //

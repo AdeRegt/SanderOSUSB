@@ -26,13 +26,14 @@ void kernel_main(){
 	}
 	cls();
 	printf("kernel created by sander de regt and shashwat shagun\n\n");
+	getch();
 	if(getDeviceCount()){
 		char *filesystemtext = dir("@");
 		printf("All available drivers: %s \n",filesystemtext);
 		filesystemtext = dir("A@");
 		printf("All available bootdevices: %s \n",filesystemtext);
 		unsigned char* buffer = (unsigned char*)0x2000;
-		if(fexists("A@fasm.")){
+		if(fexists((unsigned char*)"A@fasm.")){
 			fread("A@fasm.",buffer);
 			if(iself(buffer)){
 				printf("ELF: program is ELF!\n");

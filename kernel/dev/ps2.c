@@ -75,6 +75,8 @@ volatile int ccr_x = 50;
 volatile int ccr_y = 50;
 volatile int ccr_a = 0;
 volatile int ccr_b = 0;
+volatile int oldx = 0;
+volatile int oldy = 0;
 void irq_mouse(){
 	if(csr_t==0){
 		char A = inportb(PS2_DATA);
@@ -128,22 +130,28 @@ void irq_mouse(){
 		csr_t = 0;
 	}
 	
-	// hardware cursor updaten
-	unsigned temp;
-	csr_x = ccr_x/20;
-	csr_y = ccr_y/20;
-	if(csr_x>75){
-		csr_x = 70;
+	if(isGraphicsMode()){
+		putpixel(oldx,oldy,getpixel(oldx,oldy));
+		putpixel(ccr_x,ccr_y,2);
+		oldx = ccr_x;
+		oldy = ccr_y;
+	}else{
+		// hardware cursor updaten
+		unsigned temp;
+		csr_x = ccr_x/20;
+		csr_y = ccr_y/20;
+		if(csr_x>75){
+			csr_x = 70;
+		}
+		if(csr_y>24){
+			csr_y = 20;
+		}
+	    	temp = csr_y * 80 + csr_x;
+	    	outportb(0x3D4, 14);
+	    	outportb(0x3D5, temp >> 8);
+	    	outportb(0x3D4, 15);
+	    	outportb(0x3D5, temp);
 	}
-	if(csr_y>24){
-		csr_y = 20;
-	}
-    	temp = csr_y * 80 + csr_x;
-    	outportb(0x3D4, 14);
-    	outportb(0x3D5, temp >> 8);
-    	outportb(0x3D4, 15);
-    	outportb(0x3D5, temp);
-	
 	// EOI
 	outportb(0x20,0x20);
 	outportb(0xA0,0x20);
@@ -188,10 +196,13 @@ unsigned char kbdus[128] ={
     0,	/* All other keys are undefined */
 };	
 
+unsigned volatile char keyword = 0;
 void irq_keyboard(){
-	unsigned char x = inportb(PS2_DATA);
+	unsigned volatile char x = inportb(PS2_DATA);
 	if((x&0x80)==0){
-		putc(kbdus[x]);
+		unsigned volatile char tkeyword = kbdus[x];
+		keyword = tkeyword;
+		//((unsigned char*)keyword)[0] = tkeyword;
 	}
 	outportb(0x20,0x20);
 }
@@ -289,6 +300,8 @@ int init_ps2_mouse(){
     	return 0;
 }
 
+char ps2onceagain = 1;
+
 void init_ps2(){
 	char ps2status = getPS2StatusRegisterText();
 	if((ps2status & 0b00000001)>0){
@@ -352,12 +365,23 @@ void init_ps2(){
 		printstring("PS2: keyboard enabled!\n");
 	}else{
 		printstring("PS2: keyboard disabled!\n");
+		for(;;);
 	}
-	if(init_ps2_mouse()){
-		printstring("PS2: mouse enabled!\n");
-	}else{
-		printstring("PS2: mouse disabled!\n");
+	if(ps2onceagain){
+		if(init_ps2_mouse()){
+			printstring("PS2: mouse enabled!\n");
+		}else{
+			printstring("PS2: mouse disabled!\n");
+			ps2onceagain = 0;
+			init_ps2();
+		}
 	}
 	
     	
+}
+
+extern char keywait();
+
+unsigned char getch(){
+	return keywait();
 }

@@ -172,11 +172,11 @@ void init_pci(){
 								printstring("EHCI [USB 2]");
 							}else if(subsub==0x30){
 								printstring("XHCI [USB 3]\n");
-								unsigned long bar1 = getBARaddress(bus,slot,function,0x10);
-								unsigned long bar2 = getBARaddress(bus,slot,function,0x14);
-								unsigned long capabilityregs = bar1+(getBARaddress(bus,slot,function,0x34) & 0xFF);
+//								unsigned long bar1 = getBARaddress(bus,slot,function,0x10);
+//								unsigned long bar2 = getBARaddress(bus,slot,function,0x14);
+//								unsigned long capabilityregs = bar1+(getBARaddress(bus,slot,function,0x34) & 0xFF);
 								
-								init_xhci(bar1,bar2,capabilityregs);
+								//init_xhci(bar1,bar2,capabilityregs);
 							}else if(subsub==0x80){
 								printstring("unspecified");
 							}else if(subsub==0xFE){
@@ -223,9 +223,9 @@ void init_pci(){
 					printstring("\n");
 					if(vendor==0x80EE){
 						printstring("VBOX: Guestadditions found!!\n");
-						unsigned long bx = getBARaddress(bus,slot,function,0x10);
-						unsigned char tx = pciConfigReadWord(bus,slot,function,0x3C)&0xFF;
-						init_vbox(bx,tx);
+						//unsigned long bx = getBARaddress(bus,slot,function,0x10);
+						//unsigned char tx = pciConfigReadWord(bus,slot,function,0x3C)&0xFF;
+						//init_vbox(bx,tx);
 					}
 				}
 			}

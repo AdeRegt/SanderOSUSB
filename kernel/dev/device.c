@@ -40,7 +40,7 @@ char* dir(char* path){
 	return (char*) whoopsie;
 }
 
-char fexists(char* path){
+char fexists(unsigned char* path){
 	for(int i = 0 ; i < 100 ; i++){
 		whoopsie[i] = 0x00;
 	}
@@ -49,8 +49,9 @@ char fexists(char* path){
 		if(devices[z].existsFile==0){
 			return 0;
 		}else{
-			char* (*foo)(Device *,unsigned char*) = (void*)devices[z].existsFile;
-			return foo((Device *)&devices[z],(unsigned char*)&path[2]);
+			void* (*foo)(Device *,unsigned char*) = (void*)devices[z].existsFile;
+			char result = foo((Device *)&devices[z],(unsigned char*)&path[2]);
+			return result;
 		}
 	}else if(path[0]==0x00){
 		return 0;
@@ -60,7 +61,7 @@ char fexists(char* path){
 				if(devices[0].existsFile==0){
 					return 0;
 				}
-				char* (*foo)(Device *,unsigned char*) = (void*)devices[0].existsFile;
+				void* (*foo)(Device *,unsigned char*) = (void*)devices[0].existsFile;
 				return foo((Device *)&devices[0],path);
 			}else{
 				return 0;

@@ -49,6 +49,17 @@ extern irq_keyboard
 keyboardirq:
     call irq_keyboard
     iret
+    
+global keywait
+extern keyword
+keywait:
+mov al,0
+mov [keyword],al
+.again:
+mov al,[keyword]
+cmp al,0
+je .again
+ret
 
 global mouseirq
 extern irq_mouse
