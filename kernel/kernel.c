@@ -17,6 +17,8 @@ void kernel_main(){
 	init_pci();
 	printstring("=> Serial ports...\n");
 	init_serial();
+	printstring("=> APCI...\n");
+	init_acpi();
 	printf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
 	//320,200
