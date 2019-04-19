@@ -15,10 +15,11 @@ gcc -c dev/video.c -m32 -o video.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra |
 gcc -c dev/device.c -m32 -o device.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c dev/xhci.c -m32 -o xhci.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c dev/vbox.c -m32 -o vbox.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
+gcc -c dev/acpi.c -m32 -o acpi.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c fs/iso9660.c -m32 -o iso9660.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c exec/elf.c -m32 -o elf.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 
-gcc -T linker.ld -o myos.bin -m32 -ffreestanding -O2 -nostdlib boot.o kernel.o io_ports.o interrupts.o com_port.o ide.o pci.o memory.o timer.o video.o videoasm.o isr.o ps2.o device.o iso9660.o elf.o vbox.o xhci.o || exit
+gcc -T linker.ld -o myos.bin -m32 -ffreestanding -O2 -nostdlib boot.o kernel.o io_ports.o interrupts.o com_port.o ide.o pci.o memory.o timer.o video.o videoasm.o isr.o ps2.o device.o iso9660.o elf.o vbox.o xhci.o acpi.o || exit
 
 cp myos.bin ../kernel.bin
 cd ..

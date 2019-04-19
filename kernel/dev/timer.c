@@ -18,6 +18,11 @@ void resetTicks(){
 	ticks = 0;
 }
 
+void sleep(int ms){
+	clock=0;
+	while(clock!=ms){}
+}
+
 void irq_timer(){
 	clock++;
 	outportb(0x20,0x20);
