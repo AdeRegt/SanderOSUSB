@@ -77,6 +77,7 @@ volatile int ccr_a = 0;
 volatile int ccr_b = 0;
 volatile int oldx = 0;
 volatile int oldy = 0;
+volatile char oldz =0;
 void irq_mouse(){
 	if(csr_t==0){
 		char A = inportb(PS2_DATA);
@@ -131,7 +132,8 @@ void irq_mouse(){
 	}
 	
 	if(isGraphicsMode()){
-		putpixel(oldx,oldy,getpixel(oldx,oldy));
+		putpixel(oldx,oldy,oldz);
+		oldz = getpixel(ccr_x,ccr_y);
 		putpixel(ccr_x,ccr_y,2);
 		oldx = ccr_x;
 		oldy = ccr_y;
