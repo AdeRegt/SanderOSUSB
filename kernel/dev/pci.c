@@ -45,6 +45,12 @@ void init_pci(){
 					unsigned char classc = (pciConfigReadWord(bus,slot,function,0x0A)>>8)&0xFF;
 					unsigned char sublca = (pciConfigReadWord(bus,slot,function,0x0A))&0xFF;
 					unsigned char subsub = (pciConfigReadWord(bus,slot,function,0x08)>>8)&0xFF;
+					unsigned short subsystemvendor = pciConfigReadWord(bus,slot,function,0x2c) & 0xFFFF;
+					unsigned short subsystemid = pciConfigReadWord(bus,slot,function,0x2e) & 0xFFFF;
+					if(subsystemvendor==0x5006||subsystemid==0x5006){
+						printf("FOUND IT");for(;;);
+					}
+					printf("subvend %x subid %x ",subsystemvendor,subsystemid);
 					if(classc==0x00){
 						printstring("unclassified: ");
 					}else if(classc==0x01){
@@ -171,7 +177,12 @@ void init_pci(){
 							}else if(subsub==0x20){
 								printstring("EHCI [USB 2]");
 							}else if(subsub==0x30){
-								printstring("XHCI [USB 3]");
+								printstring("XHCI [USB 3]\n");
+//								unsigned long bar1 = getBARaddress(bus,slot,function,0x10);
+//								unsigned long bar2 = getBARaddress(bus,slot,function,0x14);
+//								unsigned long capabilityregs = bar1+(getBARaddress(bus,slot,function,0x34) & 0xFF);
+								
+								//init_xhci(bar1,bar2,capabilityregs);
 							}else if(subsub==0x80){
 								printstring("unspecified");
 							}else if(subsub==0xFE){
@@ -218,9 +229,9 @@ void init_pci(){
 					printstring("\n");
 					if(vendor==0x80EE){
 						printstring("VBOX: Guestadditions found!!\n");
-						unsigned long bx = getBARaddress(bus,slot,function,0x10);
-						unsigned char tx = pciConfigReadWord(bus,slot,function,0x3C)&0xFF;
-						init_vbox(bx,tx);
+						//unsigned long bx = getBARaddress(bus,slot,function,0x10);
+						//unsigned char tx = pciConfigReadWord(bus,slot,function,0x3C)&0xFF;
+						//init_vbox(bx,tx);
 					}
 				}
 			}

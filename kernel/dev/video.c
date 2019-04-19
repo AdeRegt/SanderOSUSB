@@ -13,6 +13,10 @@ int cury = 0;
 unsigned char _fontbuffer[4000];
 int isgraphics = 0;
 
+int isGraphicsMode(){
+	return isgraphics;
+}
+
 void init_video(){
 	// set cursor shape
 	outportb(0x3D4, 0x0A);
@@ -894,6 +898,12 @@ void putpixel(int x,int y, int color) {
 	unsigned char* screen = (unsigned char*)0xA0000;
     	unsigned where = x + (y*320);
     	screen[where] = color;
+}
+
+char getpixel(int x,int y){
+	unsigned char* screen = (unsigned char*)0xA0000;
+    	unsigned where = x + (y*320);
+    	return screen[where];
 }
 
 void cls(){

@@ -23,11 +23,13 @@ void printstring(char* msg);
 void putc(char a);
 void init_video();
 void hexdump(unsigned long msg);
+unsigned char getch();
 
 // VIDEO
 int init_graph_vga(int width, int height,int chain4);
 void cls();
 void putpixel(int x,int y, int color);
+int isGraphicsMode();
 
 // GDT
 void init_gdt();
@@ -103,8 +105,9 @@ typedef struct{
 
 Device *getNextFreeDevice();
 char* dir(char* path);
+char fexists(unsigned char* path);
 void fread(char* path,unsigned char* buffer);
-
+int getDeviceCount();
 int iself(unsigned char* buffer);
 unsigned long loadelf(void * buffer);
 
