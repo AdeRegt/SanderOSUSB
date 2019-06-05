@@ -986,7 +986,7 @@ int init_graph_vga(int width, int height,int chain4)
 {
    const byte *w,*h;
    byte val;
-   int a;
+   unsigned int a;
 
    switch(width) {
       case 256: w=width_256; val=R_COM+R_W256; break;

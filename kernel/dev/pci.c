@@ -70,7 +70,8 @@ void init_pci(){
 						}else if(sublca==0x05){
 							printstring(" ATA Controller");
 						}else if(sublca==0x06){
-							printstring(" Serial ATA");
+							printstring(" Serial ATA\n");
+							ahci_init(bus,slot,function);
 						}else if(sublca==0x07){
 							printstring(" Serial attached SCSI");
 						}else if(sublca==0x08){
