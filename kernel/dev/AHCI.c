@@ -400,10 +400,11 @@ int find_cmdslot(HBA_PORT *port)
 	return -1;
 }
  
-int read(HBA_PORT *port, unsigned long startl, unsigned long starth, unsigned long count, unsigned short *buf)
+int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, unsigned long count, unsigned short *buf)
 {
 	port->is = (unsigned long) -1;		// Clear pending interrupt bits
 	int spin = 0; // Spin lock timeout counter
+	int spin2 = 0; // Spin lock timeout counter
 	int slot = find_cmdslot(port);
 	if (slot == -1)
 		return 0;
@@ -438,7 +439,7 @@ int read(HBA_PORT *port, unsigned long startl, unsigned long starth, unsigned lo
  
 	cmdfis->fis_type = FIS_TYPE_REG_H2D;
 	cmdfis->c = 1;	// Command
-	cmdfis->command = 0x20;
+	cmdfis->command = 0x25;
  
 	cmdfis->lba0 = (unsigned char)startl;
 	cmdfis->lba1 = (unsigned char)(startl>>8);
@@ -477,6 +478,11 @@ int read(HBA_PORT *port, unsigned long startl, unsigned long starth, unsigned lo
 			printf("Read disk error\n");
 			return 0;
 		}
+		
+		if(!(spin2 < 10000000)){
+			break;
+		}
+		spin2++;
 	}
  
 	// Check again
@@ -522,11 +528,12 @@ void ahci_init(int bus,int slot,int function){
 				printf("[AHCI] PM detected\n");
 			}else{
 				printf("[AHCI] SATA detected\n");
+				port_rebase(port,i);
+				ahci_ata_read(port,1,1,1,0x1000);
 			}
 		}
 		pi >>= 1;
 		i ++;
 	}
 	printf("[AHCI] End of operation\n");
-	getch();
 }
