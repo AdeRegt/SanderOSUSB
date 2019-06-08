@@ -39,16 +39,6 @@ struct FACP{
    char PM1_CNT_LEN;
 };
 
-int memcmp(unsigned char *str1, unsigned char *str2, int n){
-	int result = 0;
-	for(int i = 0 ; i < n ; i++){
-		if(str1[i]!=str2[i]){
-			return 1;
-		}
-	}
-	return 0;
-}
-
 int acpiCheckHeader(unsigned int *ptr, char *sig){
 	if (memcmp(ptr, sig, 4) == 0){
 		char *checkPtr = (char *) ptr;
@@ -157,7 +147,7 @@ void init_acpi(){
                      					SCI_EN = 1;
 							
 							printf("ACPI: everything is ready!\n");
-                     					return 0;
+                     					return;
                   				} else {
                      					printf("ACPI: \\_S5 parse error.\n");
                   				}

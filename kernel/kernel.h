@@ -10,8 +10,13 @@ unsigned long inportl(unsigned short _port);
 void outportl(unsigned short _port, unsigned long _data);
 void kernel_main();
 
+void sleep(int ms);
+void init_acpi();
+
 // MEMORY
 void *malloc(unsigned long size);
+void *memset(void *str, int c, int n);
+int memcmp( char *str1, char *str2, int n);
 
 // BLOCKDEVICE
 //void init_blockdevice();
@@ -29,6 +34,7 @@ unsigned char getch();
 int init_graph_vga(int width, int height,int chain4);
 void cls();
 void putpixel(int x,int y, int color);
+char getpixel(int x,int y);
 int isGraphicsMode();
 
 // GDT
@@ -50,12 +56,16 @@ void init_ps2();
 
 // PCI
 void init_pci();
+unsigned long getBARaddress(int bus,int slot,int function,int barNO);
 
 // SERIAL
 void init_serial();
 
 // IDE
 void init_ide(unsigned short BAR);
+void init_ide2();
+void ahci_init(int bus,int slot,int function);
+
 
 
 typedef struct{

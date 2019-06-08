@@ -316,6 +316,15 @@ void init_ide_device(IDEDevice device){
 	}
 }
 
+void init_ide2(){
+	init_ide_device(ata1);
+	if(issata==0){
+		init_ide_device(ata2);
+		init_ide_device(ata3);
+		init_ide_device(ata4);
+	}
+}
+
 void init_ide(unsigned short BAR){
 	printstring("IDE: initialisation started!\n");
 	if(BAR & 0x01){

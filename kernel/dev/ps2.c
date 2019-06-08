@@ -211,37 +211,37 @@ void irq_keyboard(){
 
 int init_ps2_keyboard(){
 	
-	// detectie
-	if(!writeToFirstPS2Port(0xF5)){goto error;}
-	if(!waitforps2ok()){goto error;}
-	if(!writeToFirstPS2Port(0xF2)){goto error;}
-	if(!waitforps2ok()){goto error;}
-	resetTicks();
-	while(getPS2ReadyToRead()==0){
-		if(getTicks()==PS2_TIMEOUT){
-			goto error;
-		}
-	}
-	unsigned char a = inportb(PS2_DATA);
-	resetTicks();
-	while(getPS2ReadyToRead()==0){
-		if(getTicks()==PS2_TIMEOUT){
-			goto error;
-		}
-	}
-	unsigned char b = inportb(PS2_DATA);
-	printps2devicetype(a);
-	printps2devicetype(b);
-	
-	if(!writeToFirstPS2Port(0xFF)){goto error;}
-	resetTicks();
-	while(inportb(PS2_DATA)!=0xAA){
-		if(getTicks()==PS2_TIMEOUT){
-			goto error;
-		}
-	}
-	if(!writeToFirstPS2Port(0xF6)){goto error;}
-	if(!waitforps2ok()){goto error;}
+//	// detectie
+//	if(!writeToFirstPS2Port(0xF5)){goto error;}
+//	if(!waitforps2ok()){goto error;}
+//	if(!writeToFirstPS2Port(0xF2)){goto error;}
+//	if(!waitforps2ok()){goto error;}
+//	resetTicks();
+//	while(getPS2ReadyToRead()==0){
+//		if(getTicks()==PS2_TIMEOUT){
+//			goto error;
+//		}
+//	}
+//	unsigned char a = inportb(PS2_DATA);
+//	resetTicks();
+//	while(getPS2ReadyToRead()==0){
+//		if(getTicks()==PS2_TIMEOUT){
+//			goto error;
+//		}
+//	}
+//	unsigned char b = inportb(PS2_DATA);
+//	printps2devicetype(a);
+//	printps2devicetype(b);
+//	
+//	if(!writeToFirstPS2Port(0xFF)){goto error;}
+//	resetTicks();
+//	while(inportb(PS2_DATA)!=0xAA){
+//		if(getTicks()==PS2_TIMEOUT){
+//			goto error;
+//		}
+//	}
+//	if(!writeToFirstPS2Port(0xF6)){goto error;}
+//	if(!waitforps2ok()){goto error;}
 	if(!writeToFirstPS2Port(0xF4)){goto error;}
 	if(!waitforps2ok()){goto error;}
 	
@@ -253,35 +253,27 @@ int init_ps2_keyboard(){
 }
 
 int init_ps2_mouse(){
-	
-	// detectie
-	if(!writeToSecondPS2Port(0xFF)){goto error;}
-	resetTicks();
-	while(inportb(PS2_DATA)!=0xAA){
-		if(getTicks()==PS2_TIMEOUT){
-			goto error;
-		}
-	}
-	if(!writeToSecondPS2Port(0xF5)){goto error;}
-	if(!waitforps2ok()){goto error;}
-	if(!writeToSecondPS2Port(0xF2)){goto error;}
-	if(!waitforps2ok()){goto error;}
-	resetTicks();
-	while(getPS2ReadyToRead()==0){
-		if(getTicks()==PS2_TIMEOUT){
-			goto error;
-		}
-	}
-	unsigned char c = inportb(PS2_DATA);
-	resetTicks();
-	while(getPS2ReadyToRead()==0){
-		if(getTicks()==PS2_TIMEOUT){
-			goto error;
-		}
-	}
-	unsigned char d = inportb(PS2_DATA);
-	printps2devicetype(c);
-	printps2devicetype(d);
+	outportb(0x64,0xA8);
+//	if(!writeToSecondPS2Port(0xF5)){goto error;}
+//	if(!waitforps2ok()){goto error;}
+//	if(!writeToSecondPS2Port(0xF2)){goto error;}
+//	if(!waitforps2ok()){goto error;}
+//	resetTicks();
+//	while(getPS2ReadyToRead()==0){
+//		if(getTicks()==PS2_TIMEOUT){
+//			goto error;
+//		}
+//	}
+//	unsigned char c = inportb(PS2_DATA);
+//	resetTicks();
+//	while(getPS2ReadyToRead()==0){
+//		if(getTicks()==PS2_TIMEOUT){
+//			goto error;
+//		}
+//	}
+//	unsigned char d = inportb(PS2_DATA);
+//	printps2devicetype(c);
+//	printps2devicetype(d);
 	
 	if(!writeToSecondPS2Port(0xFF)){goto error;}
 	resetTicks();
@@ -305,6 +297,18 @@ int init_ps2_mouse(){
 char ps2onceagain = 1;
 
 void init_ps2(){
+	if(init_ps2_keyboard()){
+		printstring("PS2: keyboard enabled!\n");
+	}else{
+		printstring("PS2: keyboard disabled!\n");
+		for(;;);
+	}
+	if(init_ps2_mouse()){
+		printstring("PS2: mouse enabled!\n");
+	}else{
+		printstring("PS2: mouse disabled!\n");
+		for(;;);
+	}
 	char ps2status = getPS2StatusRegisterText();
 	if((ps2status & 0b00000001)>0){
 		printstring("PS2: read buffer full\n");
@@ -347,39 +351,6 @@ void init_ps2(){
 	if((ps2enable & 0b01000000)>0){
 		printstring("PS2: porttranslation enabled\n");
 	}
-	//while(getPS2ReadyToWrite()!=0){}
-	//outportb(PS2_COMMAND,0xAE);
-	//while(getPS2ReadyToRead()==0){
-	//	if(getTicks()>=10){
-	//		printstring("__TIMEOUT__\n");
-	//		break;
-	//	}
-	//}
-	//while(getPS2ReadyToWrite()!=0){}
-	//outportb(PS2_COMMAND,0xA8);
-	//while(getPS2ReadyToRead()==0){
-	//	if(getTicks()>=10){
-	//		printstring("__TIMEOUT__\n");
-	//		break;
-	//	}
-	//}
-	if(init_ps2_keyboard()){
-		printstring("PS2: keyboard enabled!\n");
-	}else{
-		printstring("PS2: keyboard disabled!\n");
-		for(;;);
-	}
-	if(ps2onceagain){
-		if(init_ps2_mouse()){
-			printstring("PS2: mouse enabled!\n");
-		}else{
-			printstring("PS2: mouse disabled!\n");
-			ps2onceagain = 0;
-			init_ps2();
-		}
-	}
-	
-    	
 }
 
 extern char keywait();
