@@ -475,12 +475,13 @@ int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, un
 			break;
 		if (port->is & HBA_PxIS_TFES)	// Task file error
 		{
-			printf("Read disk error\n");
+			printf("AHCI: Read disk error\n");
 			return 0;
 		}
 		
 		if(!(spin2 < 10000000)){
-			break;
+			printf("AHCI: timeout\n");
+			return 0;
 		}
 		spin2++;
 	}
