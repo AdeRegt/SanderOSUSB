@@ -399,102 +399,6 @@ int find_cmdslot(HBA_PORT *port)
 	printf("Cannot find free command list entry\n");
 	return -1;
 }
- 
-int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, unsigned long count, unsigned short *buf)
-{
-	port->is = (unsigned long) -1;		// Clear pending interrupt bits
-	int spin = 0; // Spin lock timeout counter
-	int spin2 = 0; // Spin lock timeout counter
-	int slot = find_cmdslot(port);
-	if (slot == -1)
-		return 0;
- 
-	HBA_CMD_HEADER *cmdheader = (HBA_CMD_HEADER*)port->clb;
-	cmdheader += slot;
-	cmdheader->cfl = sizeof(FIS_REG_H2D)/sizeof(unsigned long);	// Command FIS size
-	cmdheader->w = 0;		// Read from device
-	cmdheader->prdtl = (unsigned short)((count-1)>>4) + 1;	// PRDT entries count
- 
-	HBA_CMD_TBL *cmdtbl = (HBA_CMD_TBL*)(cmdheader->ctba);
-	memset(cmdtbl, 0, sizeof(HBA_CMD_TBL) +
- 		(cmdheader->prdtl-1)*sizeof(HBA_PRDT_ENTRY));
- 
-	// 8K bytes (16 sectors) per PRDT
-	int i = 0;
-	for (i=0; i<cmdheader->prdtl-1; i++)
-	{
-		cmdtbl->prdt_entry[i].dba = (unsigned long) buf;
-		cmdtbl->prdt_entry[i].dbc = 8*1024-1;	// 8K bytes (this value should always be set to 1 less than the actual value)
-		cmdtbl->prdt_entry[i].i = 1;
-		buf += 4*1024;	// 4K words
-		count -= 16;	// 16 sectors
-	}
-	// Last entry
-	cmdtbl->prdt_entry[i].dba = (unsigned long) buf;
-	cmdtbl->prdt_entry[i].dbc = (count<<9)-1;	// 512 bytes per sector
-	cmdtbl->prdt_entry[i].i = 1;
- 
-	// Setup command
-	FIS_REG_H2D *cmdfis = (FIS_REG_H2D*)(&cmdtbl->cfis);
- 
-	cmdfis->fis_type = FIS_TYPE_REG_H2D;
-	cmdfis->c = 1;	// Command
-	cmdfis->command = 0x25;
- 
-	cmdfis->lba0 = (unsigned char)startl;
-	cmdfis->lba1 = (unsigned char)(startl>>8);
-	cmdfis->lba2 = (unsigned char)(startl>>16);
-	cmdfis->device = 1<<6;	// LBA mode
- 
-	cmdfis->lba3 = (unsigned char)(startl>>24);
-	cmdfis->lba4 = (unsigned char)starth;
-	cmdfis->lba5 = (unsigned char)(starth>>8);
- 
-	cmdfis->countl = count & 0xFF;
-	cmdfis->counth = (count >> 8) & 0xFF;
- 
-	// The below loop waits until the port is no longer busy before issuing a new command
-	while ((port->tfd & (ATA_DEV_BUSY | ATA_DEV_DRQ)) && spin < 1000000)
-	{
-		spin++;
-	}
-	if (spin == 1000000)
-	{
-		printf("Port is hung\n");
-		return 0;
-	}
- 
-	port->ci = 1<<slot;	// Issue command
- 
-	// Wait for completion
-	while (1)
-	{
-		// In some longer duration reads, it may be helpful to spin on the DPS bit 
-		// in the PxIS port field as well (1 << 5)
-		if ((port->ci & (1<<slot)) == 0) 
-			break;
-		if (port->is & HBA_PxIS_TFES)	// Task file error
-		{
-			printf("AHCI: Read disk error\n");
-			return 0;
-		}
-		
-		if(!(spin2 < 10000000)){
-			printf("AHCI: timeout\n");
-			return 0;
-		}
-		spin2++;
-	}
- 
-	// Check again
-	if (port->is & HBA_PxIS_TFES)
-	{
-		printf("Read disk error\n");
-		return 0;
-	}
- 
-	return 1;
-}
 
 void ahci_init(int bus,int slot,int function){
 	unsigned long bar0 = getBARaddress(bus,slot,function,0x10);
@@ -530,7 +434,6 @@ void ahci_init(int bus,int slot,int function){
 			}else{
 				printf("[AHCI] SATA detected\n");
 				port_rebase(port,i);
-				ahci_ata_read(port,1,1,1,0x1000);
 			}
 		}
 		pi >>= 1;

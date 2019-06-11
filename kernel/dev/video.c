@@ -1,5 +1,221 @@
 #include "../kernel.h"
 unsigned char* videomemory = (unsigned char*)0xb8000;
+
+typedef struct{
+	unsigned char isActive;
+	unsigned char isDrawable;
+	unsigned char isSelected;
+	unsigned char hasFocus;
+	unsigned long draw;
+	unsigned short x;
+	unsigned short y;
+	unsigned short w;
+	unsigned short h;
+	unsigned long value;
+	unsigned long onSelected;
+	unsigned long onFocus;
+	unsigned char isController;
+}GUIControlObject;
+
+#define MAXGUIOBJ 20
+GUIControlObject guiobjects[MAXGUIOBJ];
+int selectId = 0;
+
+void draw(){
+	cls();
+	for(int i = 0 ;  i < MAXGUIOBJ ; i++){
+		if(guiobjects[i].isActive==1){
+			if(guiobjects[i].isDrawable==1){
+				if(guiobjects[i].draw!=0){
+					void (*foo)(GUIControlObject o) = (void *)guiobjects[i].draw;
+					foo(guiobjects[i]);
+				}
+			}
+		}
+	}
+}
+
+void previousFocus(){
+	for(int i = 0 ;  i < MAXGUIOBJ ; i++){
+		if(guiobjects[i].isActive==1){
+			if(guiobjects[i].isDrawable==1){
+				if(guiobjects[i].isController==1){
+					if(guiobjects[i].isSelected){
+						guiobjects[i].isSelected = 0;
+						i--;
+						for(int y = i ;  y >-1 ; y--){
+							if(guiobjects[y].isActive==1){
+								if(guiobjects[y].isDrawable==1){
+									if(guiobjects[y].isController==1){
+										guiobjects[y].isSelected = 1;
+										return;
+									}
+								}
+							}
+						}
+						i++;
+						guiobjects[i].isSelected = 1;
+					}
+				}
+			}
+		}
+	}
+}
+
+void nextFocus(){
+	for(int i = 0 ;  i < MAXGUIOBJ ; i++){
+		if(guiobjects[i].isActive==1){
+			if(guiobjects[i].isDrawable==1){
+				if(guiobjects[i].isController==1){
+					if(guiobjects[i].isSelected){
+						guiobjects[i].isSelected = 0;
+						i++;
+						for(int y = i ;  y < MAXGUIOBJ ; y++){
+							if(guiobjects[y].isActive==1){
+								if(guiobjects[y].isDrawable==1){
+									if(guiobjects[y].isController==1){
+										guiobjects[y].isSelected = 1;
+										return;
+									}
+								}
+							}
+						}
+						i--;
+						guiobjects[i].isSelected = 1;
+					}
+				}
+			}
+		}
+	}
+}
+
+unsigned long getSelectedItem(){
+	for(int i = 0 ;  i < MAXGUIOBJ ; i++){
+		if(guiobjects[i].isActive==1){
+			if(guiobjects[i].isDrawable==1){
+				if(guiobjects[i].isController==1){
+					if(guiobjects[i].isSelected){
+						return guiobjects[i].value;
+					}
+				}
+			}
+		}
+	}
+	return 0;
+}
+
+unsigned long show(){
+	// alleen 1 aantekenen
+	for(int i = 0 ;  i < MAXGUIOBJ ; i++){
+		if(guiobjects[i].isActive==1){
+			if(guiobjects[i].isDrawable==1){
+				if(guiobjects[i].isController==1){
+					guiobjects[i].isSelected = 1;
+					break;
+				}
+			}
+		}
+	}
+	// leeg maken
+	draw();
+	while(1){
+		InputStatus IS = getInputStatus();
+		if(IS.keyPressed){
+			if(IS.keyPressed=='\n'){
+				return getSelectedItem();
+			}else if(IS.keyPressed=='a'){
+				previousFocus();
+			}else if(IS.keyPressed=='d'){
+				nextFocus();
+			}
+			draw();
+		}
+	}
+}
+
+void drawRect(GUIControlObject o){
+	for(int x = 0 ; x < o.w ; x++){
+		for(int y = 0 ; y < o.h ; y++){
+			putpixel(o.x+x,o.y+y,0x04);
+		}
+	}
+}
+
+void drawString(GUIControlObject o){
+	unsigned char* msg = (unsigned char*) o.value;
+	unsigned char deze;
+	int i = 0;
+	int i2 = 0;
+	while((deze = msg[i++])!=0x00){
+		if((o.x+((i2+1)*8))>(o.x+o.w)){
+			o.y += 8;
+			i2 = 0;
+		}
+		drawcharraw(deze,o.x+(i2*8),o.y,0x06,0x04);
+		i2++;
+	}
+}
+
+void drawButton(GUIControlObject o){
+	unsigned char* msg = (unsigned char*) o.value;
+	unsigned char deze;
+	int i = 0;
+	int i2 = 0;
+	for(int x = 0 ; x < o.w ; x++){
+		for(int y = 0 ; y < o.h ; y++){
+			putpixel(o.x+x,o.y+y,o.isSelected?0x50:0x10);
+		}
+	}
+	
+	while((deze = msg[i++])!=0x00){
+		if((o.x+2+((i2+1)*8))>(o.x+o.w)){
+			o.y += 8;
+			i2 = 0;
+		}
+		drawcharraw(deze,o.x+2+(i2*8),o.y+2,0x06,o.isSelected?0x50:0x10);//4
+		i2++;
+	}
+}
+
+char confirm(unsigned char *message){
+	unsigned char *okmessage = "OK";
+	unsigned char *cancelmessage = "CANCEL";
+	freeGui();
+	addController(1,(unsigned long)&drawRect,10,70,300,100,0,0,0,0);
+	addController(1,(unsigned long)&drawString,20,100,280,100,message,0,0,0);
+	addController(1,(unsigned long)&drawButton,50,150,50,15,okmessage,0,0,1);
+	addController(1,(unsigned long)&drawButton,110,150,50,15,cancelmessage,0,0,1);
+	return memcmp((unsigned char*)show(),(unsigned char*)okmessage,2)==0;
+}
+
+void freeGui(){
+	for(int i = 0 ; i < MAXGUIOBJ ; i++){
+		guiobjects[i].isActive = 0;
+	}
+	selectId = 0;
+}
+
+int getFreeGui(){
+	return selectId;
+}
+
+void addController(unsigned char drawable,unsigned long drawablefunc,unsigned short x,unsigned short y,unsigned short w,unsigned short h,unsigned long value,unsigned long onSelected,unsigned long onFocus,unsigned char controller){
+	guiobjects[selectId].isActive = 1;
+	guiobjects[selectId].isDrawable = drawable;
+	guiobjects[selectId].isSelected = 0;
+	guiobjects[selectId].hasFocus = 0;
+	guiobjects[selectId].draw = drawablefunc;
+	guiobjects[selectId].x = x;
+	guiobjects[selectId].y = y;
+	guiobjects[selectId].w = w;
+	guiobjects[selectId].h = h;
+	guiobjects[selectId].value = value;
+	guiobjects[selectId].onSelected = onSelected;
+	guiobjects[selectId].onFocus = onFocus;
+	guiobjects[selectId].isController = controller;
+	selectId++;
+}
+
 //
 // STRING
 //
@@ -686,10 +902,9 @@ unsigned char font[4000] = {
 0b01111111,
 };
 
-void drawchar(unsigned char c, int x, int y, int fgcolor, int bgcolor)
+void drawcharraw(unsigned char c, int offsetX, int offsetY, int fgcolor, int bgcolor)
 {
-	int offsetX = x*8;
-	int offsetY = y*7;
+	
 	int selector = (c-'0')*6;
 	for(int i = 0 ; i < 6 ; i++){
 		if(font[selector+i] & 0b10000000){
@@ -733,6 +948,14 @@ void drawchar(unsigned char c, int x, int y, int fgcolor, int bgcolor)
 			putpixel(offsetX+7,offsetY+i,bgcolor);
 		}
 	}
+}
+
+void drawchar(unsigned char c, int x, int y, int fgcolor, int bgcolor)
+{
+	int offsetX = x*8;
+	int offsetY = y*7;
+	drawcharraw(c,offsetX,offsetY,fgcolor,bgcolor);
+	
 }
 
 void putc(char a){

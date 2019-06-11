@@ -60,7 +60,7 @@ void init_vbox(unsigned long BAR ,unsigned char irq){
 	guest_info->version = VBOX_VMMDEV_VERSION;
 	guest_info->ostype = 0;
 	
-	outportl(vbox_port, &hdr);
+	outportl(vbox_port, (unsigned long)&hdr);
 	
 	vbox_mouse = (struct vbox_mouse_absolute *)&vbox_mouse_phys;
 	vbox_mouse->header.size = sizeof(struct vbox_mouse_absolute);

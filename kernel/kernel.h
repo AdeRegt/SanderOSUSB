@@ -30,12 +30,24 @@ void init_video();
 void hexdump(unsigned long msg);
 unsigned char getch();
 
+typedef struct{
+	int mouse_x;
+	int mouse_y;
+	int mouse_z;
+	int mousePressed;
+	int keyPressed;
+}InputStatus;
+InputStatus getInputStatus();
+
 // VIDEO
 int init_graph_vga(int width, int height,int chain4);
 void cls();
 void putpixel(int x,int y, int color);
 char getpixel(int x,int y);
 int isGraphicsMode();
+void addController(unsigned char drawable,unsigned long drawablefunc,unsigned short x,unsigned short y,unsigned short w,unsigned short h,unsigned long value,unsigned long onSelected,unsigned long onFocus,unsigned char controller);
+void draw();
+unsigned long show();
 
 // GDT
 void init_gdt();

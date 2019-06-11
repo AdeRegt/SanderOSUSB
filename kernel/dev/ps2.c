@@ -78,6 +78,7 @@ volatile int ccr_b = 0;
 volatile int oldx = 0;
 volatile int oldy = 0;
 volatile char oldz =0;
+volatile int clck = 0;
 void irq_mouse(){
 	if(csr_t==0){
 		char A = inportb(PS2_DATA);
@@ -93,11 +94,12 @@ void irq_mouse(){
 		csr_t = 1;
 	}else if(csr_t==1){
 		char A = inportb(PS2_DATA);
+		clck = 0;
 		if((A & 0b00000001)>0){
-			printstring("_LEFT");
+			printstring("_LEFT");clck = 1;
 		}
 		if((A & 0b00000010)>0){
-			printstring("_RIGHT");
+			printstring("_RIGHT");clck = 2;
 		}
 		if((A & 0b00000100)>0){
 			printstring("_MIDDLE");
@@ -210,38 +212,7 @@ void irq_keyboard(){
 }
 
 int init_ps2_keyboard(){
-	
-//	// detectie
-//	if(!writeToFirstPS2Port(0xF5)){goto error;}
-//	if(!waitforps2ok()){goto error;}
-//	if(!writeToFirstPS2Port(0xF2)){goto error;}
-//	if(!waitforps2ok()){goto error;}
-//	resetTicks();
-//	while(getPS2ReadyToRead()==0){
-//		if(getTicks()==PS2_TIMEOUT){
-//			goto error;
-//		}
-//	}
-//	unsigned char a = inportb(PS2_DATA);
-//	resetTicks();
-//	while(getPS2ReadyToRead()==0){
-//		if(getTicks()==PS2_TIMEOUT){
-//			goto error;
-//		}
-//	}
-//	unsigned char b = inportb(PS2_DATA);
-//	printps2devicetype(a);
-//	printps2devicetype(b);
-//	
-//	if(!writeToFirstPS2Port(0xFF)){goto error;}
-//	resetTicks();
-//	while(inportb(PS2_DATA)!=0xAA){
-//		if(getTicks()==PS2_TIMEOUT){
-//			goto error;
-//		}
-//	}
-//	if(!writeToFirstPS2Port(0xF6)){goto error;}
-//	if(!waitforps2ok()){goto error;}
+
 	if(!writeToFirstPS2Port(0xF4)){goto error;}
 	if(!waitforps2ok()){goto error;}
 	
@@ -254,26 +225,6 @@ int init_ps2_keyboard(){
 
 int init_ps2_mouse(){
 	outportb(0x64,0xA8);
-//	if(!writeToSecondPS2Port(0xF5)){goto error;}
-//	if(!waitforps2ok()){goto error;}
-//	if(!writeToSecondPS2Port(0xF2)){goto error;}
-//	if(!waitforps2ok()){goto error;}
-//	resetTicks();
-//	while(getPS2ReadyToRead()==0){
-//		if(getTicks()==PS2_TIMEOUT){
-//			goto error;
-//		}
-//	}
-//	unsigned char c = inportb(PS2_DATA);
-//	resetTicks();
-//	while(getPS2ReadyToRead()==0){
-//		if(getTicks()==PS2_TIMEOUT){
-//			goto error;
-//		}
-//	}
-//	unsigned char d = inportb(PS2_DATA);
-//	printps2devicetype(c);
-//	printps2devicetype(d);
 	
 	if(!writeToSecondPS2Port(0xFF)){goto error;}
 	resetTicks();
@@ -351,6 +302,18 @@ void init_ps2(){
 	if((ps2enable & 0b01000000)>0){
 		printstring("PS2: porttranslation enabled\n");
 	}
+}
+
+InputStatus getInputStatus(){
+	InputStatus is;
+	is.mouse_x		= ccr_x;
+	is.mouse_y		= ccr_y;
+	is.mouse_z		= 0xCD;
+	is.mousePressed		= clck;
+	is.keyPressed		= keyword;
+	keyword = 0x00;
+	clck	= 0x00;
+	return is;
 }
 
 extern char keywait();
