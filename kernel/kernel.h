@@ -12,6 +12,7 @@ void kernel_main();
 
 void sleep(int ms);
 void init_acpi();
+void poweroff();
 
 // MEMORY
 void *malloc(unsigned long size);
@@ -29,6 +30,11 @@ void putc(char a);
 void init_video();
 void hexdump(unsigned long msg);
 unsigned char getch();
+
+#define VK_UP 0xCB
+#define VK_LEFT 0xCC
+#define VK_RIGHT 0xCD
+#define VK_DOWN 0xCE
 
 typedef struct{
 	int mouse_x;
@@ -48,6 +54,7 @@ int isGraphicsMode();
 void addController(unsigned char drawable,unsigned long drawablefunc,unsigned short x,unsigned short y,unsigned short w,unsigned short h,unsigned long value,unsigned long onSelected,unsigned long onFocus,unsigned char controller);
 void draw();
 unsigned long show();
+char confirm(char *message);
 
 // GDT
 void init_gdt();

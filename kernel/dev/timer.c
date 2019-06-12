@@ -7,7 +7,7 @@
 
 extern void timerirq();
 
-int clock = 0;
+volatile int clock = 0;
 volatile int ticks = 0;
 
 int getTicks(){

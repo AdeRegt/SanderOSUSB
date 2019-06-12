@@ -35,6 +35,20 @@ void draw(){
 	}
 }
 
+void unfocus(){
+	for(int i = 0 ;  i < MAXGUIOBJ ; i++){
+		if(guiobjects[i].isActive==1){
+			if(guiobjects[i].isDrawable==1){
+				if(guiobjects[i].isController==1){
+					if(guiobjects[i].isSelected){
+						guiobjects[i].isSelected = 0;
+					}
+				}
+			}
+		}
+	}
+}
+
 void previousFocus(){
 	for(int i = 0 ;  i < MAXGUIOBJ ; i++){
 		if(guiobjects[i].isActive==1){
@@ -123,13 +137,39 @@ unsigned long show(){
 		if(IS.keyPressed){
 			if(IS.keyPressed=='\n'){
 				return getSelectedItem();
-			}else if(IS.keyPressed=='a'){
+			}else if(IS.keyPressed==VK_LEFT||IS.keyPressed==VK_UP){
 				previousFocus();
-			}else if(IS.keyPressed=='d'){
+			}else if(IS.keyPressed==VK_RIGHT||IS.keyPressed==VK_DOWN){
 				nextFocus();
 			}
 			draw();
 		}
+		if(IS.mousePressed){
+			for(int i = 0 ;  i < MAXGUIOBJ ; i++){
+				if(guiobjects[i].isActive==1){
+					if(guiobjects[i].isDrawable==1){
+						if(guiobjects[i].isController==1){
+							int aX = guiobjects[i].x;
+							int aY = guiobjects[i].y;
+							int bX = aX + guiobjects[i].w;
+							int bY = aY + guiobjects[i].h;
+							if((aX<IS.mouse_x&&bX>IS.mouse_x)&&(aY<IS.mouse_y&&bY>IS.mouse_y)){
+								if(guiobjects[i].isSelected){
+									return getSelectedItem();
+								}else{
+									unfocus();
+									guiobjects[i].isSelected = 1;
+									draw();
+								}
+							}
+						}
+					}
+				}
+			}
+			
+		}
+		resetTicks();
+		while(getTicks()!=2){}
 	}
 }
 
@@ -151,7 +191,9 @@ void drawString(GUIControlObject o){
 			o.y += 8;
 			i2 = 0;
 		}
-		drawcharraw(deze,o.x+(i2*8),o.y,0x06,0x04);
+		if(deze!=' '){
+			drawcharraw(deze,o.x+(i2*8),o.y,0x06,0x04);
+		}
 		i2++;
 	}
 }
@@ -172,12 +214,14 @@ void drawButton(GUIControlObject o){
 			o.y += 8;
 			i2 = 0;
 		}
-		drawcharraw(deze,o.x+2+(i2*8),o.y+2,0x06,o.isSelected?0x50:0x10);//4
+		if(deze!=' '){
+			drawcharraw(deze,o.x+2+(i2*8),o.y+2,0x06,o.isSelected?0x50:0x10);//4
+		}
 		i2++;
 	}
 }
 
-char confirm(unsigned char *message){
+char confirm(char *message){
 	unsigned char *okmessage = "OK";
 	unsigned char *cancelmessage = "CANCEL";
 	freeGui();

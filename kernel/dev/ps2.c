@@ -10,6 +10,7 @@
 #define PS2_COMMAND 0x64
 #define PS2_TIMEOUT 10
 
+
 char getPS2StatusRegisterText(){
 	return inportb(PS2_STATUS);
 }
@@ -79,6 +80,7 @@ volatile int oldx = 0;
 volatile int oldy = 0;
 volatile char oldz =0;
 volatile int clck = 0;
+
 void irq_mouse(){
 	if(csr_t==0){
 		char A = inportb(PS2_DATA);
@@ -94,15 +96,16 @@ void irq_mouse(){
 		csr_t = 1;
 	}else if(csr_t==1){
 		char A = inportb(PS2_DATA);
-		clck = 0;
 		if((A & 0b00000001)>0){
-			printstring("_LEFT");clck = 1;
+			printf("_LEFT");
+			clck = 1;
 		}
 		if((A & 0b00000010)>0){
-			printstring("_RIGHT");clck = 2;
+			printf("_RIGHT");
+			clck = 2;
 		}
 		if((A & 0b00000100)>0){
-			printstring("_MIDDLE");
+			printf("_MIDDLE");
 			ccr_x = 50;
 			ccr_y = 50;
 			csr_y = 12;
@@ -133,29 +136,29 @@ void irq_mouse(){
 		csr_t = 0;
 	}
 	
-	if(isGraphicsMode()){
+//	if(isGraphicsMode()){
 		putpixel(oldx,oldy,oldz);
 		oldz = getpixel(ccr_x,ccr_y);
 		putpixel(ccr_x,ccr_y,2);
 		oldx = ccr_x;
 		oldy = ccr_y;
-	}else{
-		// hardware cursor updaten
-		unsigned temp;
-		csr_x = ccr_x/20;
-		csr_y = ccr_y/20;
-		if(csr_x>75){
-			csr_x = 70;
-		}
-		if(csr_y>24){
-			csr_y = 20;
-		}
-	    	temp = csr_y * 80 + csr_x;
-	    	outportb(0x3D4, 14);
-	    	outportb(0x3D5, temp >> 8);
-	    	outportb(0x3D4, 15);
-	    	outportb(0x3D5, temp);
-	}
+//	}else{
+//		// hardware cursor updaten
+//		unsigned temp;
+//		csr_x = ccr_x/20;
+//		csr_y = ccr_y/20;
+//		if(csr_x>75){
+//			csr_x = 70;
+//		}
+//		if(csr_y>24){
+//			csr_y = 20;
+//		}
+//	    	temp = csr_y * 80 + csr_x;
+//	    	outportb(0x3D4, 14);
+//	    	outportb(0x3D5, temp >> 8);
+//	    	outportb(0x3D4, 15);
+//	    	outportb(0x3D5, temp);
+//	}
 	// EOI
 	outportb(0x20,0x20);
 	outportb(0xA0,0x20);
@@ -182,15 +185,15 @@ unsigned char kbdus[128] ={
     0,	/* 69 - Num lock*/
     0,	/* Scroll Lock */
     0,	/* Home key */
-    0,	/* Up Arrow */
+    VK_UP,	/* Up Arrow */
     0,	/* Page Up */
   '-',
-    0,	/* Left Arrow */
+    VK_LEFT,	/* Left Arrow */
     0,
-    0,	/* Right Arrow */
+    VK_RIGHT,	/* Right Arrow */
   '+',
     0,	/* 79 - End key*/
-    0,	/* Down Arrow */
+    VK_DOWN,	/* Down Arrow */
     0,	/* Page Down */
     0,	/* Insert Key */
     0,	/* Delete Key */

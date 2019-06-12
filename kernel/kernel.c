@@ -27,8 +27,8 @@ void kernel_main(){
 		for(;;);
 	}
 	if(confirm("kernel created by sander de regt and shashwat shagun")==0){
-		printf("yield");
-		getch();
+		init_acpi();
+		poweroff();
 	}
 	if(getDeviceCount()){
 		char *filesystemtext = dir("@");
