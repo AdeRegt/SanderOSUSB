@@ -40,7 +40,7 @@ struct FACP{
 };
 
 int acpiCheckHeader(unsigned int *ptr, char *sig){
-	if (memcmp(ptr, sig, 4) == 0){
+	if (memcmp((void *)ptr, sig, 4) == 0){
 		char *checkPtr = (char *) ptr;
 		int len = *(ptr + 1);
 		char check = 0;
@@ -59,9 +59,9 @@ unsigned int acpiCheckRSDPtr(unsigned int *ptr){
 	struct RSDPtr *rsdp = (struct RSDPtr *) ptr;
 	char *bptr;
 	char check = 0;
-	int i;
+	unsigned int i;
 
-	if (memcmp(sig, rsdp, 8) == 0){
+	if (memcmp(sig, (void *)rsdp, 8) == 0){
 		// check checksum rsdpd
 		bptr = (char *) ptr;
 		for (i=0; i<sizeof(struct RSDPtr); i++){
@@ -70,7 +70,7 @@ unsigned int acpiCheckRSDPtr(unsigned int *ptr){
 		}
 		// found valid rsdpd   
 		if (check == 0) {
-         		return (unsigned int *) rsdp->RsdtAddress;
+         		return (unsigned int) rsdp->RsdtAddress;
       		}
 	}
 	return 0;
@@ -80,7 +80,7 @@ void init_acpi(){
 	unsigned int *addr;
 	unsigned int *rsdp;
 	for (addr = (unsigned int *) 0x000E0000; (int) addr<0x00100000; addr += 0x10/sizeof(addr)){
-		rsdp = acpiCheckRSDPtr(addr);
+		rsdp = (unsigned int *)acpiCheckRSDPtr(addr);
 		if(rsdp!=0){
 			goto success;
 		}
@@ -89,7 +89,7 @@ void init_acpi(){
 	int ebda = *((short *) 0x40E);
 	ebda = ebda*0x10 &0x000FFFFF;
 	for (addr = (unsigned int *) ebda; (int) addr<ebda+1024; addr+= 0x10/sizeof(addr)){
-		rsdp = acpiCheckRSDPtr(addr);
+		rsdp = (unsigned int *)acpiCheckRSDPtr(addr);
 		if(rsdp!=0){
 			goto success;
 		}

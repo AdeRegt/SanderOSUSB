@@ -29,6 +29,7 @@ void printstring(char* msg);
 void putc(char a);
 void init_video();
 void hexdump(unsigned long msg);
+void drawcharraw(unsigned char c, int offsetX, int offsetY, int fgcolor, int bgcolor);
 unsigned char getch();
 
 #define VK_UP 0xCB
@@ -55,6 +56,7 @@ void addController(unsigned char drawable,unsigned long drawablefunc,unsigned sh
 void draw();
 unsigned long show();
 char confirm(char *message);
+void freeGui();
 
 // GDT
 void init_gdt();

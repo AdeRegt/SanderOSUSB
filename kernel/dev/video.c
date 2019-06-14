@@ -222,14 +222,14 @@ void drawButton(GUIControlObject o){
 }
 
 char confirm(char *message){
-	unsigned char *okmessage = "OK";
-	unsigned char *cancelmessage = "CANCEL";
+	char *okmessage = "OK";
+	char *cancelmessage = "CANCEL";
 	freeGui();
 	addController(1,(unsigned long)&drawRect,10,70,300,100,0,0,0,0);
-	addController(1,(unsigned long)&drawString,20,100,280,100,message,0,0,0);
-	addController(1,(unsigned long)&drawButton,50,150,50,15,okmessage,0,0,1);
-	addController(1,(unsigned long)&drawButton,110,150,50,15,cancelmessage,0,0,1);
-	return memcmp((unsigned char*)show(),(unsigned char*)okmessage,2)==0;
+	addController(1,(unsigned long)&drawString,20,100,280,100,(unsigned long)message,0,0,0);
+	addController(1,(unsigned long)&drawButton,50,150,50,15,(unsigned long)okmessage,0,0,1);
+	addController(1,(unsigned long)&drawButton,110,150,50,15,(unsigned long)cancelmessage,0,0,1);
+	return memcmp((char*)show(),(char*)okmessage,2)==0;
 }
 
 void freeGui(){
