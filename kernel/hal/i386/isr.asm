@@ -64,7 +64,9 @@ ret
 global mouseirq
 extern irq_mouse
 mouseirq:
+	
 	call irq_mouse
+	
     iret
     
 

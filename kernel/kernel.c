@@ -26,9 +26,10 @@ void kernel_main(){
 		printf("VGA: failed to set!\n");
 		for(;;);
 	}
-	cls();
-	printf("kernel created by sander de regt and shashwat shagun\n\n");
-	getch();
+	if(confirm("kernel created by sander de regt and shashwat shagun")==0){
+		init_acpi();
+		poweroff();
+	}
 	if(getDeviceCount()){
 		char *filesystemtext = dir("@");
 		printf("All available drivers: %s \n",filesystemtext);

@@ -12,6 +12,7 @@ void kernel_main();
 
 void sleep(int ms);
 void init_acpi();
+void poweroff();
 
 // MEMORY
 void *malloc(unsigned long size);
@@ -28,7 +29,22 @@ void printstring(char* msg);
 void putc(char a);
 void init_video();
 void hexdump(unsigned long msg);
+void drawcharraw(unsigned char c, int offsetX, int offsetY, int fgcolor, int bgcolor);
 unsigned char getch();
+
+#define VK_UP 0xCB
+#define VK_LEFT 0xCC
+#define VK_RIGHT 0xCD
+#define VK_DOWN 0xCE
+
+typedef struct{
+	int mouse_x;
+	int mouse_y;
+	int mouse_z;
+	int mousePressed;
+	int keyPressed;
+}InputStatus;
+InputStatus getInputStatus();
 
 // VIDEO
 int init_graph_vga(int width, int height,int chain4);
@@ -36,6 +52,11 @@ void cls();
 void putpixel(int x,int y, int color);
 char getpixel(int x,int y);
 int isGraphicsMode();
+void addController(unsigned char drawable,unsigned long drawablefunc,unsigned short x,unsigned short y,unsigned short w,unsigned short h,unsigned long value,unsigned long onSelected,unsigned long onFocus,unsigned char controller);
+void draw();
+unsigned long show();
+char confirm(char *message);
+void freeGui();
 
 // GDT
 void init_gdt();

@@ -34,8 +34,8 @@ static struct vbox_mouse_absolute vbox_mouse_phys;
 static struct vbox_mouse_absolute * vbox_mouse;
 
 static int vbox_port;
-static unsigned long * vbox_vmmdev;
-static struct vbox_header guest_info;
+//static unsigned long * vbox_vmmdev;
+//static struct vbox_header guest_info;
 struct vbox_guest_info hdr;
 
 extern void vbirq();
@@ -60,7 +60,7 @@ void init_vbox(unsigned long BAR ,unsigned char irq){
 	guest_info->version = VBOX_VMMDEV_VERSION;
 	guest_info->ostype = 0;
 	
-	outportl(vbox_port, &hdr);
+	outportl(vbox_port, (unsigned long)&hdr);
 	
 	vbox_mouse = (struct vbox_mouse_absolute *)&vbox_mouse_phys;
 	vbox_mouse->header.size = sizeof(struct vbox_mouse_absolute);
@@ -72,7 +72,7 @@ void init_vbox(unsigned long BAR ,unsigned char irq){
 	vbox_mouse->features = (1 << 0) | (1 << 4);
 	vbox_mouse->x = 0;
 	vbox_mouse->y = 0;
-	outportl(vbox_port, &vbox_mouse_phys);
+	outportl(vbox_port, (unsigned long)&vbox_mouse_phys);
 
 	vbox_mouse->header.requestType = VBOX_REQUEST_GET_MOUSE;
 	
