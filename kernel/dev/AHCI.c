@@ -550,7 +550,7 @@ int ahci_atapi_eject(HBA_PORT *port)
  
 	cmdfis->fis_type = FIS_TYPE_REG_H2D;
 	cmdfis->featurel = 1;
-	cmdfis->featureh = 1;
+	cmdfis->featureh = 0;
 	cmdfis->c = 1;	// Command
 	cmdfis->command = 0xA0;
  
