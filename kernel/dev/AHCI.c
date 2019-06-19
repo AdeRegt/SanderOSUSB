@@ -549,6 +549,8 @@ int ahci_atapi_eject(HBA_PORT *port)
 	FIS_REG_H2D *cmdfis = (FIS_REG_H2D*)(&cmdtbl->cfis);
  
 	cmdfis->fis_type = FIS_TYPE_REG_H2D;
+	cmdfis->featurel = 1;
+	cmdfis->featureh = 1;
 	cmdfis->c = 1;	// Command
 	cmdfis->command = 0xA0;
  
@@ -575,8 +577,7 @@ int ahci_atapi_eject(HBA_PORT *port)
 		return 0;
 	}
  
-	port->ci = 1<<slot;	// Issue command
- 
+	port->ci = 1<<slot;
 	// Wait for completion
 	while (1)
 	{
@@ -720,6 +721,7 @@ void ahci_init(int bus,int slot,int function){
 				printf("[AHCI] ATAPI detected\n");
 				port_rebase(port,i);
 				ahci_atapi_eject(port);
+				printf("[AHCI] ATAPI eject completed\n");
 				unsigned char* msg = (unsigned char*) 0x1000;
 				ahci_atapi_read(port, 0, 0, 1, (unsigned short *)msg);
 				if(msg[510]==0x55&&msg[511]==0xAA){
@@ -741,6 +743,12 @@ void ahci_init(int bus,int slot,int function){
 					printf("[AHCI] ATA is bootable\n");
 				}else{
 					printf("[AHCI] ATA is not bootable\n");
+				}
+				
+				unsigned int basex = 0x01BE;
+				for(int i = 0 ; i < 4 ; i++){
+					printf("[AHCI] MBR %x : active %x filesystem %x \n",i+1,msg[basex],msg[basex+4]);
+					basex += 16;
 				}
 			}
 		}
