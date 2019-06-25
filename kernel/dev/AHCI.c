@@ -411,55 +411,47 @@ int ahci_atapi_read(HBA_PORT *port, unsigned long startl, unsigned long starth, 
  
 	HBA_CMD_HEADER *cmdheader = (HBA_CMD_HEADER*)port->clb;
 	cmdheader += slot;
-	cmdheader->cfl = sizeof(FIS_REG_H2D)/sizeof(unsigned long);	// Command FIS size
-	cmdheader->w = 0;		// Read from device
-	cmdheader->prdtl = (unsigned short)((count-1)>>4) + 1;	// PRDT entries count
-	cmdheader->a = 1;
  
 	HBA_CMD_TBL *cmdtbl = (HBA_CMD_TBL*)(cmdheader->ctba);
 	memset(cmdtbl, 0, sizeof(HBA_CMD_TBL) +
  		(cmdheader->prdtl-1)*sizeof(HBA_PRDT_ENTRY));
-	// 8K bytes (16 sectors) per PRDT
-	int i = 0;
-//	for (i=0; i<cmdheader->prdtl-1; i++)
-//	{
-//		cmdtbl->prdt_entry[i].dba = (unsigned long) buf;
-//		cmdtbl->prdt_entry[i].dbc = 8*1024-1;	// 8K bytes (this value should always be set to 1 less than the actual value)
-//		cmdtbl->prdt_entry[i].i = 1;
-//		buf += 4*1024;	// 4K words
-//		count -= 16;	// 16 sectors
-//	}
-	// Last entry
-	cmdtbl->prdt_entry[i].dba = (unsigned long) buf;
-	cmdtbl->prdt_entry[i].dbc = (count<<9)-1;	// 512 bytes per sector
-	cmdtbl->prdt_entry[i].i = 1;
-	
-	unsigned long lba = startl;
-    	cmdtbl->acmd[9] = count;
-    	cmdtbl->acmd[2] = (lba >> 0x18) & 0xFF;   /* most sig. byte of LBA */
-    	cmdtbl->acmd[3] = (lba >> 0x10) & 0xFF;
-    	cmdtbl->acmd[4] = (lba >> 0x08) & 0xFF;
-    	cmdtbl->acmd[5] = (lba >> 0x00) & 0xFF;
-    	cmdtbl->acmd[0] = 0xA8;
+ 		
+ 	
  
 	// Setup command
 	FIS_REG_H2D *cmdfis = (FIS_REG_H2D*)(&cmdtbl->cfis);
  
 	cmdfis->fis_type = FIS_TYPE_REG_H2D;
+	cmdfis->featurel = 1;
+	cmdfis->featureh = 0;
 	cmdfis->c = 1;	// Command
 	cmdfis->command = 0xA0;
+	int i = 0;
+	cmdtbl->prdt_entry[i].i = 1;
+	
+	unsigned long lba = startl;
+	
+	cmdtbl->acmd[ 0] = 0xA8;
+    	cmdtbl->acmd[ 1] = 0x00;
+    	cmdtbl->acmd[ 2] = (lba >> 0x18) & 0xFF;
+    	cmdtbl->acmd[ 3] = (lba >> 0x10) & 0xFF;
+    	cmdtbl->acmd[ 4] = (lba >> 0x08) & 0xFF;
+    	cmdtbl->acmd[ 5] = (lba >> 0x00) & 0xFF;
+    	cmdtbl->acmd[ 6] = 0x00;
+    	cmdtbl->acmd[ 7] = 0x00;
+    	cmdtbl->acmd[ 8] = 0x00;
+    	cmdtbl->acmd[ 9] = 0x01;
+    	cmdtbl->acmd[10] = 0x00;
+    	cmdtbl->acmd[11] = 0x00;
+	cmdtbl->prdt_entry[0].dba = (unsigned long) buf;
  
-	cmdfis->lba0 = (unsigned char)startl;
-	cmdfis->lba1 = (unsigned char)(startl>>8);
-	cmdfis->lba2 = (unsigned char)(startl>>16);
-	cmdfis->device = 1<<6;	// LBA mode
- 
-	cmdfis->lba3 = (unsigned char)(startl>>24);
-	cmdfis->lba4 = (unsigned char)starth;
-	cmdfis->lba5 = (unsigned char)(starth>>8);
- 
-	cmdfis->countl = count & 0xFF;
-	cmdfis->counth = (count >> 8) & 0xFF;
+	cmdfis->countl = 512;//count & 0xFF;
+	cmdfis->counth = 0;//(count >> 8) & 0xFF;
+	
+	cmdheader->cfl = sizeof(FIS_REG_H2D)/sizeof(unsigned long);	// Command FIS size
+	cmdheader->w = 0;		// Read from device
+	cmdheader->prdtl = 1;//(unsigned short)((count-1)>>4) + 1;	// PRDT entries count
+	cmdheader->a = 1;
  
 	// The below loop waits until the port is no longer busy before issuing a new command
 	while ((port->tfd & (ATA_DEV_BUSY | ATA_DEV_DRQ)) && spin < 1000000)
@@ -468,12 +460,10 @@ int ahci_atapi_read(HBA_PORT *port, unsigned long startl, unsigned long starth, 
 	}
 	if (spin == 1000000)
 	{
-		printf("Port is hung\n");for(;;);
 		return 0;
 	}
  
-	port->ci = 1<<slot;	// Issue command
- 
+	port->ci = 1<<slot;
 	// Wait for completion
 	while (1)
 	{
@@ -483,7 +473,6 @@ int ahci_atapi_read(HBA_PORT *port, unsigned long startl, unsigned long starth, 
 			break;
 		if (port->is & HBA_PxIS_TFES)	// Task file error
 		{
-			printf("Read disk error\n");for(;;);
 			return 0;
 		}
 		
@@ -492,7 +481,6 @@ int ahci_atapi_read(HBA_PORT *port, unsigned long startl, unsigned long starth, 
 	// Check again
 	if (port->is & HBA_PxIS_TFES)
 	{
-		printf("Read disk error\n");for(;;);
 		return 0;
 	}
  
@@ -509,27 +497,22 @@ int ahci_atapi_eject(HBA_PORT *port)
  
 	HBA_CMD_HEADER *cmdheader = (HBA_CMD_HEADER*)port->clb;
 	cmdheader += slot;
-	cmdheader->cfl = sizeof(FIS_REG_H2D)/sizeof(unsigned long);	// Command FIS size
-	cmdheader->w = 0;		// Read from device
-//	cmdheader->prdtl = (unsigned short)((count-1)>>4) + 1;	// PRDT entries count
-	cmdheader->a = 1;
  
 	HBA_CMD_TBL *cmdtbl = (HBA_CMD_TBL*)(cmdheader->ctba);
 	memset(cmdtbl, 0, sizeof(HBA_CMD_TBL) +
  		(cmdheader->prdtl-1)*sizeof(HBA_PRDT_ENTRY));
-	// 8K bytes (16 sectors) per PRDT
+ 		
+ 	
+ 
+	// Setup command
+	FIS_REG_H2D *cmdfis = (FIS_REG_H2D*)(&cmdtbl->cfis);
+ 
+	cmdfis->fis_type = FIS_TYPE_REG_H2D;
+	cmdfis->featurel = 1;
+	cmdfis->featureh = 0;
+	cmdfis->c = 1;	// Command
+	cmdfis->command = 0xA0;
 	int i = 0;
-//	for (i=0; i<cmdheader->prdtl-1; i++)
-//	{
-//		cmdtbl->prdt_entry[i].dba = (unsigned long) buf;
-//		cmdtbl->prdt_entry[i].dbc = 8*1024-1;	// 8K bytes (this value should always be set to 1 less than the actual value)
-//		cmdtbl->prdt_entry[i].i = 1;
-//		buf += 4*1024;	// 4K words
-//		count -= 16;	// 16 sectors
-//	}
-	// Last entry
-//	cmdtbl->prdt_entry[i].dba = (unsigned long) buf;
-// 	cmdtbl->prdt_entry[i].dbc = (count<<9)-1;	// 512 bytes per sector
 	cmdtbl->prdt_entry[i].i = 1;
 	
 	cmdtbl->acmd[ 0] = 0x1B;
@@ -545,26 +528,13 @@ int ahci_atapi_eject(HBA_PORT *port)
     	cmdtbl->acmd[10] = 0x00;
     	cmdtbl->acmd[11] = 0x00;
  
-	// Setup command
-	FIS_REG_H2D *cmdfis = (FIS_REG_H2D*)(&cmdtbl->cfis);
- 
-	cmdfis->fis_type = FIS_TYPE_REG_H2D;
-	cmdfis->featurel = 1;
-	cmdfis->featureh = 0;
-	cmdfis->c = 1;	// Command
-	cmdfis->command = 0xA0;
- 
-//	cmdfis->lba0 = (unsigned char)startl;
-//	cmdfis->lba1 = (unsigned char)(startl>>8);
-//	cmdfis->lba2 = (unsigned char)(startl>>16);
-//	cmdfis->device = 1<<6;	// LBA mode
- //
-//	cmdfis->lba3 = (unsigned char)(startl>>24);
-//	cmdfis->lba4 = (unsigned char)starth;
-//	cmdfis->lba5 = (unsigned char)(starth>>8);
- 
-//	cmdfis->countl = count & 0xFF;
-//	cmdfis->counth = (count >> 8) & 0xFF;
+	cmdfis->countl = 512;//count & 0xFF;
+	cmdfis->counth = 0;//(count >> 8) & 0xFF;
+	
+	cmdheader->cfl = sizeof(FIS_REG_H2D)/sizeof(unsigned long);	// Command FIS size
+	cmdheader->w = 0;		// Read from device
+	cmdheader->prdtl = 1;//(unsigned short)((count-1)>>4) + 1;	// PRDT entries count
+	cmdheader->a = 1;
  
 	// The below loop waits until the port is no longer busy before issuing a new command
 	while ((port->tfd & (ATA_DEV_BUSY | ATA_DEV_DRQ)) && spin < 1000000)
@@ -573,7 +543,6 @@ int ahci_atapi_eject(HBA_PORT *port)
 	}
 	if (spin == 1000000)
 	{
-		printf("Port is hung\n");for(;;);
 		return 0;
 	}
  
@@ -587,7 +556,6 @@ int ahci_atapi_eject(HBA_PORT *port)
 			break;
 		if (port->is & HBA_PxIS_TFES)	// Task file error
 		{
-			printf("Read disk error\n");for(;;);
 			return 0;
 		}
 		
@@ -596,7 +564,6 @@ int ahci_atapi_eject(HBA_PORT *port)
 	// Check again
 	if (port->is & HBA_PxIS_TFES)
 	{
-		printf("Read disk error\n");for(;;);
 		return 0;
 	}
  
@@ -720,16 +687,27 @@ void ahci_init(int bus,int slot,int function){
 		 	}else if(port->sig==SATA_SIG_ATAPI){
 				printf("[AHCI] ATAPI detected\n");
 				port_rebase(port,i);
-				ahci_atapi_eject(port);
-				printf("[AHCI] ATAPI eject completed\n");
-				unsigned char* msg = (unsigned char*) 0x1000;
-				ahci_atapi_read(port, 0, 0, 1, (unsigned short *)msg);
-				if(msg[510]==0x55&&msg[511]==0xAA){
+				unsigned char* buffer = (unsigned char*) 0x1000;
+				ahci_atapi_read(port, 0, 0, 1, (unsigned short *)buffer);
+				if(buffer[510]==0x55&&buffer[511]==0xAA){
 					printf("[AHCI] ATAPI is bootable\n");
 				}else{
 					printf("[AHCI] ATAPI is not bootable\n");
 				}
+				int choice = -1;
+				for(int i = 0 ; i < 10 ; i++){
+//					atapi_read_sector(device,0x10+i,1, (unsigned short *)buffer);
+					ahci_atapi_read(port, 0x10+i, 0, 1, (unsigned short *)buffer);
+					if(buffer[1]=='C'&&buffer[2]=='D'&&buffer[3]=='0'&&buffer[4]=='0'&&buffer[5]=='1'){
+						choice = i;
+						break;
+					}
+				}
+				if(choice==-1){
+					printf("[AHCI] ATAPI: unknown filesystem\n");
+				}
 				printf("[AHCI] completed...\n");
+				getch();
 			}else if(port->sig==SATA_SIG_SEMB){
 				printf("[AHCI] SEMB detected\n");
 			}else if(port->sig==SATA_SIG_PM){
