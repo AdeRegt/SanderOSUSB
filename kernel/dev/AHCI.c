@@ -16,6 +16,9 @@
 
 #define HBA_PxIS_TFES   (1 << 30)
 #define ATA_CMD_READ_DMA_EXT 0x25
+extern void iso_9660_dir();
+extern void iso_9660_read();
+extern char iso_9660_exists();
 
 // https://wiki.osdev.org/AHCI 
 
@@ -659,6 +662,12 @@ int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, un
 	return 1;
 }
 
+void ahci_atapi_read_ext(Device *dev,unsigned long lba,unsigned char count,unsigned short *location){
+	ahci_atapi_read((HBA_PORT *)dev->arg1, lba, 0, count, location);
+}
+
+void ahci_atapi_eject_ext(){}
+
 void ahci_init(int bus,int slot,int function){
 	unsigned long bar0 = getBARaddress(bus,slot,function,0x10);
 	unsigned long bar1 = getBARaddress(bus,slot,function,0x14);
@@ -705,9 +714,25 @@ void ahci_init(int bus,int slot,int function){
 				}
 				if(choice==-1){
 					printf("[AHCI] ATAPI: unknown filesystem\n");
+				}else{
+					printf("[AHCI] ATAPI: known filesystem ISO 9660\n");
+					
+					Device *regdev = getNextFreeDevice();
+					
+					regdev->readRawSector 	= (unsigned long)&ahci_atapi_read_ext;
+					regdev->eject 		= (unsigned long)&ahci_atapi_eject_ext;
+					
+					regdev->dir		= (unsigned long)&iso_9660_dir;
+					regdev->readFile	= (unsigned long)&iso_9660_read;
+					regdev->existsFile	= (unsigned long)&iso_9660_exists;
+					
+					// .command= 0x1f0,.control=0x3f6,.irq=14,.slave=0
+					regdev->arg1 = (unsigned long)port;
+					regdev->arg2 = 0;
+					regdev->arg3 = 0;
+					regdev->arg4 = 0;
+					regdev->arg5 = ATAPI_SECTOR_SIZE;
 				}
-				printf("[AHCI] completed...\n");
-				getch();
 			}else if(port->sig==SATA_SIG_SEMB){
 				printf("[AHCI] SEMB detected\n");
 			}else if(port->sig==SATA_SIG_PM){

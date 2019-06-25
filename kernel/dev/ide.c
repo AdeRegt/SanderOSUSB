@@ -38,8 +38,6 @@ typedef struct{
 	unsigned char slave;
 }IDEDevice;
 
-#define ATAPI_SECTOR_SIZE 2048
-
 IDEDevice ata1 = {.command= 0x1f0,.control=0x3f6,.irq=14,.slave=0};
 IDEDevice ata2 = {.command= 0x1f0,.control=0x3f6,.irq=14,.slave=1};
 IDEDevice ata3 = {.command= 0x170,.control=0x3f6,.irq=15,.slave=0};

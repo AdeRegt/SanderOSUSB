@@ -1,4 +1,5 @@
 #include "stdarg.h"
+#define ATAPI_SECTOR_SIZE 2048
 
 void printf(char *,...); 				//Our printf function
 char* convert(unsigned int, int); 		//Convert integer number into octal, hex, etc.
