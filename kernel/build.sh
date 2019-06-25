@@ -28,6 +28,10 @@ cd ..
 nasm programs/*.asm
 
 rm cdrom.iso
-cd ..
-grub-mkrescue -o SanderOSUSB/cdrom.iso SanderOSUSB
-cd SanderOSUSB
+mkdir mnt
+mkdir mnt/boot
+mkdir mnt/boot/grub
+cp kernel.bin mnt/kernel.bin
+cp boot/grub/grub.cfg mnt/boot/grub/grub.cfg
+grub-mkrescue -o cdrom.iso mnt --iso-level 3
+rm -rf mnt
