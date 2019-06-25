@@ -409,6 +409,9 @@ int ahci_atapi_read(HBA_PORT *port, unsigned long startl, unsigned long starth, 
 	port->is = (unsigned long) -1;		// Clear pending interrupt bits
 	int spin = 0; // Spin lock timeout counter
 	int slot = find_cmdslot(port);
+	if(starth!=0){
+		return 0;
+	}
 	if (slot == -1)
 		return 0;
  
@@ -443,12 +446,12 @@ int ahci_atapi_read(HBA_PORT *port, unsigned long startl, unsigned long starth, 
     	cmdtbl->acmd[ 6] = 0x00;
     	cmdtbl->acmd[ 7] = 0x00;
     	cmdtbl->acmd[ 8] = 0x00;
-    	cmdtbl->acmd[ 9] = 0x01;
+    	cmdtbl->acmd[ 9] = count & 0xFF;
     	cmdtbl->acmd[10] = 0x00;
     	cmdtbl->acmd[11] = 0x00;
 	cmdtbl->prdt_entry[0].dba = (unsigned long) buf;
  
-	cmdfis->countl = 512;//count & 0xFF;
+	cmdfis->countl = 1;//count & 0xFF;
 	cmdfis->counth = 0;//(count >> 8) & 0xFF;
 	
 	cmdheader->cfl = sizeof(FIS_REG_H2D)/sizeof(unsigned long);	// Command FIS size
