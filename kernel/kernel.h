@@ -56,7 +56,10 @@ int isGraphicsMode();
 void addController(unsigned char drawable,unsigned long drawablefunc,unsigned short x,unsigned short y,unsigned short w,unsigned short h,unsigned long value,unsigned long onSelected,unsigned long onFocus,unsigned char controller);
 void draw();
 unsigned long show();
+void message(char *message);
 char confirm(char *message);
+char *browseDIR(char *path);
+char *browse();
 void freeGui();
 
 // GDT
