@@ -281,6 +281,7 @@ char *browseDIR(char *path){
 	addController(1,(unsigned long)&drawString,20,120,280,100,(unsigned long)path,0,0,0);
 	int i = 0;
 	int t = 22;
+	int r = 140;
 	while(1){
 		char d = filesystemtext[i];
 		if(d==0x00){
@@ -299,8 +300,12 @@ char *browseDIR(char *path){
 			}
 			cont[z++] = e;
 		}
-		addController(1,(unsigned long)&drawButton,t,150,50,15,(unsigned long)cont,0,0,1);
+		addController(1,(unsigned long)&drawButton,t,r,50,15,(unsigned long)cont,0,0,1);
 		t += 55;
+		if(t>300){
+			t = 22;
+			r+= 20;
+		}
 	}
 	return (char *)show();
 }
@@ -317,6 +322,9 @@ int getFreeGui(){
 }
 
 void addController(unsigned char drawable,unsigned long drawablefunc,unsigned short x,unsigned short y,unsigned short w,unsigned short h,unsigned long value,unsigned long onSelected,unsigned long onFocus,unsigned char controller){
+	if(selectId>=MAXGUIOBJ){
+		return;
+	}
 	guiobjects[selectId].isActive = 1;
 	guiobjects[selectId].isDrawable = drawable;
 	guiobjects[selectId].isSelected = 0;

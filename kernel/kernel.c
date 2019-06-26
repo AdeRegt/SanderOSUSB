@@ -36,19 +36,30 @@ void kernel_main(){
 			if(fexists((unsigned char *)pt)){
 				unsigned char* buffer = (unsigned char*)0x2000;
 				fread(pt,buffer);
-				if(iself(buffer)){
-					printf("ELF: program is ELF!\n");
-					unsigned long gamma = loadelf(buffer);
-					if(gamma==0){
-						printf("ELF: Unable to load ELF!\n");
+				cls();
+				printf("Open Execute or Cancel\n\n");
+				char x = getch();
+				if(x=='o'){
+					for(int i = 0 ; i < 512 ; i++){
+						printf("%c",buffer[i]);
+					}
+					printf("\n\nPress any key to continue\n");
+					getch();
+				}else if(x=='e'){
+					if(iself(buffer)){
+						printf("ELF: program is ELF!\n");
+						unsigned long gamma = loadelf(buffer);
+						if(gamma==0){
+							printf("ELF: Unable to load ELF!\n");
+						}else{
+							cls();
+							void* (*foo)() = (void*) gamma;
+							foo();
+						}
 					}else{
 						cls();
-						void* (*foo)() = (void*) gamma;
-						foo();
+						asm volatile ("call 0x2000");
 					}
-				}else{
-					cls();
-					asm volatile ("call 0x2000");
 				}
 			}
 		}
