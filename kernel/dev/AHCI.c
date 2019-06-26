@@ -534,7 +534,7 @@ int ahci_atapi_eject(HBA_PORT *port)
     	cmdtbl->acmd[10] = 0x00;
     	cmdtbl->acmd[11] = 0x00;
  
-	cmdfis->countl = 512;//count & 0xFF;
+	cmdfis->countl = 1;//count & 0xFF;
 	cmdfis->counth = 0;//(count >> 8) & 0xFF;
 	
 	cmdheader->cfl = sizeof(FIS_REG_H2D)/sizeof(unsigned long);	// Command FIS size
