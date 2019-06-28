@@ -51,6 +51,9 @@ unsigned long iso_9660_target(Device *device,char* path){
 	isonameloc = pathpointer;
 	for(int i = 0 ; i < 30 ; i++){
 		char deze = path[pathpointer++];
+		if(deze=='.'){
+			goto foundyay;
+		}
 		if(deze==0x00||deze=='/'){
 			pathpart[i]=0;
 			tcnt = i;

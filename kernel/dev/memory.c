@@ -5,14 +5,15 @@
 //
 //
 
-unsigned char *memman = (unsigned char*) 0x1000;
+unsigned char *memman = (unsigned char*) 0x30000;
+int mempoint = 0;
 
 void *malloc(unsigned long size){
-	unsigned long currentloc = (unsigned long)&memman;
+	unsigned long currentloc = (unsigned long)&memman[mempoint];
 	for(unsigned long i = 0 ; i < size ; i++){
-		memman[i] = 0x00;
+		memman[mempoint+i] = 0x00;
 	}
-	memman += size;
+	mempoint += size;
 	return (void *)currentloc;
 }
 

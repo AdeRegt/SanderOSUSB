@@ -221,6 +221,15 @@ void drawButton(GUIControlObject o){
 	}
 }
 
+void message(char *message){
+	char *okmessage = "OK";
+	freeGui();
+	addController(1,(unsigned long)&drawRect,10,70,300,100,0,0,0,0);
+	addController(1,(unsigned long)&drawString,20,100,280,100,(unsigned long)message,0,0,0);
+	addController(1,(unsigned long)&drawButton,50,150,50,15,(unsigned long)okmessage,0,0,1);
+	show();
+}
+
 char confirm(char *message){
 	char *okmessage = "OK";
 	char *cancelmessage = "CANCEL";
@@ -230,6 +239,75 @@ char confirm(char *message){
 	addController(1,(unsigned long)&drawButton,50,150,50,15,(unsigned long)okmessage,0,0,1);
 	addController(1,(unsigned long)&drawButton,110,150,50,15,(unsigned long)cancelmessage,0,0,1);
 	return memcmp((char*)show(),(char*)okmessage,2)==0;
+}
+
+char *browse(){
+	char *result = malloc(200);
+	int pnt = 0;
+	char *sigma = (char *)browseDIR("@");
+	result[pnt++] = sigma[0];
+	result[pnt++] = '@';
+	while(1){
+		char *taf = (char *)browseDIR(result);
+		if(pnt!=2){
+			result[pnt++] = '/';
+		}
+		int z = 0;
+		int y = 0;
+		while(1){
+			char deze = taf[z++];
+			if(deze=='.'){
+				y = 1;
+			}
+			if(deze==0x00){
+				break;
+			}
+			result[pnt++] = deze;
+		}
+		if(y){
+			break;
+		}
+	}
+	
+	return result;
+}
+
+char *browseDIR(char *path){
+	freeGui();
+	char *message = "PLEASE PICK A FILE";
+	char *filesystemtext = dir(path);
+	addController(1,(unsigned long)&drawRect,10,70,300,100,0,0,0,0);
+	addController(1,(unsigned long)&drawString,20,100,280,100,(unsigned long)message,0,0,0);
+	addController(1,(unsigned long)&drawString,20,120,280,100,(unsigned long)path,0,0,0);
+	int i = 0;
+	int t = 22;
+	int r = 140;
+	while(1){
+		char d = filesystemtext[i];
+		if(d==0x00){
+			break;
+		}
+		char *cont = malloc(20);
+		int z = 0;
+		while(1){
+			char e = filesystemtext[i++];
+			if(e==0x00){
+				i--;
+				break;
+			}
+			if(e==';'){
+				break;
+			}
+			cont[z++] = e;
+		}
+		addController(1,(unsigned long)&drawButton,t,r,50,15,(unsigned long)cont,0,0,1);
+		t += 55;
+		if(t>300){
+			t = 22;
+			r+= 20;
+		}
+	}
+	return (char *)show();
 }
 
 void freeGui(){
@@ -244,6 +322,9 @@ int getFreeGui(){
 }
 
 void addController(unsigned char drawable,unsigned long drawablefunc,unsigned short x,unsigned short y,unsigned short w,unsigned short h,unsigned long value,unsigned long onSelected,unsigned long onFocus,unsigned char controller){
+	if(selectId>=MAXGUIOBJ){
+		return;
+	}
 	guiobjects[selectId].isActive = 1;
 	guiobjects[selectId].isDrawable = drawable;
 	guiobjects[selectId].isSelected = 0;
@@ -392,50 +473,67 @@ unsigned char font[4000] = {
 0b00100000,
 
 //
-// breathspace
+// :
+0b00000000,
+0b00000000,
+0b00000000,
+0b00000000,
+0b00000000,
+0b00000000,
 
+//
+// ;
 0b00000000,
 0b00000000,
 0b00000000,
 0b00000000,
 0b00000000,
 0b00000000,
+
+//
+// <
 0b00000000,
 0b00000000,
 0b00000000,
 0b00000000,
 0b00000000,
 0b00000000,
+
+//
+// =
 0b00000000,
 0b00000000,
 0b00000000,
 0b00000000,
 0b00000000,
 0b00000000,
+
+//
+// >
 0b00000000,
 0b00000000,
 0b00000000,
 0b00000000,
 0b00000000,
 0b00000000,
+
+//
+// ?
 0b00000000,
 0b00000000,
 0b00000000,
 0b00000000,
 0b00000000,
 0b00000000,
-0b00000000,
-0b00000000,
-0b00000000,
-0b00000000,
-0b00000000,
-0b00000000,
-0b00000000,
-0b00000000,
-0b00000000,
-0b00000000,
-0b00000000,
-0b00000000,
+
+//
+// @
+0b01111111,
+0b01000001,
+0b01011001,
+0b01011111,
+0b01000000,
+0b01111111,
 
 //
 // A

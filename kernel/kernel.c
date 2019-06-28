@@ -31,32 +31,42 @@ void kernel_main(){
 		poweroff();
 	}
 	if(getDeviceCount()){
-		char *filesystemtext = dir("@");
-		printf("All available drivers: %s \n",filesystemtext);
-		filesystemtext = dir("A@");
-		printf("All available bootdevices: %s \n",filesystemtext);
-		unsigned char* buffer = (unsigned char*)0x2000;
-		if(fexists((unsigned char*)"A@fasm.")){
-			fread("A@fasm.",buffer);
-			if(iself(buffer)){
-				printf("ELF: program is ELF!\n");
-				unsigned long gamma = loadelf(buffer);
-				if(gamma==0){
-					printf("ELF: Unable to load ELF!\n");
-				}else{
-					cls();
-					void* (*foo)() = (void*) gamma;
-					foo();
-				}
-			}else{
+		while(1){
+			char *pt = browse();
+			if(fexists((unsigned char *)pt)){
+				unsigned char* buffer = (unsigned char*)0x2000;
+				fread(pt,buffer);
 				cls();
-				asm volatile ("call 0x2000");
+				printf("Open Execute or Cancel\n\n");
+				char x = getch();
+				if(x=='o'){
+					for(int i = 0 ; i < 512 ; i++){
+						printf("%c",buffer[i]);
+					}
+					printf("\n\nPress any key to continue\n");
+					getch();
+				}else if(x=='e'){
+					if(iself(buffer)){
+						printf("ELF: program is ELF!\n");
+						unsigned long gamma = loadelf(buffer);
+						if(gamma==0){
+							printf("ELF: Unable to load ELF!\n");
+						}else{
+							cls();
+							void* (*foo)() = (void*) gamma;
+							foo();
+						}
+					}else{
+						cls();
+						asm volatile ("call 0x2000");
+					}
+				}
 			}
-		}else{
-			printf("==END==");
 		}
 	}else{
-		printf("panic: no devices present!\n");
+		message("Unable to discover usefull hardware");
+		init_acpi();
+		poweroff();
 	}
 	for(;;);
 }
