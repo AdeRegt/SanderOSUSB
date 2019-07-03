@@ -35,12 +35,12 @@ int writeToFirstPS2Port(unsigned char data){
 }
 
 int writeToSecondPS2Port(unsigned char data){
-	outportb(PS2_COMMAND,0xD4);
+	outportb(0x64,0xD4);
 	resetTicks();
 	while(getPS2ReadyToWrite()>0){
 		if(getTicks()==PS2_TIMEOUT){return 0;}
 	}
-	outportb(PS2_DATA,data);
+	outportb(0x60,data);
 	return 1;
 }
 
@@ -78,87 +78,167 @@ volatile int ccr_a = 0;
 volatile int ccr_b = 0;
 volatile int oldx = 0;
 volatile int oldy = 0;
-volatile char oldz =0;
+volatile char old00z =0;
+volatile char old01z =0;
+volatile char old02z =0;
+volatile char old10z =0;
+volatile char old11z =0;
+volatile char old12z =0;
+volatile char old20z =0;
+volatile char old21z =0;
+volatile char old22z =0;
 volatile int clck = 0;
 
+volatile int mouse_cycle = 0;
+volatile char mouse_byte[5];
+
 void irq_mouse(){
-	if(csr_t==0){
-		char A = inportb(PS2_DATA);
-		if(ccr_b){
-			if((ccr_y+A)<200){
-				ccr_y += A;
+	unsigned char status = inportb(0x64);
+	if(status & 1){
+		char sts = inportb(0x60);
+		if(status & 0x20){
+			switch(mouse_cycle){
+				case 0:
+					mouse_byte[0] = sts;
+					if(!(sts&0x08)){printf("X");return;}
+					++mouse_cycle;
+					break;
+				case 1:
+					mouse_byte[1] = sts;
+					++mouse_cycle;
+					break;
+				case 2:
+					mouse_byte[2] = sts;
+					if(mouse_byte[0]&0x80||mouse_byte[0]&0x40){
+						break;
+					}
+					mouse_cycle = 0;
+					ccr_x += mouse_byte[1];
+					ccr_y += mouse_byte[2];
+					if(mouse_byte[0]&0x01){
+//						printf("L");
+						clck = 1;
+					}
+					if(mouse_byte[0]&0x02){
+//						printf("R");
+						clck = 2;
+					}
+					if(mouse_byte[0]&0x04){
+//						printf("M");
+						clck = 3;
+					}
+					break;
 			}
-		}else{
-			if((ccr_y-A)>0){
-				ccr_y -= A;
-			}
+			
+//			if(csr_t==0){
+//				char A = inportb(PS2_DATA);
+//				if(ccr_b){
+//					if((ccr_y+A)<200){
+//						ccr_y += A;
+//					}
+//				}else{
+//					if((ccr_y-A)>0){
+//						ccr_y -= A;
+//					}
+//				}
+//				csr_t = 1;
+//			}else if(csr_t==1){
+//				char A = inportb(PS2_DATA);
+//				if((A & 0b00000001)>0){
+//					printf("_LEFT");
+//					clck = 1;
+//				}
+//				if((A & 0b00000010)>0){
+//					printf("_RIGHT");
+//					clck = 2;
+//				}
+//				if((A & 0b00000100)>0){
+//					printf("_MIDDLE");
+//					ccr_x = 50;
+//					ccr_y = 50;
+//					csr_y = 12;
+//					csr_x = 40;
+//				}
+//				if((A & 0b00001000)>0){
+//					ccr_a = 1;
+//				}else{
+//					ccr_a = 0;
+//				}
+//				if((A & 0b00010000)>0){
+//					ccr_b = 1;
+//				}else{
+//					ccr_b = 0;
+//				}
+//				csr_t = 2;
+//			}else if(csr_t==2){
+//				char A = inportb(PS2_DATA);
+//				if(ccr_a){
+//					if((ccr_x+A)<1600){
+//						ccr_x += A;
+//					}
+//				}else{
+//					if((ccr_x-A)>0){
+//						ccr_x -= A;
+//					}
+//				}
+//				csr_t = 0;
+//			}
 		}
-		csr_t = 1;
-	}else if(csr_t==1){
-		char A = inportb(PS2_DATA);
-		if((A & 0b00000001)>0){
-			printf("_LEFT");
-			clck = 1;
-		}
-		if((A & 0b00000010)>0){
-			printf("_RIGHT");
-			clck = 2;
-		}
-		if((A & 0b00000100)>0){
-			printf("_MIDDLE");
-			ccr_x = 50;
-			ccr_y = 50;
-			csr_y = 12;
-			csr_x = 40;
-		}
-		if((A & 0b00001000)>0){
-			ccr_a = 1;
-		}else{
-			ccr_a = 0;
-		}
-		if((A & 0b00010000)>0){
-			ccr_b = 1;
-		}else{
-			ccr_b = 0;
-		}
-		csr_t = 2;
-	}else if(csr_t==2){
-		char A = inportb(PS2_DATA);
-		if(ccr_a){
-			if((ccr_x+A)<1600){
-				ccr_x += A;
-			}
-		}else{
-			if((ccr_x-A)>0){
-				ccr_x -= A;
-			}
-		}
-		csr_t = 0;
-	}
-	
-//	if(isGraphicsMode()){
-		putpixel(oldx,oldy,oldz);
-		oldz = getpixel(ccr_x,ccr_y);
-		putpixel(ccr_x,ccr_y,2);
+		putpixel(oldx+0,oldy+0,old00z);
+		putpixel(oldx+1,oldy+0,old01z);
+		putpixel(oldx+2,oldy+0,old02z);
+		putpixel(oldx+0,oldy+1,old10z);
+		putpixel(oldx+1,oldy+1,old11z);
+		putpixel(oldx+2,oldy+1,old12z);
+		putpixel(oldx+0,oldy+2,old20z);
+		putpixel(oldx+1,oldy+2,old21z);
+		putpixel(oldx+2,oldy+2,old22z);
+		old00z = getpixel(ccr_x+0,ccr_y+0);
+		old01z = getpixel(ccr_x+1,ccr_y+0);
+		old02z = getpixel(ccr_x+2,ccr_y+0);
+		old10z = getpixel(ccr_x+0,ccr_y+1);
+		old11z = getpixel(ccr_x+1,ccr_y+1);
+		old12z = getpixel(ccr_x+2,ccr_y+1);
+		old20z = getpixel(ccr_x+0,ccr_y+2);
+		old21z = getpixel(ccr_x+1,ccr_y+2);
+		old22z = getpixel(ccr_x+2,ccr_y+2);
+		putpixel(ccr_x+0,ccr_y+0,2);
+		putpixel(ccr_x+0,ccr_y+1,2);
+		putpixel(ccr_x+0,ccr_y+2,2);
+		putpixel(ccr_x+1,ccr_y+0,2);
+		putpixel(ccr_x+1,ccr_y+1,2);
+		putpixel(ccr_x+1,ccr_y+2,2);
+		putpixel(ccr_x+2,ccr_y+0,2);
+		putpixel(ccr_x+2,ccr_y+1,2);
+		putpixel(ccr_x+2,ccr_y+2,2);
 		oldx = ccr_x;
 		oldy = ccr_y;
-//	}else{
-//		// hardware cursor updaten
-//		unsigned temp;
-//		csr_x = ccr_x/20;
-//		csr_y = ccr_y/20;
-//		if(csr_x>75){
-//			csr_x = 70;
-//		}
-//		if(csr_y>24){
-//			csr_y = 20;
-//		}
-//	    	temp = csr_y * 80 + csr_x;
-//	    	outportb(0x3D4, 14);
-//	    	outportb(0x3D5, temp >> 8);
-//	    	outportb(0x3D4, 15);
-//	    	outportb(0x3D5, temp);
-//	}
+//		
+//		
+//	//	if(isGraphicsMode()){
+//			putpixel(oldx,oldy,oldz);
+//			oldz = getpixel(ccr_x,ccr_y);
+//			putpixel(ccr_x,ccr_y,2);
+//			oldx = ccr_x;
+//			oldy = ccr_y;
+//	//	}else{
+//	//		// hardware cursor updaten
+//	//		unsigned temp;
+//	//		csr_x = ccr_x/20;
+//	//		csr_y = ccr_y/20;
+//	//		if(csr_x>75){
+//	//			csr_x = 70;
+//	//		}
+//	//		if(csr_y>24){
+//	//			csr_y = 20;
+//	//		}
+//	//	    	temp = csr_y * 80 + csr_x;
+//	//	    	outportb(0x3D4, 14);
+//	//	    	outportb(0x3D5, temp >> 8);
+//	//	    	outportb(0x3D4, 15);
+//	//	    	outportb(0x3D5, temp);
+//	//	}
+	}
 	// EOI
 	outportb(0x20,0x20);
 	outportb(0xA0,0x20);
@@ -226,8 +306,36 @@ int init_ps2_keyboard(){
     	return 0;
 }
 
+void mousewaita(){
+	unsigned long timeout = 100000;
+	while(--timeout){
+		if((inportb(0x64) & 0x01)==1){
+			return;
+		}
+	}
+}
+
+void mousewaitb(){
+	unsigned long timeout = 100000;
+	while(--timeout){
+		if(!(inportb(0x64) & 0x02)){
+			return;
+		}
+	}
+}
+
+// found info at https://github.com/stevej/osdev/blob/master/kernel/devices/mouse.c
 int init_ps2_mouse(){
+	mousewaita();
 	outportb(0x64,0xA8);
+	mousewaita();
+	outportb(0x64,0x20);
+	mousewaitb();
+	unsigned char status =  inportb(0x60) | 2;
+	mousewaita();
+	outportb(0x64,0x60);
+	mousewaita();
+	outportb(0x60,status);
 	
 	if(!writeToSecondPS2Port(0xFF)){goto error;}
 	resetTicks();
@@ -263,48 +371,48 @@ void init_ps2(){
 		printstring("PS2: mouse disabled!\n");
 		for(;;);
 	}
-	char ps2status = getPS2StatusRegisterText();
-	if((ps2status & 0b00000001)>0){
-		printstring("PS2: read buffer full\n");
-	}
-	if((ps2status & 0b00000010)>0){
-		printstring("PS2: write buffer full\n");
-	}
-	if((ps2status & 0b00000100)>0){
-		printstring("PS2: passed selftest\n");
-	}
-	if((ps2status & 0b00001000)>0){
-		printstring("PS2: data for controller\n");
-	}else{
-		printstring("PS2: data for device\n");
-	}
-	while(getPS2ReadyToWrite()!=0){}
-	outportb(PS2_COMMAND,0x20);
-	while(getPS2ReadyToRead()==0){
-		if(getTicks()>=PS2_TIMEOUT){
-			printstring("__TIMEOUT__\n");
-			break;
-		}
-	}
-	char ps2enable = inportb(PS2_DATA);
-	if((ps2enable & 0b00000001)>0){
-		printstring("PS2: port1 interrupt enabled\n");
-	}
-	if((ps2enable & 0b00000010)>0){
-		printstring("PS2: port2 interrupt enabled\n");
-	}
-	if((ps2enable & 0b00000100)>0){
-		printstring("PS2: passed POST\n");
-	}
-	if((ps2enable & 0b00010000)>0){
-		printstring("PS2: port1 clock enabled\n");
-	}
-	if((ps2enable & 0b00100000)>0){
-		printstring("PS2: port2 clock enabled\n");
-	}
-	if((ps2enable & 0b01000000)>0){
-		printstring("PS2: porttranslation enabled\n");
-	}
+//	char ps2status = getPS2StatusRegisterText();
+//	if((ps2status & 0b00000001)>0){
+//		printstring("PS2: read buffer full\n");
+//	}
+//	if((ps2status & 0b00000010)>0){
+//		printstring("PS2: write buffer full\n");
+//	}
+//	if((ps2status & 0b00000100)>0){
+//		printstring("PS2: passed selftest\n");
+//	}
+//	if((ps2status & 0b00001000)>0){
+//		printstring("PS2: data for controller\n");
+//	}else{
+//		printstring("PS2: data for device\n");
+//	}
+//	while(getPS2ReadyToWrite()!=0){}
+//	outportb(PS2_COMMAND,0x20);
+//	while(getPS2ReadyToRead()==0){
+//		if(getTicks()>=PS2_TIMEOUT){
+//			printstring("__TIMEOUT__\n");
+//			break;
+//		}
+//	}
+//	char ps2enable = inportb(PS2_DATA);
+//	if((ps2enable & 0b00000001)>0){
+//		printstring("PS2: port1 interrupt enabled\n");
+//	}
+//	if((ps2enable & 0b00000010)>0){
+//		printstring("PS2: port2 interrupt enabled\n");
+//	}
+//	if((ps2enable & 0b00000100)>0){
+//		printstring("PS2: passed POST\n");
+//	}
+//	if((ps2enable & 0b00010000)>0){
+//		printstring("PS2: port1 clock enabled\n");
+//	}
+//	if((ps2enable & 0b00100000)>0){
+//		printstring("PS2: port2 clock enabled\n");
+//	}
+//	if((ps2enable & 0b01000000)>0){
+//		printstring("PS2: porttranslation enabled\n");
+//	}
 }
 
 InputStatus getInputStatus(){
