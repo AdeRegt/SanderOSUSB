@@ -741,7 +741,7 @@ void ahci_init(int bus,int slot,int function){
 			}else if(port->sig==SATA_SIG_PM){
 				printf("[AHCI] PM detected\n");
 			}else{
-				printf("[AHCI] SATA detected %x \n",i);
+				printf("[AHCI] SATA detected %x \n",i);return;
 				port_rebase(port,i);
 				unsigned char* msg = (unsigned char*) 0x1000;
 				ahci_ata_read(port, 0, 0, 1, (unsigned short *)msg);
