@@ -93,6 +93,7 @@ volatile int clck = 0;
 
 volatile int mouse_cycle = 0;
 volatile char mouse_byte[5];
+volatile char mousetype = 0;
 
 void irq_mouse(){
 	unsigned char status = inportb(0x64);
@@ -102,11 +103,6 @@ void irq_mouse(){
 			switch(mouse_cycle){
 				case 0:
 					mouse_byte[0] = sts;
-					if((sts & (1 << 6) || sts & (1 << 7))||(sts & (1 << 3))){
-						printf("PACKET NOT OK");break;
-					}else{
-						
-					}
 					++mouse_cycle;
 					break;
 				case 1:
@@ -115,26 +111,59 @@ void irq_mouse(){
 					break;
 				case 2:
 					mouse_byte[2] = sts;
-					
 					mouse_cycle = 0;
-					ccr_x += mouse_byte[1];
-					ccr_y += mouse_byte[2];
-					if(mouse_byte[0]&0x01){
-//						printf("L");
-						clck = 1;
+					if(mousetype==0){
+						if(mouse_byte[0]==0x08){
+							mousetype=1;
+						}else if(mouse_byte[1]==0x08){
+							mousetype=2;
+						}
 					}
-					if(mouse_byte[0]&0x02){
-//						printf("R");
-						clck = 2;
-					}
-					if(mouse_byte[0]&0x04){
-//						printf("M");
-						clck = 3;
+					if(mousetype){
+						if(mousetype==1){
+							ccr_x += mouse_byte[1];
+							ccr_y += mouse_byte[2];
+							if(mouse_byte[0]&0x01){
+								clck = 1;
+							}
+							if(mouse_byte[0]&0x02){
+								clck = 2;
+							}
+							if(mouse_byte[0]&0x04){
+								clck = 3;
+							}
+						}else{
+							ccr_x += mouse_byte[0];
+							ccr_y += mouse_byte[2];
+							if(mouse_byte[1]&0x01){
+								clck = 1;
+							}
+							if(mouse_byte[1]&0x02){
+								clck = 2;
+							}
+							if(mouse_byte[1]&0x04){
+								clck = 3;
+							}
+						}
 					}
 					break;
 			}
 		}
 	}
+	
+	if(ccr_x<1){
+		ccr_x = 1;
+	}
+	if(ccr_y<1){
+		ccr_y = 1;
+	}
+	if(ccr_x>320){
+		ccr_x = 315;
+	}
+	if(ccr_y>200){
+		ccr_y = 195;
+	}
+	
 	putpixel(oldx+0,oldy+0,old00z);
 	putpixel(oldx+1,oldy+0,old01z);
 	putpixel(oldx+2,oldy+0,old02z);
