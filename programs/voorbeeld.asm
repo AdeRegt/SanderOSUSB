@@ -1,5 +1,8 @@
 bits 32
-org 0x2000
+
+global main
+
+main:
 
 cli
 hlt
