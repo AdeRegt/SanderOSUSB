@@ -2,5 +2,9 @@
 global _start
 extern main
 _start:
+; call main
 call main
-ret
+
+; call system to stop
+mov eax,1
+int 0x80
