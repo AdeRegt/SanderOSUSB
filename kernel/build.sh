@@ -27,10 +27,30 @@ rm *.o
 cp myos.bin ../kernel.bin
 cd ..
 
-nasm programs/*.asm
+for i in programs/*.inc
+do
+	nasm -f elf32 -O0 -w+orphan-labels $i -o programs/`basename $i .inc`.o || exit
+done
+
+for i in programs/*.asm
+do
+	nasm -f elf32 -O0 -w+orphan-labels $i -o programs/`basename $i .asm`.o || exit
+	gcc -T programs/proglinker.ld -m32 -ffreestanding -O2 -nostdlib programs/base.o programs/`basename $i .asm`.o -o programs/`basename $i .asm`.bin || exit
+done
+
+for i in programs/*.c
+do
+	gcc -c $i -o programs/`basename $i .c`.o  -m32  -std=gnu99 -ffreestanding -Wall -Wextra  || exit
+	gcc -T programs/proglinker.ld -m32 -ffreestanding -nostdlib programs/base.o programs/`basename $i .c`.o -o programs/`basename $i .c`.bin || exit
+done
+
+rm programs/*.o
 
 rm cdrom.iso
 mkdir mnt
+mkdir mnt/prgs
+cp programs/*.bin mnt/prgs
+rm programs/*.bin
 mkdir mnt/boot
 mkdir mnt/boot/grub
 cp kernel.bin mnt/kernel.bin
