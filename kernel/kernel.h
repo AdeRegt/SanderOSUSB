@@ -81,6 +81,8 @@ void init_ps2();
 
 // PCI
 void init_pci();
+unsigned long pciConfigReadDWord (unsigned char bus, unsigned char slot, unsigned char func, unsigned char offset);
+unsigned short pciConfigReadWord (unsigned char bus, unsigned char slot, unsigned char func, unsigned char offset);
 unsigned long getBARaddress(int bus,int slot,int function,int barNO);
 
 // SERIAL
@@ -90,6 +92,7 @@ void init_serial();
 void init_ide(unsigned short BAR);
 void init_ide2();
 void ahci_init(int bus,int slot,int function);
+void e1000_init(int bus,int slot,int function);
 
 
 

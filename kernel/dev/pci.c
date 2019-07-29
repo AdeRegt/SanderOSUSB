@@ -7,6 +7,23 @@
 #define PCI_ADDRESS 0xCF8
 #define PCI_DATA 0xCFC
 
+unsigned long pciConfigReadDWord (unsigned char bus, unsigned char slot, unsigned char func, unsigned char offset) {
+    unsigned long address;
+    unsigned long lbus  = (unsigned long)bus;
+    unsigned long lslot = (unsigned long)slot;
+    unsigned long lfunc = (unsigned long)func;
+ 
+    /* create configuration address as per Figure 1 */
+    address = (unsigned long)((lbus << 16) | (lslot << 11) |
+              (lfunc << 8) | (offset & 0xfc) | ((unsigned long)0x80000000));
+ 
+    /* write out the address */
+    outportl(PCI_ADDRESS, address);
+    /* read in the data */
+    /* (offset & 2) * 8) = 0 will choose the first word of the 32 bits register */
+    return (inportl(PCI_DATA) >> ((offset & 2) * 8));
+}
+
 unsigned short pciConfigReadWord (unsigned char bus, unsigned char slot, unsigned char func, unsigned char offset) {
     unsigned long address;
     unsigned long lbus  = (unsigned long)bus;
@@ -82,7 +99,8 @@ void init_pci(){
 					}else if(classc==0x02){
 						printstring("network controller: ");
 						if(sublca==0x00){
-							printstring(" Ethernet controller");
+							printstring(" Ethernet controller\n");
+							e1000_init(bus,slot,function);
 						}else if(sublca==0x01){
 							printstring(" Token ring controller");
 						}else if(sublca==0x02){
