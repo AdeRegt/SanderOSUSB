@@ -61,6 +61,7 @@ char confirm(char *message);
 char *browseDIR(char *path);
 char *browse();
 void freeGui();
+int atoi(const char *nptr);
 
 // GDT
 void init_gdt();

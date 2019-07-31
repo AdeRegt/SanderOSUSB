@@ -1422,3 +1422,26 @@ int init_graph_vga(int width, int height,int chain4)
 
 }
 
+
+int atoi(const char *nptr)
+{
+    long num;
+    int neg;
+    num = 0;
+    neg = 1;
+    while ((*nptr >= 9 && *nptr <= 13) || *nptr == 32)
+        nptr++;
+    if (*nptr == '-' || *nptr == '+')
+    {
+    neg = (*nptr == '+') ? 1 : -1;
+    nptr++;
+    }
+    while (*nptr != '\0')
+    {
+        if (*nptr < '0' || *nptr > '9')
+            break ;
+        num = num * 10 + *nptr - '0';
+        nptr++;
+    }
+    return (num * neg);
+}
