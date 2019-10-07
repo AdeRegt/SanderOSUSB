@@ -47,10 +47,6 @@ void init_pci(){
 					unsigned char subsub = (pciConfigReadWord(bus,slot,function,0x08)>>8)&0xFF;
 					unsigned short subsystemvendor = pciConfigReadWord(bus,slot,function,0x2c) & 0xFFFF;
 					unsigned short subsystemid = pciConfigReadWord(bus,slot,function,0x2e) & 0xFFFF;
-					if(subsystemvendor==0x5006||subsystemid==0x5006){
-						printf("FOUND IT");for(;;);
-					}
-					printf("subvend %x subid %x ",subsystemvendor,subsystemid);
 					if(classc==0x00){
 						printstring("unclassified: ");
 					}else if(classc==0x01){
