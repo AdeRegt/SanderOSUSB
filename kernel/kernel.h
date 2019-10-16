@@ -92,7 +92,6 @@ void init_ide2();
 void ahci_init(int bus,int slot,int function);
 
 
-
 typedef struct{
 
 	//
@@ -145,6 +144,8 @@ void fread(char* path,unsigned char* buffer);
 int getDeviceCount();
 int iself(unsigned char* buffer);
 unsigned long loadelf(void * buffer);
+void detectFilesystemsOnMBR(Device* dev);
+void initialiseExt2(Device* device);
 
 typedef struct{
     unsigned int gs, fs, es, ds;      /* pushed the segs last */

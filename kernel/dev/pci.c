@@ -45,8 +45,8 @@ void init_pci(){
 					unsigned char classc = (pciConfigReadWord(bus,slot,function,0x0A)>>8)&0xFF;
 					unsigned char sublca = (pciConfigReadWord(bus,slot,function,0x0A))&0xFF;
 					unsigned char subsub = (pciConfigReadWord(bus,slot,function,0x08)>>8)&0xFF;
-					unsigned short subsystemvendor = pciConfigReadWord(bus,slot,function,0x2c) & 0xFFFF;
-					unsigned short subsystemid = pciConfigReadWord(bus,slot,function,0x2e) & 0xFFFF;
+//					unsigned short subsystemvendor = pciConfigReadWord(bus,slot,function,0x2c) & 0xFFFF;
+//					unsigned short subsystemid = pciConfigReadWord(bus,slot,function,0x2e) & 0xFFFF;
 					if(classc==0x00){
 						printstring("unclassified: ");
 					}else if(classc==0x01){
