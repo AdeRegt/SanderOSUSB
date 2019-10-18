@@ -126,11 +126,11 @@ typedef struct{
 	// Advanced
 	//
 	
-	unsigned long arg1;
-	unsigned long arg2;
+	unsigned long arg1;	// LINK TO DATAPOINTER
+	unsigned long arg2;	// OFFSET DISK
 	unsigned long arg3;
 	unsigned long arg4;
-	unsigned long arg5;
+	unsigned long arg5;	// SIZEOF SECTOR
 	unsigned long arg6;
 	unsigned long arg7;
 	unsigned long arg8;

@@ -30,6 +30,9 @@ typedef struct{
 	unsigned long majorportionversion;
 	unsigned short userID;
 	unsigned short groupID;
+	// extra ones
+	unsigned long firstnonreserved;
+	unsigned short sizeofinode;
 }EXT2Super;
 
 typedef struct{
@@ -78,15 +81,14 @@ void initialiseExt2(Device* device){
 	//atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location)
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	
-	unsigned char* efi = (unsigned char*) 0x1000+512;
-	readraw(device, 0, 1, (unsigned short *)efi);
+	unsigned char* efi = (unsigned char*) malloc(device->arg5);
 	printf("[EXT2] PARSING EXT2\n");
 	unsigned long superblockid = 2;
 	readraw(device, superblockid, 1, (unsigned short *)efi);
-	EXT2Super *tar = (EXT2Super*) efi;
-	if(tar->checksum==0xEF53){
+	EXT2Super *superblock = (EXT2Super*) efi;
+	if(superblock->checksum==0xEF53){
 		printf("[EXT2] Detected by signature!!\n");
-		unsigned long blocksize = 1024 << tar->blocksize;
+		unsigned long blocksize = 1024 << superblock->blocksize;
 		printf("[EXT2] Have blocksize %x \n",blocksize);
 		unsigned long blocksector = blocksize/512;
 		printf("[EXT2] One block has %x sectors \n",blocksector);
@@ -94,43 +96,36 @@ void initialiseExt2(Device* device){
 		if(blocksize==1024){
 			offsetblockgroup = 2;
 		}
-		unsigned long inodecount = tar->total_inodes;
+		unsigned long inodecount = superblock->total_inodes;
 		printf("[EXT2] We have a inode count of %x \n",inodecount);
 		unsigned long offsetblockgroupsect = offsetblockgroup*blocksector;
 		unsigned long offsetblockgroupsectphys = offsetblockgroupsect;
 		printf("[EXT2] Offset to blockgrouptable is %x (virt %x : phy %x)\n",offsetblockgroup,offsetblockgroupsect,offsetblockgroupsectphys);
-		unsigned char* ext = (unsigned char*) 0x1000+1024;
+		printf("[EXT2] First non-reserved inode=%x sizeof inode=%x \n",superblock->firstnonreserved,superblock->sizeofinode);
+		//
+		// blockdevice info ophalen
+		unsigned char* ext = (unsigned char*) 0x1500;
 		readraw(device, offsetblockgroupsectphys, 1, (unsigned short *)ext);
 		EXT2BlockGroupDesc* et = (EXT2BlockGroupDesc*) ext;
-		
+		unsigned char* grouproot = (unsigned char*) 0x1500+512;
+		printf("[EXT2] Group0, inodetablestart at %x \n",et->inodetablestart*blocksector);
+		unsigned long offset = 0;
+		for(int i = 0 ; i < blocksector*5 ; i++){
+			readraw(device, ((et->inodetablestart)*blocksector)+i, 1, (unsigned short *)grouproot+offset);
+			offset += 512;
+		}
 		//
-		// looping blocks
-		for(int e = 0 ; e < 3 ; e++){
-			printf("[EXT2] #%x : directoriesingroup %x startof list block %x \n",e,et[e].directoriesingroup,et[e].inodetablestart);
-			unsigned char* inod = (unsigned char*) 0x1000+1536;
-			readraw(device, et[e].inodetablestart*blocksector, 1, (unsigned short *)inod);
-			EXT2Inode* inodes = (EXT2Inode*) inod; 
-			
-			//
-			// looping INodes
-			for(int u = 0 ; u < (512/sizeof(EXT2Inode)) ; u++){
-				unsigned long inodetypes = inodes[u].typeandpremissions >> 12;
-				if(inodetypes!=0){
-					printf("[EXT2] INode%x: type:%x \n",u,inodetypes);
-					if(inodetypes==0x8){
-						printf("[EXT2] INode%x is an regular file\n",u);
-					}else if(inodetypes==0x4){
-						printf("[EXT2] INode%x is an directory\n",u);
-						unsigned char* dirtableraw = (unsigned char*) 0x1000+2048;
-						printf("[EXT2] Directpointer at %x \n",inodes[u].directp[0]);
-						readraw(device, inodes[u].directp[0]*blocksector, 1, (unsigned short *)dirtableraw);
-						EXT2Directory* rxr = (EXT2Directory*) dirtableraw;
-						for(int w = 0 ; w < 255 ; w++){
-							printf("%c",rxr->naam[w]);
-						}
-						printf("\n");
-					}
-				}
+		// root node vinden
+		EXT2Inode* lst = (EXT2Inode*) grouproot + (superblock->sizeofinode*1);
+		unsigned long rootdirtype = lst->typeandpremissions;
+		rootdirtype = rootdirtype >> 12;
+		if(rootdirtype==4){
+			printf("[EXT2] Root dir found!\n");
+			unsigned long directp = lst->directp[0];
+			unsigned char* dirlist = (unsigned char*) 0x1500;
+			readraw(device, directp, 1, (unsigned short *)dirlist);
+			for(int i = 0 ; i < 512 ; i++){
+				printf("%c",dirlist[i]);
 			}
 		}
 	}
