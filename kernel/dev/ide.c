@@ -215,7 +215,7 @@ void ata_read_raw(Device *dxv,unsigned long LBA,unsigned char count,unsigned sho
 	device.control = dev->control;
 	device.irq = dev->irq;
 	device.slave = dev->slave;
-	ata_read_sector(device, LBA, dxv->arg2+tok, location);
+	ata_read_sector(device, dxv->arg2+LBA, tok, location);
 }
 
 char issata = 0;

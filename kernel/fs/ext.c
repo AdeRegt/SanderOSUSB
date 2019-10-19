@@ -81,7 +81,7 @@ void initialiseExt2(Device* device){
 	//atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location)
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	
-	unsigned char* efi = (unsigned char*) malloc(device->arg5);
+	unsigned short* efi = (unsigned short*) malloc(device->arg5);
 	printf("[EXT2] PARSING EXT2\n");
 	unsigned long superblockid = 2;
 	readraw(device, superblockid, 1, (unsigned short *)efi);
@@ -121,7 +121,7 @@ void initialiseExt2(Device* device){
 		rootdirtype = rootdirtype >> 12;
 		if(rootdirtype==4){
 			printf("[EXT2] Root dir found!\n");
-			unsigned long directp = lst->directp[0];
+			unsigned long directp = (lst->directp[0]+superblock->blocksforsu)*blocksector;
 			unsigned char* dirlist = (unsigned char*) 0x1500;
 			readraw(device, directp, 1, (unsigned short *)dirlist);
 			for(int i = 0 ; i < 512 ; i++){
@@ -129,5 +129,7 @@ void initialiseExt2(Device* device){
 			}
 		}
 		
+	}else{
+		printf("[EXT2] Illegal checksum %x \n",superblock->checksum);
 	}
 }
