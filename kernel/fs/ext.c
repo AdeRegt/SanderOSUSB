@@ -110,7 +110,7 @@ void initialiseExt2(Device* device){
 		unsigned char* grouproot = (unsigned char*) 0x1500+512;
 		printf("[EXT2] Group0, inodetablestart at %x \n",et->inodetablestart*blocksector);
 		unsigned long offset = 0;
-		for(int i = 0 ; i < blocksector*5 ; i++){
+		for(unsigned int i = 0 ; i < blocksector*5 ; i++){
 			readraw(device, ((et->inodetablestart)*blocksector)+i, 1, (unsigned short *)grouproot+offset);
 			offset += 512;
 		}
@@ -128,5 +128,6 @@ void initialiseExt2(Device* device){
 				printf("%c",dirlist[i]);
 			}
 		}
+		
 	}
 }
