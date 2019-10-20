@@ -7,9 +7,9 @@ Currently the following devices are supported:
 * IDE - ATA
 * IDE - ATAPI
 * AHCI - ATA
-* AHCI - ATAPI (only at real hardware)
+* AHCI - ATAPI
 * PS/2 keyboard
-* PS/2 mouse (only at real hardware)
+* PS/2 mouse
 * PIC
 * PCI
 * ACPI
@@ -20,10 +20,21 @@ The following devices are on the list to get implemented:
 
 The following filesystems are supported:
 * ISO 9660
+* MBR (in dev branch)
+* EFI-MBR (in dev branch)
+* EXT2 (in dev branch)
 
 The following filesystems will be supported:
 * FAT 32
 * FAT 12
-* EXT2
+
+the following executable formats are supported:
+* 32-ELF
+
+the following executable formats are on the list to get implemented:
+* 32-MZPE
+* 32-MZCOFF
+* Marble
+* Mike-BASIC
 
 To build the kernel, go to the kernel folder and run build.sh
