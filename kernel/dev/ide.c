@@ -188,6 +188,36 @@ void atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned s
 	atapi_read_sector(ide,lba,count,location);
 }
 
+void ata_read_sector(IDEDevice hdddevice,unsigned long LBA,unsigned char count, unsigned short *location){
+	unsigned char cunt = count;
+	resetIDEFire();
+	outportb(hdddevice.command+6, 0xE0 | (hdddevice.slave << 4) | ((LBA >> 24) & 0x0F));
+        outportb(hdddevice.command+2, (unsigned char) cunt);
+        outportb(hdddevice.command+3, (unsigned char) LBA);
+        outportb(hdddevice.command+4, (unsigned char)(LBA >> 8));
+        outportb(hdddevice.command+5, (unsigned char)(LBA >> 16));
+        outportb(hdddevice.command+7, 0x20);
+        getIDEError(hdddevice);
+    	ide_wait_for_ready(hdddevice);
+        int U = 0;
+        int i = 0;
+        for(i = 0 ; i < (512/2) ; i++){
+                unsigned short X = inportw(hdddevice.command);
+                location[U++] = X;
+        }
+}
+
+void ata_read_raw(Device *dxv,unsigned long LBA,unsigned char count,unsigned short *location){
+	unsigned char tok = count;
+	IDEDevice* dev = (IDEDevice*)dxv->arg1;
+	IDEDevice device;
+	device.command = dev->command;
+	device.control = dev->control;
+	device.irq = dev->irq;
+	device.slave = dev->slave;
+	ata_read_sector(device, dxv->arg2+LBA, tok, location);
+}
+
 char issata = 0;
 
 void init_ide_device(IDEDevice device){
@@ -202,53 +232,82 @@ void init_ide_device(IDEDevice device){
 	printstring(device.slave==1?"SLAVE":"MASTER");
 	printstring("\n");
 	
-	outportb(device.command+6,device.slave==1?0xB0:0xA0);
-	outportb(device.command+2,0);
-	outportb(device.command+3,0);
-	outportb(device.command+4,0);
-	outportb(device.command+5,0);
-	outportb(device.command+7,0xEC);
-	
+	// first, softreset
+        outportb(device.control,0x04);
+        outportb(device.control,0x00);
+
+        outportb(device.command + 0x06 , 0xA0 | device.slave << 4 );
+
 	resetTicks();
-	while(1){
-		if(getTicks()==1){
-			break;
-		}
-	}
-	if(inportb(device.command+7)==0){
-		printstring("IDE: device does not exist!\n");
-		return;
-	}
-	
 	while(1){
 		if((inportb(device.command+7) & 0x80)>0){
 			break;
 		}else if(!(inportb(device.command+4)==0&&inportb(device.command+5)==0)){
 			break;
+		}else if(getTicks()==2){
+			break;
 		}
 	}
-	
-	if(inportb(0x1F4)==0x3C || inportb(0x1F5)==0xC3){
-		printf("IDE: Device is SATA\n");
-		issata=1;
-		return;
+
+        unsigned char cl = inportb(device.command + 0x04);
+        unsigned char ch = inportb(device.command + 0x05);
+
+        if(cl==0xFF&&ch==0xFF){
+        	printf("[IDE] return\n");
+        	return;
+        }
+        
+        outportb(device.command+0x01,1);
+        outportb(device.control,0);
+        outportb(device.command+0x06,0xA0 | device.slave <<4 );
+        resetTicks();
+	while(1){
+		if((inportb(device.command+7) & 0x80)>0){
+			break;
+		}else if(!(inportb(device.command+4)==0&&inportb(device.command+5)==0)){
+			break;
+		}else if(getTicks()==2){
+			break;
+		}
 	}
-	
-	if(inportb(device.command+4)==0&&inportb(device.command+5)==0){
-		printstring("IDE: device is ATA\n");
-		for(int i = 0 ; i < 256 ; i++){
-			inportw(device.command);
+        outportb(device.command+0x07,0xEC);
+        resetTicks();
+	while(1){
+		if((inportb(device.command+7) & 0x80)>0){
+			break;
+		}else if(!(inportb(device.command+4)==0&&inportb(device.command+5)==0)){
+			break;
+		}else if(getTicks()==2){
+			break;
 		}
-		// ATA device detected!
-	}else{
-		for(int i = 0 ; i < 256 ; i++){
-			inportw(device.command);
+	}
+        cl = inportb(device.command+0x04);
+        ch = inportb(device.command+0x05);
+        if(!(cl == 0x14 && ch == 0xEB) && !(cl == 0x69 && ch == 0x96)){
+        	// maybe hdd?
+                printf("[IDE] maybe ata\n");
+                // ATA device detected!
+        	unsigned short* buffer = (unsigned short*) 0x1000;
+		ata_read_sector(device, 0, 1, buffer);
+		if(buffer[510]==0x55&&buffer[511]==0xAA){
+			printf("[ATA] hdd is bootable!\n");
+		}else{
+			printf("[ATA] hdd is not bootable!\n");
 		}
+
+		Device *regdev = (Device*)malloc(sizeof(Device));
+				
+		regdev->readRawSector 	= (unsigned long)&ata_read_raw;
 		
-		// Device is NOT ATA
-		// Maybe it is ATAPI?
-		//if((inportb(device.command+4)==0x14)&&(inportb(device.command+5)==0xEB)){
-			
+		regdev->arg1 = (unsigned long)&device;
+		regdev->arg2 = 0;
+		regdev->arg3 = 0;
+		regdev->arg4 = 0;
+		regdev->arg5 = 512;
+		detectFilesystemsOnMBR(regdev);
+        }else{
+		// is cdrom
+		printf("[IDE] maybe atapi\n");
 		outportb(device.command+6,device.slave==1?0xB0:0xA0);
 		outportb(device.command+2,0);
 		outportb(device.command+3,0);

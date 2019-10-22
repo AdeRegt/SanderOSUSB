@@ -326,16 +326,16 @@ int init_ps2_mouse(){
 char ps2onceagain = 1;
 
 void init_ps2(){
-	if(init_ps2_keyboard()){
-		printstring("PS2: keyboard enabled!\n");
-	}else{
-		printstring("PS2: keyboard disabled!\n");
-		for(;;);
-	}
 	if(init_ps2_mouse()){
 		printstring("PS2: mouse enabled!\n");
 	}else{
 		printstring("PS2: mouse disabled!\n");
+		for(;;);
+	}
+	if(init_ps2_keyboard()){
+		printstring("PS2: keyboard enabled!\n");
+	}else{
+		printstring("PS2: keyboard disabled!\n");
 		for(;;);
 	}
 }

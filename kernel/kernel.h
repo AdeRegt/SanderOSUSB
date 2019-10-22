@@ -92,7 +92,6 @@ void init_ide2();
 void ahci_init(int bus,int slot,int function);
 
 
-
 typedef struct{
 
 	//
@@ -127,11 +126,11 @@ typedef struct{
 	// Advanced
 	//
 	
-	unsigned long arg1;
-	unsigned long arg2;
+	unsigned long arg1;	// LINK TO DATAPOINTER
+	unsigned long arg2;	// OFFSET DISK
 	unsigned long arg3;
 	unsigned long arg4;
-	unsigned long arg5;
+	unsigned long arg5;	// SIZEOF SECTOR
 	unsigned long arg6;
 	unsigned long arg7;
 	unsigned long arg8;
@@ -145,6 +144,8 @@ void fread(char* path,unsigned char* buffer);
 int getDeviceCount();
 int iself(unsigned char* buffer);
 unsigned long loadelf(void * buffer);
+void detectFilesystemsOnMBR(Device* dev);
+void initialiseExt2(Device* device);
 
 typedef struct{
     unsigned int gs, fs, es, ds;      /* pushed the segs last */

@@ -347,6 +347,8 @@ void stop_cmd(HBA_PORT *port)
 			continue;
 		break;
 	}
+	
+	
  
 	// Clear FRE (bit4)
 	port->cmd &= ~HBA_PxCMD_FRE;
@@ -436,7 +438,6 @@ int ahci_atapi_read(HBA_PORT *port, unsigned long startl, unsigned long starth, 
 	cmdtbl->prdt_entry[i].i = 1;
 	
 	unsigned long lba = startl;
-	
 	cmdtbl->acmd[ 0] = 0xA8;
     	cmdtbl->acmd[ 1] = 0x00;
     	cmdtbl->acmd[ 2] = (lba >> 0x18) & 0xFF;
@@ -665,11 +666,87 @@ int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, un
 	return 1;
 }
 
+void ahci_ata_read_ext(Device *dev,unsigned long lba,unsigned char count,unsigned short *location){
+	ahci_ata_read((HBA_PORT *)dev->arg1, dev->arg2+lba, 0, count, location);
+}
+
 void ahci_atapi_read_ext(Device *dev,unsigned long lba,unsigned char count,unsigned short *location){
 	ahci_atapi_read((HBA_PORT *)dev->arg1, lba, 0, count, location);
 }
 
 void ahci_atapi_eject_ext(){}
+
+// 0x00	1	Drive attributes (bit 7 set = active or bootable)
+// 0x01	3	CHS Address of partition start
+// 0x04	1	Partition type
+// 0x05	3	CHS address of last partition sector
+// 0x08	4	LBA of partition start
+// 0x0C	4	Number of sectors in partition
+
+
+void ahci_ata_init(HBA_PORT *port,int i){
+	port_rebase(port,i);
+	unsigned char* msg = (unsigned char*) 0x1000;
+	ahci_ata_read(port, 0, 0, 1, (unsigned short *)msg);
+	if(msg[510]==0x55&&msg[511]==0xAA){
+		printf("[AHCI] ATA is bootable\n");
+	}else{
+		printf("[AHCI] ATA is not bootable\n");
+	}
+	
+	Device* regdev = (Device*) malloc(sizeof(Device));
+		
+	regdev->readRawSector 	= (unsigned long)&ahci_ata_read_ext;
+	
+	regdev->arg1 = (unsigned long)port;
+	regdev->arg2 = 0;
+	regdev->arg3 = 0;
+	regdev->arg4 = 0;
+	regdev->arg5 = 512;
+	detectFilesystemsOnMBR(regdev);
+	
+}
+
+void ahci_atapi_init(HBA_PORT *port,int i){
+	port_rebase(port,i);
+	unsigned char* buffer = (unsigned char*) 0x1000;
+	ahci_atapi_read(port, 0, 0, 1, (unsigned short *)buffer);
+	if(buffer[510]==0x55&&buffer[511]==0xAA){
+		printf("[AHCI] ATAPI is bootable\n");
+	}else{
+		printf("[AHCI] ATAPI is not bootable\n");
+	}
+	int choice = -1;
+	for(int i = 0 ; i < 10 ; i++){
+//					atapi_read_sector(device,0x10+i,1, (unsigned short *)buffer);
+		ahci_atapi_read(port, 0x10+i, 0, 1, (unsigned short *)buffer);
+		if(buffer[1]=='C'&&buffer[2]=='D'&&buffer[3]=='0'&&buffer[4]=='0'&&buffer[5]=='1'){
+			choice = i;
+			break;
+		}
+	}
+	if(choice==-1){
+		printf("[AHCI] ATAPI: unknown filesystem\n");
+	}else{
+		printf("[AHCI] ATAPI: known filesystem ISO 9660\n");
+		
+		Device *regdev = getNextFreeDevice();
+		
+		regdev->readRawSector 	= (unsigned long)&ahci_atapi_read_ext;
+		regdev->eject 		= (unsigned long)&ahci_atapi_eject_ext;
+		
+		regdev->dir		= (unsigned long)&iso_9660_dir;
+		regdev->readFile	= (unsigned long)&iso_9660_read;
+		regdev->existsFile	= (unsigned long)&iso_9660_exists;
+		
+		// .command= 0x1f0,.control=0x3f6,.irq=14,.slave=0
+		regdev->arg1 = (unsigned long)port;
+		regdev->arg2 = 0;
+		regdev->arg3 = 0;
+		regdev->arg4 = 0;
+		regdev->arg5 = ATAPI_SECTOR_SIZE;
+	}
+}
 
 void ahci_init(int bus,int slot,int function){
 	unsigned long bar0 = getBARaddress(bus,slot,function,0x10);
@@ -698,64 +775,14 @@ void ahci_init(int bus,int slot,int function){
 				
 		 	}else if(port->sig==SATA_SIG_ATAPI){
 				printf("[AHCI] ATAPI detected\n");
-				port_rebase(port,i);
-				unsigned char* buffer = (unsigned char*) 0x1000;
-				ahci_atapi_read(port, 0, 0, 1, (unsigned short *)buffer);
-				if(buffer[510]==0x55&&buffer[511]==0xAA){
-					printf("[AHCI] ATAPI is bootable\n");
-				}else{
-					printf("[AHCI] ATAPI is not bootable\n");
-				}
-				int choice = -1;
-				for(int i = 0 ; i < 10 ; i++){
-//					atapi_read_sector(device,0x10+i,1, (unsigned short *)buffer);
-					ahci_atapi_read(port, 0x10+i, 0, 1, (unsigned short *)buffer);
-					if(buffer[1]=='C'&&buffer[2]=='D'&&buffer[3]=='0'&&buffer[4]=='0'&&buffer[5]=='1'){
-						choice = i;
-						break;
-					}
-				}
-				if(choice==-1){
-					printf("[AHCI] ATAPI: unknown filesystem\n");
-				}else{
-					printf("[AHCI] ATAPI: known filesystem ISO 9660\n");
-					
-					Device *regdev = getNextFreeDevice();
-					
-					regdev->readRawSector 	= (unsigned long)&ahci_atapi_read_ext;
-					regdev->eject 		= (unsigned long)&ahci_atapi_eject_ext;
-					
-					regdev->dir		= (unsigned long)&iso_9660_dir;
-					regdev->readFile	= (unsigned long)&iso_9660_read;
-					regdev->existsFile	= (unsigned long)&iso_9660_exists;
-					
-					// .command= 0x1f0,.control=0x3f6,.irq=14,.slave=0
-					regdev->arg1 = (unsigned long)port;
-					regdev->arg2 = 0;
-					regdev->arg3 = 0;
-					regdev->arg4 = 0;
-					regdev->arg5 = ATAPI_SECTOR_SIZE;
-				}
+				ahci_atapi_init(port,i);
 			}else if(port->sig==SATA_SIG_SEMB){
 				printf("[AHCI] SEMB detected\n");
 			}else if(port->sig==SATA_SIG_PM){
 				printf("[AHCI] PM detected\n");
 			}else{
-				printf("[AHCI] SATA detected %x \n",i);return;
-				port_rebase(port,i);
-				unsigned char* msg = (unsigned char*) 0x1000;
-				ahci_ata_read(port, 0, 0, 1, (unsigned short *)msg);
-				if(msg[510]==0x55&&msg[511]==0xAA){
-					printf("[AHCI] ATA is bootable\n");
-				}else{
-					printf("[AHCI] ATA is not bootable\n");
-				}
-				
-				unsigned int basex = 0x01BE;
-				for(int i = 0 ; i < 4 ; i++){
-					printf("[AHCI] MBR %x : active %x filesystem %x \n",i+1,msg[basex],msg[basex+4]);
-					basex += 16;
-				}
+				printf("[AHCI] SATA detected %x \n",i);
+				ahci_ata_init(port,i);
 			}
 		}
 		pi >>= 1;
