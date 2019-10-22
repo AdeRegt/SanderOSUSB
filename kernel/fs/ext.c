@@ -45,20 +45,21 @@ typedef struct{
 	unsigned char unused[13];
 }EXT2BlockGroupDesc;
 
-typedef struct{
-	unsigned short typeandpremissions;
-	unsigned short userid;
-	unsigned long losize;
-	unsigned long accesstime;
-	unsigned long creationtime;
-	unsigned long lastmodified;
-	unsigned long delitiontime;
-	unsigned short groupid;
-	unsigned short counthardlinks;
-	unsigned long countharddisksectors;
-	unsigned long flags;
-	unsigned long osspecval;
-	unsigned long directp[12];
+typedef struct{//					WITH DATA ON LIVE DISK
+	unsigned short typeandpremissions;	//	0xed 0x41
+	unsigned short userid;			//	0x00 0x00
+	unsigned long losize;			//	0x00 0x10 0x00 0x00
+	unsigned long accesstime;		//	0xeb 0x32 0xaf 0x5d
+	unsigned long creationtime;		//	0xe8 0x32 0xaf 0x5d
+	unsigned long lastmodified;		//	0xe8 0x32 0xaf 0x5d
+	unsigned long delitiontime;		//	0x00 0x00 0x00 0x00
+	unsigned short groupid;			//	0x00 0x00
+	unsigned short counthardlinks;		//	0x19 0x00
+	unsigned long countharddisksectors;	//	0x08 0x00 0x00 0x00
+	unsigned long flags;			//	0x00 0x00 0x08 0x00
+	unsigned long osspecval;		//	0x6a 0x01 0x00 0x00
+	unsigned long directp[12];		// [0]	0x0a 0xf3 0x01 0x00 
+						// [1]	0x04 0x00 0x00 0x00
 	unsigned long singlipd;
 	unsigned long doubld;
 	unsigned long tripple;
@@ -66,7 +67,7 @@ typedef struct{
 	unsigned long ext1;
 	unsigned long ext2;
 	unsigned long blckadrsfrg;
-	unsigned char reserved[12];
+	unsigned char reserved[12+0x80];
 }EXT2Inode;
 
 typedef struct{
@@ -102,33 +103,37 @@ void initialiseExt2(Device* device){
 		unsigned long offsetblockgroupsectphys = offsetblockgroupsect;
 		printf("[EXT2] Offset to blockgrouptable is %x (virt %x : phy %x)\n",offsetblockgroup,offsetblockgroupsect,offsetblockgroupsectphys);
 		printf("[EXT2] First non-reserved inode=%x sizeof inode=%x \n",superblock->firstnonreserved,superblock->sizeofinode);
-		//
+		
 		// blockdevice info ophalen
 		unsigned char* ext = (unsigned char*) 0x1500;
 		readraw(device, offsetblockgroupsectphys, 1, (unsigned short *)ext);
 		EXT2BlockGroupDesc* et = (EXT2BlockGroupDesc*) ext;
-		unsigned char* grouproot = (unsigned char*) 0x1500+512;
-		printf("[EXT2] Group0, inodetablestart at %x \n",et->inodetablestart*blocksector);
-		unsigned long offset = 0;
-		for(unsigned int i = 0 ; i < blocksector*5 ; i++){
-			readraw(device, ((et->inodetablestart)*blocksector)+i, 1, (unsigned short *)grouproot+offset);
-			offset += 512;
+		unsigned short* grouproot = (unsigned short*) 0x1500+512;
+		printf("[EXT2] Group0, inodetablestart at %x and %x dirs declared with sizeofinode of %x \n",et->inodetablestart*blocksector,et->directoriesingroup,superblock->sizeofinode);
+		readraw(device, et->inodetablestart*blocksector, 1, grouproot);
+		if(superblock->sizeofinode!=0x100){
+			printf("[EXT2] unexpected inode size!!!\n");
 		}
 		//
 		// root node vinden
-		EXT2Inode* lst = (EXT2Inode*) grouproot + (superblock->sizeofinode*1);
+		EXT2Inode* lst = (EXT2Inode*) &(((EXT2Inode*) grouproot)[1]);
 		unsigned long rootdirtype = lst->typeandpremissions;
 		rootdirtype = rootdirtype >> 12;
 		if(rootdirtype==4){
 			printf("[EXT2] Root dir found!\n");
-			unsigned long directp = (lst->directp[0]+superblock->blocksforsu)*blocksector;
-			unsigned char* dirlist = (unsigned char*) 0x1500;
-			readraw(device, directp, 1, (unsigned short *)dirlist);
-			for(int i = 0 ; i < 512 ; i++){
-				printf("%c",dirlist[i]);
+			for(int i = 0 ; i < 12 ; i++){
+				printf("[EXT2] DRPNT: %x \n",lst->directp[i]);
 			}
+			if(lst->directp[0]==0x1f30a){
+				printf("[EXT2] ACK\n");
+			}
+			unsigned long directp = (lst->directp[0])*blocksector;//+superblock->blocksforsu;
+			unsigned short* dirlist = (unsigned short*) 0x1500;
+			readraw(device, directp, 1, dirlist);
+			
+		}else{
+			printf("[EXT2] Root dir NOT found! [ %x : %x ] \n",rootdirtype,lst->typeandpremissions);
 		}
-		
 	}else{
 		printf("[EXT2] Illegal checksum %x \n",superblock->checksum);
 	}
