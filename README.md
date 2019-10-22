@@ -20,9 +20,9 @@ The following devices are on the list to get implemented:
 
 The following filesystems are supported:
 * ISO 9660
-* MBR (in dev branch)
-* EFI-MBR (in dev branch)
-* EXT2 (in dev branch)
+* MBR
+* EFI-MBR
+* EXT2 (very basic)
 
 The following filesystems will be supported:
 * FAT 32
