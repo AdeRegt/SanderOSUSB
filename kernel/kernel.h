@@ -146,6 +146,7 @@ int iself(unsigned char* buffer);
 unsigned long loadelf(void * buffer);
 void detectFilesystemsOnMBR(Device* dev);
 void initialiseExt2(Device* device);
+void initialiseFAT(Device* device);
 
 typedef struct{
     unsigned int gs, fs, es, ds;      /* pushed the segs last */
