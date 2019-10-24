@@ -67,6 +67,105 @@ typedef struct DirectoryEntry{
 } __attribute__ ((packed)) fat_dir_t;
 
 
+void fat_read(Device *device,char* path,char *buffer){
+	//atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location)
+	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
+	unsigned short* rxbuffer = (unsigned short*) malloc(512);
+	readraw(device,0,1,rxbuffer); 
+	fat_BS_t* fat_boot = (fat_BS_t*) rxbuffer;
+	fat_extBS_32_t* fat_boot_ext_32 = (fat_extBS_32_t*) fat_boot->extended_section;
+	
+	unsigned long total_sectors 	= (fat_boot->total_sectors_16 == 0)? fat_boot->total_sectors_32 : fat_boot->total_sectors_16;
+	unsigned long fat_size 		= (fat_boot->table_size_16 == 0)? fat_boot_ext_32->table_size_32 : fat_boot->table_size_16;
+	unsigned long root_dir_sectors 	= ((fat_boot->root_entry_count * 32) + (fat_boot->bytes_per_sector - 1)) / fat_boot->bytes_per_sector;
+	unsigned long first_data_sector = fat_boot->reserved_sector_count + (fat_boot->table_count * fat_size) + root_dir_sectors;
+	unsigned long data_sectors 	= total_sectors - (fat_boot->reserved_sector_count + (fat_boot->table_count * fat_size) + root_dir_sectors);
+	unsigned long total_clusters 	= data_sectors / fat_boot->sectors_per_cluster;
+	
+	unsigned long first_sector_of_cluster = 0;
+	if(total_clusters < 4085){
+		
+	}else if(total_clusters < 65525){
+		
+	}else if (total_clusters < 268435445){
+		unsigned long root_cluster_32 = fat_boot_ext_32->root_cluster;
+		first_sector_of_cluster = ((root_cluster_32 - 2) * fat_boot->sectors_per_cluster) + first_data_sector;
+	}
+	
+	unsigned short* fatbuffer = (unsigned short*) malloc(512);
+	readraw(device,first_sector_of_cluster,1,fatbuffer); 
+	unsigned long pathoffset = 0;
+	unsigned long pathfileof = 0;
+	unsigned char filename[11];
+	
+	//
+	// pad opzoeken
+	while(1){
+		// buffer leegmaken
+		for(int i = 0 ; i < 11 ; i++){
+			filename[i] = 0x00;
+		}
+		// buffer vullen met nieuw woord
+		unsigned char erstw = path[pathoffset];
+		if(erstw==0x00){
+			break;
+		}
+		
+		for(int i = 0 ; i < 11 ; i++){
+			unsigned char deze = path[pathoffset++];
+			if(deze=='/'){
+				break;
+			}
+			if(deze==0x00){
+				pathoffset--;
+				break;
+			}
+			filename[pathfileof++] = deze;
+		}
+		
+		unsigned long offset = 0;
+		unsigned long newsect = 0;
+		while(1){
+			fat_dir_t* currentdir = (fat_dir_t*) (fatbuffer + offset);
+			offset += sizeof(fat_dir_t);
+			unsigned char eersteteken = currentdir->name[0];
+			if(eersteteken==0x00){
+				break;
+			}
+			if(eersteteken==0xE5){
+				continue;
+			}
+			unsigned long sigma = 0;
+			unsigned long yotta = 1;
+			for(int i = 0 ; i < 11 ; i++){
+				if(currentdir->name[i]!=0x00){
+					if(currentdir->name[i]==filename[sigma++]){
+						// naam (nog) hetzelfde
+					}else{
+						// naam is veranderd.
+						yotta = 0;
+					}
+				}
+			}
+			if(yotta){
+				newsect = ((currentdir->clusterhigh << 8) &0xFFFF0000) | (currentdir->clusterlow & 0xFFFF);
+				break;
+			}
+		}
+		if(newsect){
+			first_sector_of_cluster = ((newsect - 2) * fat_boot->sectors_per_cluster) + first_data_sector;
+			readraw(device,first_sector_of_cluster,1,fatbuffer);
+		}else{
+			printf("CANNOT FIND DIR\n");
+			for(;;);
+		}
+		
+	}
+	
+	readraw(device,first_sector_of_cluster,1,(unsigned short*)buffer);
+}
+
+
 void fat_dir(Device *device,char* path,char *buffer){
 	//atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location)
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
@@ -249,4 +348,5 @@ void initialiseFAT(Device* device){
 		printf("\n");
 	}
 	device->dir	= (unsigned long)&fat_dir;
+	device->readFile= (unsigned long)&fat_read;
 }
