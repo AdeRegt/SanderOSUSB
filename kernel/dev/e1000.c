@@ -16,7 +16,7 @@ void E1000WriteCommand (unsigned short addr, unsigned long val ){
 
 extern void e1000irq();
 void irq_e1000(){
-	printf("<<FIRE>>");
+	
 	outportb(0x20,0x20);
 	outportb(0xA0,0x20);
 }
