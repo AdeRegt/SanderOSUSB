@@ -2,26 +2,6 @@
 
 unsigned long operationalregistersoffset;
 
-extern void xhciirq();
-
-void irq_xhci(){
-	printf("XHCI: int fire\n");	
-	for(int i = 0 ; i < 10 ;i++){
-		unsigned long port = get_xhci_PORTSC(i);
-		if(port & 0b10){
-			printf("XHCI: port %x has a statuschange: %x \n",i,port);
-			if(port & 0b01){
-				printf("XHCI: port %x is attached \n",i);
-			}else{
-				printf("XHCI: port %x is deattached \n",i);
-			}
-		}
-	}
-	// EOI
-	outportb(0x20,0x20);
-	outportb(0xA0,0x20);
-}
-
 unsigned long get_xhci_USBCMD(){
 	return ((unsigned long*)operationalregistersoffset)[0];
 }
@@ -61,6 +41,18 @@ unsigned long get_xhci_PORTSC(int i){
 	return ((unsigned long*)ta)[0];
 }
 
+extern void xhciirq();
+
+void irq_xhci(){
+	printf("XHCI: int fire\n");
+	if(get_xhci_USBSTS() & 0b00000000000000000000000000000100){printf("XHCI: host system error\n");}
+	if(get_xhci_USBSTS() & 0b00000000000000000000000000001000){printf("XHCI: event interrupt\n");}
+	if(get_xhci_USBSTS() & 0b00000000000000000000000000010000){printf("XHCI: portchange\n");}
+	// EOI
+	outportb(0x20,0x20);
+	outportb(0xA0,0x20);
+}
+
 void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	printf("XHCI: entering xhci driver....\n");
 	unsigned long base1 = getBARaddress(bus,slot,function,0x10);
@@ -76,6 +68,11 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	printf("XHCI: capabilitysize %x \n",capabilitysize);
 	operationalregistersoffset = capabilityoffset+capabilitysize;
 	printf("XHCI: offset of operational registers %x \n",operationalregistersoffset);
+	((unsigned long*)operationalregistersoffset)[0] = 0b00000000000000000000000000000010;
+	checkagain:
+	if(get_xhci_USBCMD() & 0b00000000000000000000000000000010){
+		goto checkagain;
+	}
 	printf("XHCI: starting value USBCMD %x \n",get_xhci_USBCMD());
 	printf("XHCI: starting value USBSTS %x \n",get_xhci_USBSTS());
 	for(int i = 0 ; i < 10 ;i++){
