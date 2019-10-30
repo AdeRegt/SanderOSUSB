@@ -710,11 +710,15 @@ void ahci_ata_init(HBA_PORT *port,int i){
 void ahci_atapi_init(HBA_PORT *port,int i){
 	port_rebase(port,i);
 	unsigned char* buffer = (unsigned char*) 0x1000;
+	for(int z = 0 ; z < 512 ; z++){
+		buffer[z] = 0x00;
+	}
 	ahci_atapi_read(port, 0, 0, 1, (unsigned short *)buffer);
 	if(buffer[510]==0x55&&buffer[511]==0xAA){
 		printf("[AHCI] ATAPI is bootable\n");
 	}else{
 		printf("[AHCI] ATAPI is not bootable\n");
+		return;
 	}
 	int choice = -1;
 	for(int i = 0 ; i < 10 ; i++){
