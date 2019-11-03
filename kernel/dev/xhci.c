@@ -7,14 +7,26 @@ unsigned long xhci_ports_offset = 0;
 
 extern void xhciirq();
 
+void dumpPortstati(){
+	for(int i = 0 ; i < 10 ; i++){
+		unsigned long tar = ((unsigned char*)xhci_ports_offset+(i*0x10))[0];
+		if(tar & 1){
+			printf("XHCI: PORT%x: %x \n",i,tar);
+		}
+	}
+}
+
 void irq_xhci(){
 	printf("XHCI: int fire\n");
-	
+	printf("XHCI: USBCMD %x USBSTS %x \n",((unsigned long*)xhci_usbcmd)[0],((unsigned long*)xhci_usbsts)[0]);
+	dumpPortstati();
 }
 
 // offset intell xhci 0x47C
 void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	printf("XHCI: entering xhci driver....\n");
+	unsigned long usbint = getBARaddress(bus,slot,function,0x3C) & 0x000000FF;
+	setNormalInt(usbint,(unsigned long)xhciirq);
 //	
 //	GETTING BASIC INFO
 	unsigned long capabilityregister = getBARaddress(bus,slot,function,0x34) & 0x000000FF;
@@ -74,12 +86,16 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	//
 	//
 	// getting all addresses
-	
-	printf("\n");
-	for(int i = 0 ; i < 10 ; i++){
-		printf("XHCI: %x \n",((unsigned char*)xhci_ports_offset+(i*0x10))[0]);
+	((unsigned long*)xhci_usbcmd)[0] = 2;
+	resetTicks();
+	while(((unsigned long*)xhci_usbcmd)[0]){
+		if(getTicks()==10){
+			printf("XHCI: TIMEOUT\n");
+			for(;;);
+		}
 	}
-	for(;;);
-	memdump(xhci_base+0x400);
+	
+	printf("\n[READY]\n\n");
+	dumpPortstati();
 	for(;;);
 }
