@@ -7,6 +7,50 @@
 #define PCI_ADDRESS 0xCF8
 #define PCI_DATA 0xCFC
 
+void dumpPCI(int bus,int slot,int function){
+	printf("========================\n");
+	printf("PCI DUMP\n");
+	printf("------------------------\n");
+	printf("Vendor ID  = %x \n",getBARaddress(bus,slot,function,0) & 0x0000FFFF);
+	printf("Device ID  = %x \n",(getBARaddress(bus,slot,function,0) & 0xFFFF0000) >> 16);
+	
+	printf("Command    = %x \n", getBARaddress(bus,slot,function,0x04) & 0x0000FFFF);
+	printf("Status     = %x \n",(getBARaddress(bus,slot,function,0x04) & 0xFFFF0000) >> 16);
+	
+	printf("RevisionID = %x \n", getBARaddress(bus,slot,function,0x08) & 0x000000FF);
+	printf("Prog IF    = %x \n",(getBARaddress(bus,slot,function,0x08) & 0x0000FF00)>> 8);
+	printf("Subclass   = %x \n",(getBARaddress(bus,slot,function,0x08) & 0x00FF0000)>> 16);
+	printf("Classcode  = %x \n",(getBARaddress(bus,slot,function,0x08) & 0xFF000000)>> 24);
+	
+	printf("Cache Line = %x \n", getBARaddress(bus,slot,function,0x0C) & 0x000000FF);
+	printf("Latency Tim= %x \n",(getBARaddress(bus,slot,function,0x0C) & 0x0000FF00)>> 8);
+	printf("Header type= %x \n",(getBARaddress(bus,slot,function,0x0C) & 0x00FF0000)>> 16);
+	printf("BIST       = %x \n",(getBARaddress(bus,slot,function,0x0C) & 0xFF000000)>> 24);
+	
+	printf("BAR        = %x %x %x %x %x %x \n", 
+		getBARaddress(bus,slot,function,0x10), 
+		getBARaddress(bus,slot,function,0x14), 
+		getBARaddress(bus,slot,function,0x18), 
+		getBARaddress(bus,slot,function,0x1C), 
+		getBARaddress(bus,slot,function,0x20), 
+		getBARaddress(bus,slot,function,0x24)
+	);
+	
+	printf("Cardbus CIS= %x \n",getBARaddress(bus,slot,function,0x28));
+	
+	printf("Subsystem V= %x \n",getBARaddress(bus,slot,function,0x2C) & 0x0000FFFF);
+	printf("Subsystem  = %x \n",(getBARaddress(bus,slot,function,0x2C) & 0xFFFF0000) >> 16);
+	
+	printf("Expansion R= %x \n",getBARaddress(bus,slot,function,0x30));
+	
+	printf("Capability = %x \n", getBARaddress(bus,slot,function,0x34) & 0x000000FF);
+	
+	printf("Interrupt L= %x \n", getBARaddress(bus,slot,function,0x3C) & 0x000000FF);
+	printf("Interrupt P= %x \n",(getBARaddress(bus,slot,function,0x3C) & 0x0000FF00)>> 8);
+	printf("Min Grant  = %x \n",(getBARaddress(bus,slot,function,0x3C) & 0x00FF0000)>> 16);
+	printf("Max latency= %x \n",(getBARaddress(bus,slot,function,0x3C) & 0xFF000000)>> 24);
+}
+
 unsigned short pciConfigReadWord (unsigned char bus, unsigned char slot, unsigned char func, unsigned char offset) {
     unsigned long address;
     unsigned long lbus  = (unsigned long)bus;

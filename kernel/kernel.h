@@ -83,6 +83,8 @@ void init_ps2();
 void init_pci();
 unsigned long getBARaddress(int bus,int slot,int function,int barNO);
 void init_xhci(unsigned long bus,unsigned long slot,unsigned long function);
+void dumpPCI(int bus,int slot,int function);
+void memdump(unsigned long location);
 
 // SERIAL
 void init_serial();
