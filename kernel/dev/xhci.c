@@ -29,6 +29,10 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	if(deviceid==0x22B5){
 		printf("[XHCI] INTELL XHCI CONTROLLER\n");
 		basebar = bar+0x7C;
+	}else if(deviceid==0xD){
+		printf("[XHCI] QEMU XHCI CONTROLLER\n");
+		unsigned long premature = bar + (getBARaddress(bus,slot,function,0x34) & 0x000000FF);
+		basebar = premature+((unsigned char*)premature)[0];
 	}else{
 		printf("[XHCI] UNKNOWN XHCI CONTROLLER %x \n",deviceid);
 		basebar = bar + ((unsigned char*)bar)[0];
@@ -80,15 +84,13 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	unsigned long ring[10];
 	unsigned long zen = (unsigned long)&ring;
 	zen = zen<<6;
-	((unsigned long*)crcr)[0] = (unsigned long)zen;
+	((unsigned long*)crcr)[0] |= (unsigned long)zen;
 	
 	
 	((unsigned long*)usbcmd)[0] |= 1;
 	
 	resetTicks();
 	while(getTicks()<5);
-	
-	printf("[XHCI] current crcr status %x \n",((unsigned long*)crcr)[0]);
 	
 	if(xhci_usbsts & 0b10000){
 		printf("[XHCI] Portchange detected!\n");
@@ -98,17 +100,19 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 		unsigned long map = basebar + 0x400 + (i*0x10);
 		unsigned long val = ((unsigned long*)map)[0];
 		if(val&3){ // USB 3.0 does everything themselves
-			printf("[XHCI] Port %x seems to have a connection\n",i);
+			printf("[XHCI] Port %x has a USB3.0 connection\n",i);
 		}else{ // USB 2.0 however doesnt...
-			((unsigned long*)map)[0] = 0b1000010000;
+			((unsigned long*)map)[0] = 0b1000010000; // activate power and reset port
 			resetTicks();
 			while(getTicks()<5);
 			val = ((unsigned long*)map)[0];
 			if(val&3){
-				printf("[XHCI] Port %x seems we have a connection after all\n",i);
+				printf("[XHCI] Port %x has a USB2.0 connection\n",i);
 			}
 		}
 	}
+	
+	printf("[XHCI] current crcr status %x \n",((unsigned long*)crcr)[0]);
 	printf("[XHCI] All finished!\n");
 	for(;;);
 }
