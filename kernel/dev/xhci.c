@@ -41,7 +41,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	if(deviceid==0x22B5){
 		printf("[XHCI] INTELL XHCI CONTROLLER\n");
 		basebar = bar+0x7C;
-		doorbel += 0xC;
+		doorbel += 0x7C;
 	}else if(deviceid==0xD){
 		printf("[XHCI] QEMU XHCI CONTROLLER\n");
 		unsigned long premature = bar + (getBARaddress(bus,slot,function,0x34) & 0x000000FF);
