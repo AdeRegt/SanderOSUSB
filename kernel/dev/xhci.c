@@ -41,7 +41,6 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	if(deviceid==0x22B5){
 		printf("[XHCI] INTELL XHCI CONTROLLER\n");
 		basebar = bar+0x7C;
-		doorbel += 0x7C;
 	}else if(deviceid==0xD){
 		printf("[XHCI] QEMU XHCI CONTROLLER\n");
 		unsigned long premature = bar + (getBARaddress(bus,slot,function,0x34) & 0x000000FF);
@@ -86,6 +85,10 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	xhci_usbcmd = ((unsigned long*)usbcmd)[0];
 	xhci_usbsts = ((unsigned long*)usbsts)[0];
 	printf("[XHCI] Reset XHCI finished with USBCMD %x and USBSTS %x \n",xhci_usbcmd,xhci_usbsts);
+	// COMMAND RING CONTROLL
+	unsigned long zen = (unsigned long)&ring;
+	zen = zen<<6;
+	((unsigned long*)crcr)[0] = (unsigned long)zen;
 	// setup the max device sloths
 	((unsigned long*)config)[0] |= 0b00000111;
 	// DCBAAP
@@ -93,10 +96,6 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	unsigned long btc = (unsigned long)&bcbaapt;
 	btc = btc<<6;
 	((unsigned long*)bcbaap)[0] = (unsigned long)btc;
-	// COMMAND RING CONTROLL
-	unsigned long zen = (unsigned long)&ring;
-	zen = zen<<6;
-	((unsigned long*)crcr)[0] = (unsigned long)zen;
 	
 	
 	((unsigned long*)usbcmd)[0] |= 1;
@@ -135,7 +134,10 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 		if(val&3){
 			printf("[XHCI] Port %x is initialising....\n",i);
 			//
-			// getting port number
+			// setting up two TRBs
+			// first one is to ask to get a slotnumber
+			// second one is the event, which has a link to the first one
+			// the second one is attached to the event ring
 			TRB trb;
 			trb.bar1 = 0;
 			trb.bar2 = 0;
