@@ -9,10 +9,6 @@ typedef struct{
 
 extern void xhciirq();
 
-void irq_xhci(){
-	printf("XHCI: int fire\n");
-}
-
 unsigned long basebar = 0;
 unsigned long usbcmd = 0;
 unsigned long usbsts = 0;
@@ -20,7 +16,25 @@ unsigned long config = 0;
 unsigned long bcbaap = 0;
 unsigned long crcr   = 0;
 unsigned long doorbel= 0;
+unsigned long dnctrl = 0;
+unsigned long erstsz = 0;
+unsigned long erstba = 0;
 TRB ring[10];
+TRB evts[10];
+
+void irq_xhci(){
+	printf("[XHCI] int fire\n");
+	unsigned long xhci_usbsts = ((unsigned long*)usbsts)[0];
+	if(xhci_usbsts&4){
+		printf("[XHCI] Host system error\n");
+	}
+	if(xhci_usbsts&8){
+		printf("[XHCI] Event interrupt\n");
+	}
+	if(xhci_usbsts&0x10){
+		printf("[XHCI] Port interrupt\n");
+	}
+}
 
 // offset intell xhci 0x47C
 void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
@@ -35,6 +49,11 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	unsigned long hciparamadr = bar+0x04;
 	unsigned long hciparam1 = ((unsigned long*)hciparamadr)[0];
 	unsigned long portcount = hciparam1>>24;
+	unsigned long rtsoffa = bar+0x18;
+	unsigned long rtsoff = ((unsigned long*)rtsoffa)[0];
+	rtsoff = rtsoff >> 5;
+	rtsoff += bar;
+	printf("[XHCI] Runtime offset %x \n",rtsoff);
 	printf("[XHCI] portcount %x \n",portcount);
 	doorbel = bar+((unsigned long*)capdb)[0];
 	printf("[XHCI] doorbell offset %x \n",doorbel);
@@ -54,6 +73,9 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	config = basebar+0x38;
 	bcbaap = basebar+0x30;
 	crcr   = basebar+0x18;
+	dnctrl = basebar+0x14;
+	erstsz = rtsoff+0x28;
+	erstba = rtsoff+0x30;
 	
 	printf("[XHCI] default value CONFIG %x \n",((unsigned long*)config)[0]);
 	printf("[XHCI] default value BCBAAP %x \n",((unsigned long*)bcbaap)[0]);
@@ -85,10 +107,25 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	xhci_usbcmd = ((unsigned long*)usbcmd)[0];
 	xhci_usbsts = ((unsigned long*)usbsts)[0];
 	printf("[XHCI] Reset XHCI finished with USBCMD %x and USBSTS %x \n",xhci_usbcmd,xhci_usbsts);
+	// TELL XHCI TO USE INTERRUPTS
+	((unsigned long*)usbcmd)[0] |= 4;
+	// TELL XHCI TO REPORT EVERYTHING
+	((unsigned long*)dnctrl)[0] |= 0b1111111111111111;
 	// COMMAND RING CONTROLL
 	unsigned long zen = (unsigned long)&ring;
 	zen = zen<<6;
 	((unsigned long*)crcr)[0] = (unsigned long)zen;
+	// EVENT RING SIZE
+	((unsigned long*)erstsz)[0] |= 1;
+	// EVENT RING TABLE SETUP
+	unsigned long txrt = &evts;
+	txrt = txrt<<6;
+	TRB ert;
+	ert.bar1 = txrt;
+	ert.bar3 = 16;
+	unsigned long tert = &ert;
+	tert = tert<<6;
+	((unsigned long*)erstba)[0] = tert;
 	// setup the max device sloths
 	((unsigned long*)config)[0] |= 0b00000111;
 	// DCBAAP
@@ -97,11 +134,13 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	btc = btc<<6;
 	((unsigned long*)bcbaap)[0] = (unsigned long)btc;
 	
-	
 	((unsigned long*)usbcmd)[0] |= 1;
 	
 	resetTicks();
 	while(getTicks()<5);
+	xhci_usbcmd = ((unsigned long*)usbcmd)[0];
+	xhci_usbsts = ((unsigned long*)usbsts)[0];
+	printf("[XHCI] System up and running with USBCMD %x and USBSTS %x \n",xhci_usbcmd,xhci_usbsts);
 	
 	if(xhci_usbsts & 0b10000){
 		printf("[XHCI] Portchange detected!\n");
@@ -123,7 +162,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 		}else{ // USB 2.0 however doesnt...
 			((unsigned long*)map)[0] = 0b1000010000; // activate power and reset port
 			resetTicks();
-			while(getTicks()<2);
+			while(getTicks()<5);
 			val = ((unsigned long*)map)[0];
 			if(val&3){
 				printf("[XHCI] Port %x has a USB2.0 connection (%x)\n",i,val);
@@ -131,28 +170,21 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			}
 		}
 		
+		
+		if(val==0){
+			break;
+		}
+		
 		if(val&3){
 			printf("[XHCI] Port %x is initialising....\n",i);
 			//
-			// setting up two TRBs
-			// first one is to ask to get a slotnumber
-			// second one is the event, which has a link to the first one
-			// the second one is attached to the event ring
-			TRB trb;
-			trb.bar1 = 0;
-			trb.bar2 = 0;
-			trb.bar3 = 0;
-			trb.bar4 = 0b00000000000000000010010000000000;
-			
-			
-			unsigned long tox = (unsigned long)&trb;
-			tox = tox<<4;
+			// setting up TRB
 			
 			TRB trb2 = ring[0];
-			trb2.bar1 = tox;
+			trb2.bar1 = 0;
 			trb2.bar2 = 0;
 			trb2.bar3 = 0;
-			trb2.bar4 = 0b00000000000000001100110000000000;
+			trb2.bar4 = 0b00000000000000000010010000000001;
 			
 			// doorbel
 			unsigned long tingdongaddr = doorbel;
@@ -163,8 +195,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			while(getTicks()<2);
 			
 			// result
-			printf("[XHCI] %x %x %x %x \n",trb.bar1,trb.bar2,trb.bar3,trb.bar4);
-			printf("[XHCI] %x %x %x %x \n",trb2.bar1,trb2.bar2,trb2.bar3,trb2.bar4);
+			TRB trbres = evts[0];
+			printf("[XHCI] %x %x %x %x \n",trbres.bar1,trbres.bar2,trbres.bar3,trbres.bar4);
 		}
 	}
 	
