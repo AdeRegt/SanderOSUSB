@@ -19,21 +19,24 @@ unsigned long doorbel= 0;
 unsigned long dnctrl = 0;
 unsigned long erstsz = 0;
 unsigned long erstba = 0;
-TRB ring[10];
+unsigned long rtsoff = 0;
+TRB* ring = ((TRB*)0x1500);
 TRB evts[10];
 
 void irq_xhci(){
 	unsigned long xhci_usbsts = ((unsigned long*)usbsts)[0];
-	printf("[XHCI] fire!\n");
 	if(xhci_usbsts&4){
 		printf("[XHCI] Host system error interrupt\n");
 	}
 	if(xhci_usbsts&8){
-		printf("[XHCI] Event interrupt\n");
+//		printf("[XHCI] Event interrupt\n");
 	}
 	if(xhci_usbsts&0x10){
 		printf("[XHCI] Port interrupt\n");
 	}
+	unsigned long iman_addr = rtsoff + 0x020;
+	((unsigned long*)iman_addr)[0] = 1;
+	((unsigned long*)iman_addr)[0] |= 2;
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
 }
@@ -52,11 +55,13 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	unsigned long hciparam1 = ((unsigned long*)hciparamadr)[0];
 	unsigned long portcount = hciparam1>>24;
 	unsigned long rtsoffa = bar+0x18;
-	unsigned long rtsoff = bar+(((unsigned long*)rtsoffa)[0]);
+	rtsoff = bar+(((unsigned long*)rtsoffa)[0]);
 	printf("[XHCI] Runtime offset %x \n",rtsoff);
 	printf("[XHCI] portcount %x \n",portcount);
 	doorbel = bar+((unsigned long*)capdb)[0];
 	printf("[XHCI] doorbell offset %x \n",doorbel);
+//
+// Calculating base address
 	if(deviceid==0x22B5){
 		printf("[XHCI] INTELL XHCI CONTROLLER\n");
 		basebar = bar+0x7C;
@@ -68,6 +73,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 		printf("[XHCI] UNKNOWN XHCI CONTROLLER %x \n",deviceid);
 		basebar = bar + ((unsigned char*)bar)[0];
 	}
+//
+// Calculating other addresses
 	usbcmd = basebar;
 	usbsts = basebar+0x04;
 	config = basebar+0x38;
@@ -81,6 +88,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	
 	unsigned long xhci_usbcmd = ((unsigned long*)usbcmd)[0];
 	unsigned long xhci_usbsts = ((unsigned long*)usbsts)[0];
+//
+// Stopping controller when running
 	if((xhci_usbcmd & 1)==1){
 		printf("[XHCI] controller already running! (%x)\n",xhci_usbcmd);
 		// ask controller to stop
@@ -96,8 +105,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 		}
 	}
 	
-	//
-	// lets reset!
+//
+// Lets reset!
 	printf("[XHCI] Resetting XHCI \n");
 	resetTicks();
 	((unsigned long*)usbcmd)[0] |= 2;
@@ -105,41 +114,46 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	xhci_usbcmd = ((unsigned long*)usbcmd)[0];
 	xhci_usbsts = ((unsigned long*)usbsts)[0];
 	printf("[XHCI] Reset XHCI finished with USBCMD %x and USBSTS %x \n",xhci_usbcmd,xhci_usbsts);
+//
+// Setup default parameters
 	// TELL XHCI TO USE INTERRUPTS
 	((unsigned long*)usbcmd)[0] |= 4;
 	// TELL XHCI TO REPORT EVERYTHING
 	((unsigned long*)dnctrl)[0] |= 0b1111111111111111;
-	// COMMAND RING CONTROLL
-	unsigned long zen = (unsigned long)&ring;
-	zen = zen<<6;
-	((unsigned long*)crcr)[0] = (unsigned long)zen;
-	// EVENT RING SIZE
-	((unsigned long*)erstsz)[0] |= 1;
-	// EVENT RING TABLE SETUP
-	unsigned long txrt = (unsigned long)&evts;
-	txrt = txrt<<6;
-	TRB ert;
-	ert.bar1 = txrt;
-	ert.bar3 = 16;
-	unsigned long tert = (unsigned long)&ert;
-	tert = tert<<6;
-	//
-	// force interrupt to be enabled
-	for(int z = 0 ; z < 7 ; z++){
-		unsigned long intenaaddr = rtsoff+0x20+(32*z);
-		printf("[XHCI] intc %x : %x\n",z,((unsigned long*)intenaaddr)[0]);
-		((unsigned long*)intenaaddr)[0] |= 2;
-		((unsigned long*)intenaaddr)[0] &= ~1;
-		unsigned long inte2aaddr = rtsoff+0x30+(32*z);
-		((unsigned long*)inte2aaddr)[0] |= tert;
-	}
-	// setup the max device sloths
-	((unsigned long*)config)[0] |= 0b00000111;
+	
+	// setting up interrupter management register
+	// setting first interrupt enabled.
+	unsigned long iman_addr = rtsoff + 0x020;
+	((unsigned long*)iman_addr)[0] |= 0b10; // Interrupt Enable (IE) – RW
+	
+	// setting up "Event Ring Segment Table Size Register (ERSTSZ)"
+	unsigned long erstsz_addr = rtsoff + 0x028;
+	((unsigned long*)erstsz_addr)[0] |= 1; // keep only 1 open
+	
+	// setting up "Event Ring Segment Table"
+	unsigned long rsb1 = 0x1000;
+	unsigned long rsb2 = 0x1000+8;
+	((unsigned long*)rsb1)[0] |= 0x41400;
+	((unsigned long*)rsb2)[0] |= 16;
+	
+	// setting up "Event Ring Segment Table Base Address Register (ERSTBA)"
+	unsigned long erstba_addr = rtsoff + 0x030;
+	((unsigned long*)erstba_addr)[0] |= 0x40000; // table at 0x1000 for now
+	
+	// setting up "Command Ring Control Register (CRCR)"
+	unsigned long bse = 0x1500;
+	unsigned long bse1 = bse<<6;
+	((unsigned long*)crcr)[0] |= bse1;
+	
 	// DCBAAP
 	unsigned long bcbaapt[10];
 	unsigned long btc = (unsigned long)&bcbaapt;
 	((unsigned long*)bcbaap)[0] = (unsigned long)btc;
 	
+	resetTicks();
+	while(getTicks()<5);
+//
+// Start system
 	((unsigned long*)usbcmd)[0] |= 1;
 	
 	resetTicks();
@@ -186,11 +200,19 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			//
 			// setting up TRB
 			
-			TRB *trb2 = (TRB*)&ring;
+			TRB* trb2 = ((TRB*)0x54000);
 			trb2->bar1 = 0;
 			trb2->bar2 = 0;
 			trb2->bar3 = 0;
-			trb2->bar4 = 0b00000000000000000010010000000001;
+			trb2->bar4 = 0b00000000000000000010010000000000;
+			
+			//
+			// STOP CODON
+			TRB* trb = ((TRB*)0x54010);
+			trb->bar1 = 0;
+			trb->bar2 = 0;
+			trb->bar3 = 0;
+			trb->bar4 = 1;
 			
 			// doorbel
 			unsigned long tingdongaddr = doorbel;
@@ -201,7 +223,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			while(getTicks()<5);
 			
 			// result
-			TRB* trbres = (TRB*)evts;
+			TRB* trbres = ((TRB*)0x1050);
 			printf("[XHCI] %x %x %x %x \n",trbres->bar1,trbres->bar2,trbres->bar3,trbres->bar4);
 		}
 	}
