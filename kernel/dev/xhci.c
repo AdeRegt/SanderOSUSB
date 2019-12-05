@@ -29,13 +29,14 @@ void irq_xhci(){
 		printf("[XHCI] Host system error interrupt\n");
 	}
 	if(xhci_usbsts&8){
-//		printf("[XHCI] Event interrupt\n");
+		printf("[XHCI] Event interrupt\n");
 	}
 	if(xhci_usbsts&0x10){
 		printf("[XHCI] Port interrupt\n");
 	}
 	unsigned long iman_addr = rtsoff + 0x020;
 	((unsigned long*)iman_addr)[0] = 1;
+	((unsigned long*)iman_addr)[0] &= ~1;
 	((unsigned long*)iman_addr)[0] |= 2;
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
@@ -65,6 +66,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	if(deviceid==0x22B5){
 		printf("[XHCI] INTELL XHCI CONTROLLER\n");
 		basebar = bar+0x7C;
+		rtsoff += 0xC;
 	}else if(deviceid==0xD){
 		printf("[XHCI] QEMU XHCI CONTROLLER\n");
 		unsigned long premature = bar + (getBARaddress(bus,slot,function,0x34) & 0x000000FF);
@@ -124,7 +126,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	// setting up interrupter management register
 	// setting first interrupt enabled.
 	unsigned long iman_addr = rtsoff + 0x020;
-	((unsigned long*)iman_addr)[0] |= 0b10; // Interrupt Enable (IE) – RW
+//	((unsigned long*)iman_addr)[0] |= 0b10; // Interrupt Enable (IE) – RW
 	
 	// setting up "Event Ring Segment Table Size Register (ERSTSZ)"
 	unsigned long erstsz_addr = rtsoff + 0x028;
@@ -138,7 +140,11 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	
 	// setting up "Event Ring Segment Table Base Address Register (ERSTBA)"
 	unsigned long erstba_addr = rtsoff + 0x030;
-	((unsigned long*)erstba_addr)[0] |= 0x40000; // table at 0x1000 for now
+	((unsigned long*)erstba_addr)[0] |= 0x1000;//0x40000; // table at 0x1000 for now
+	
+	// setting up "Event Ring Dequeue Pointer Register (ERDP)"
+	unsigned long erdp_addr = rtsoff + 0x038;
+	((unsigned long*)erdp_addr)[0] = 0x41400;
 	
 	// setting up "Command Ring Control Register (CRCR)"
 	unsigned long bse = 0x1500;
@@ -220,10 +226,16 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			
 			// wait
 			resetTicks();
-			while(getTicks()<5);
+			while(getTicks()<10);
 			
 			// result
 			TRB* trbres = ((TRB*)0x1050);
+			printf("[XHCI] %x %x %x %x \n",trbres->bar1,trbres->bar2,trbres->bar3,trbres->bar4);
+			trbres = ((TRB*)0x41400);
+			printf("[XHCI] %x %x %x %x \n",trbres->bar1,trbres->bar2,trbres->bar3,trbres->bar4);
+			trbres = ((TRB*)0x1050+0x10);
+			printf("[XHCI] %x %x %x %x \n",trbres->bar1,trbres->bar2,trbres->bar3,trbres->bar4);
+			trbres = ((TRB*)0x41400+0x10);
 			printf("[XHCI] %x %x %x %x \n",trbres->bar1,trbres->bar2,trbres->bar3,trbres->bar4);
 		}
 	}
