@@ -128,23 +128,24 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	unsigned long iman_addr = rtsoff + 0x020;
 //	((unsigned long*)iman_addr)[0] |= 0b10; // Interrupt Enable (IE) – RW
 	
-	// setting up "Event Ring Segment Table Size Register (ERSTSZ)"
-	unsigned long erstsz_addr = rtsoff + 0x028;
-	((unsigned long*)erstsz_addr)[0] |= 1; // keep only 1 open
 	
 	// setting up "Event Ring Segment Table"
 	unsigned long rsb1 = 0x1000;
-	unsigned long rsb2 = 0x1000+8;
-	((unsigned long*)rsb1)[0] |= 0x41400;
-	((unsigned long*)rsb2)[0] |= 16;
+	unsigned long rsb2 = 0x1008;
+	((unsigned long*)rsb1)[0] |= 0x41400; 	// pointer to event ring queue
+	((unsigned long*)rsb2)[0] |= 16;	// size of ring segment (minimal length)
+	
+	// setting up "Event Ring Dequeue Pointer Register (ERDP)"
+	unsigned long erdp_addr = rtsoff + 0x038;
+	((unsigned long*)erdp_addr)[0] = 0x41400;
 	
 	// setting up "Event Ring Segment Table Base Address Register (ERSTBA)"
 	unsigned long erstba_addr = rtsoff + 0x030;
 	((unsigned long*)erstba_addr)[0] |= 0x1000;//0x40000; // table at 0x1000 for now
 	
-	// setting up "Event Ring Dequeue Pointer Register (ERDP)"
-	unsigned long erdp_addr = rtsoff + 0x038;
-	((unsigned long*)erdp_addr)[0] = 0x41400;
+	// setting up "Event Ring Segment Table Size Register (ERSTSZ)"
+	unsigned long erstsz_addr = rtsoff + 0x028;
+	((unsigned long*)erstsz_addr)[0] |= 1; // keep only 1 open
 	
 	// setting up "Command Ring Control Register (CRCR)"
 	unsigned long bse = 0x1500;
@@ -154,7 +155,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	// DCBAAP
 	unsigned long bcbaapt[10];
 	unsigned long btc = (unsigned long)&bcbaapt;
-	((unsigned long*)bcbaap)[0] = (unsigned long)btc;
+	((unsigned long*)bcbaap)[0] |= (unsigned long)btc;
 	
 	resetTicks();
 	while(getTicks()<5);
