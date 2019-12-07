@@ -121,13 +121,14 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	// TELL XHCI TO USE INTERRUPTS
 	((unsigned long*)usbcmd)[0] |= 4;
 	// TELL XHCI TO REPORT EVERYTHING
-	((unsigned long*)dnctrl)[0] |= 0b1111111111111111;
+//	((unsigned long*)dnctrl)[0] |= 0b1111111111111111;
 	
 	// setting up interrupter management register
 	// setting first interrupt enabled.
-	unsigned long iman_addr = rtsoff + 0x020;
-//	((unsigned long*)iman_addr)[0] |= 0b10; // Interrupt Enable (IE) – RW
-	
+	if(0){
+		unsigned long iman_addr = rtsoff + 0x020;
+		((unsigned long*)iman_addr)[0] |= 0b10; // Interrupt Enable (IE) – RW
+	}
 	
 	// setting up "Event Ring Segment Table"
 	unsigned long rsb1 = 0x1000;
@@ -135,13 +136,13 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	((unsigned long*)rsb1)[0] |= 0x41400; 	// pointer to event ring queue
 	((unsigned long*)rsb2)[0] |= 16;	// size of ring segment (minimal length)
 	
+	// setting up "Event Ring Segment Table Base Address Register (ERSTBA)"
+	unsigned long erstba_addr = rtsoff + 0x030;
+	((unsigned long*)erstba_addr)[0] |= 0x1000; // table at 0x1000 for now
+	
 	// setting up "Event Ring Dequeue Pointer Register (ERDP)"
 	unsigned long erdp_addr = rtsoff + 0x038;
 	((unsigned long*)erdp_addr)[0] = 0x41400;
-	
-	// setting up "Event Ring Segment Table Base Address Register (ERSTBA)"
-	unsigned long erstba_addr = rtsoff + 0x030;
-	((unsigned long*)erstba_addr)[0] |= 0x1000;//0x40000; // table at 0x1000 for now
 	
 	// setting up "Event Ring Segment Table Size Register (ERSTSZ)"
 	unsigned long erstsz_addr = rtsoff + 0x028;
@@ -226,10 +227,20 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			((unsigned long*)tingdongaddr)[0] = 0;
 			
 			// wait
-			resetTicks();
-			while(getTicks()<10);
+			unsigned long iman_addr = rtsoff + 0x020;
+			while(1){
+				unsigned long r = ((unsigned long*)iman_addr)[0];
+				if(r&1){
+					break;
+				}
+			}
 			
-			// result
+			// END OF INTERRUPT
+			((unsigned long*)iman_addr)[0] = 1;
+			((unsigned long*)iman_addr)[0] &= ~1;
+			((unsigned long*)iman_addr)[0] |= 2;
+			
+			// RESULTS
 			TRB* trbres = ((TRB*)0x1050);
 			printf("[XHCI] %x %x %x %x \n",trbres->bar1,trbres->bar2,trbres->bar3,trbres->bar4);
 			trbres = ((TRB*)0x41400);
