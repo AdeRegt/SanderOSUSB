@@ -117,8 +117,6 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	printf("[XHCI] Reset XHCI finished with USBCMD %x and USBSTS %x \n",xhci_usbcmd,xhci_usbsts);
 //
 // Setup default parameters
-	// TELL XHCI TO USE INTERRUPTS
-	((unsigned long*)usbcmd)[0] |= 4;
 	// TELL XHCI TO REPORT EVERYTHING
 //	((unsigned long*)dnctrl)[0] |= 0b1111111111111111;
 	
@@ -157,6 +155,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 		unsigned long iman_addr = rtsoff + 0x020;
 		((unsigned long*)iman_addr)[0] |= 0b10; // Interrupt Enable (IE) – RW
 	}
+	// TELL XHCI TO USE INTERRUPTS
+	((unsigned long*)usbcmd)[0] |= 4;
 	
 	resetTicks();
 	while(getTicks()<5);
