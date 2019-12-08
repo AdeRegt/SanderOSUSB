@@ -35,9 +35,8 @@ void irq_xhci(){
 		printf("[XHCI] Port interrupt\n");
 	}
 	unsigned long iman_addr = rtsoff + 0x020;
-	((unsigned long*)iman_addr)[0] = 1;
 	((unsigned long*)iman_addr)[0] &= ~1;
-	((unsigned long*)iman_addr)[0] |= 2;
+	printf("[XHCI] ISTS %x \n",((unsigned long*)iman_addr)[0]);
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
 }
@@ -124,11 +123,6 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 //	((unsigned long*)dnctrl)[0] |= 0b1111111111111111;
 	
 	// setting up interrupter management register
-	// setting first interrupt enabled.
-	if(0){
-		unsigned long iman_addr = rtsoff + 0x020;
-		((unsigned long*)iman_addr)[0] |= 0b10; // Interrupt Enable (IE) – RW
-	}
 	
 	// setting up "Event Ring Segment Table"
 	unsigned long rsb1 = 0x1000;
@@ -136,17 +130,18 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	((unsigned long*)rsb1)[0] |= 0x41400; 	// pointer to event ring queue
 	((unsigned long*)rsb2)[0] |= 16;	// size of ring segment (minimal length)
 	
-	// setting up "Event Ring Segment Table Base Address Register (ERSTBA)"
-	unsigned long erstba_addr = rtsoff + 0x030;
-	((unsigned long*)erstba_addr)[0] |= 0x1000; // table at 0x1000 for now
-	
-	// setting up "Event Ring Dequeue Pointer Register (ERDP)"
-	unsigned long erdp_addr = rtsoff + 0x038;
-	((unsigned long*)erdp_addr)[0] = 0x41400;
-	
 	// setting up "Event Ring Segment Table Size Register (ERSTSZ)"
 	unsigned long erstsz_addr = rtsoff + 0x028;
 	((unsigned long*)erstsz_addr)[0] |= 1; // keep only 1 open
+	
+	// setting up "Event Ring Dequeue Pointer Register (ERDP)"
+	unsigned long erdp_addr = rtsoff + 0x038;
+	((unsigned long*)erdp_addr)[0] = 0x41400; // set addr of event ring dequeue pointer register
+	((unsigned long*)erdp_addr)[0] &= ~0b1000; // clear bit 3
+	
+	// setting up "Event Ring Segment Table Base Address Register (ERSTBA)"
+	unsigned long erstba_addr = rtsoff + 0x030;
+	((unsigned long*)erstba_addr)[0] |= 0x1000; // table at 0x1000 for now
 	
 	// setting up "Command Ring Control Register (CRCR)"
 	unsigned long bse = 0x1500;
@@ -154,9 +149,14 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	((unsigned long*)crcr)[0] |= bse1;
 	
 	// DCBAAP
-	unsigned long bcbaapt[10];
-	unsigned long btc = (unsigned long)&bcbaapt;
+	unsigned long btc = 0x2000;
 	((unsigned long*)bcbaap)[0] |= (unsigned long)btc;
+	
+	// setting first interrupt enabled.
+	if(0){
+		unsigned long iman_addr = rtsoff + 0x020;
+		((unsigned long*)iman_addr)[0] |= 0b10; // Interrupt Enable (IE) – RW
+	}
 	
 	resetTicks();
 	while(getTicks()<5);
@@ -249,6 +249,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			printf("[XHCI] %x %x %x %x \n",trbres->bar1,trbres->bar2,trbres->bar3,trbres->bar4);
 			trbres = ((TRB*)0x41400+0x10);
 			printf("[XHCI] %x %x %x %x \n",trbres->bar1,trbres->bar2,trbres->bar3,trbres->bar4);
+			
+//			asm volatile ("cli\nhlt");
 		}
 	}
 	
