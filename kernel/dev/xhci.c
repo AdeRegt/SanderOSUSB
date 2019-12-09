@@ -238,8 +238,13 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			
 			// RESULTS
 			TRB *trbres = ((TRB*)0x41400);
-			printf("[XHCI] %x %x %x %x \n",trbres->bar1,trbres->bar2,trbres->bar3,trbres->bar4);
-			
+			unsigned char assignedSloth = (trbres->bar4 & 0b111111100000000000000000000000) >> 24;
+			unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
+			printf("[XHCI] Completion event arived. slot=%x code=%x \n",assignedSloth,completioncode);
+			if(completioncode!=1){
+				printf("[XHCI] Panic: completioncode != 1 \n");
+				continue;
+			}
 			for(;;);
 		}
 	}
