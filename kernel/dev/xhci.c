@@ -139,7 +139,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	
 	// setting up "Event Ring Segment Table Base Address Register (ERSTBA)"
 	unsigned long erstba_addr = rtsoff + 0x030;
-	((unsigned long*)erstba_addr)[0] |= 0x1000; // table at 0x1000 for now
+	((unsigned long*)erstba_addr)[0] = 0x1000; 	// table at 0x1000 for now
+	((unsigned long*)erstba_addr)[1] = 0x0; 	// sending 0 to make sure...
 	
 	// setting up "Command Ring Control Register (CRCR)"
 	unsigned long bse = 0x1500;
@@ -235,22 +236,11 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				}
 			}
 			
-			// END OF INTERRUPT
-			((unsigned long*)iman_addr)[0] = 1;
-			((unsigned long*)iman_addr)[0] &= ~1;
-			((unsigned long*)iman_addr)[0] |= 2;
-			
 			// RESULTS
-			TRB* trbres = ((TRB*)0x1050);
-			printf("[XHCI] %x %x %x %x \n",trbres->bar1,trbres->bar2,trbres->bar3,trbres->bar4);
-			trbres = ((TRB*)0x41400);
-			printf("[XHCI] %x %x %x %x \n",trbres->bar1,trbres->bar2,trbres->bar3,trbres->bar4);
-			trbres = ((TRB*)0x1050+0x10);
-			printf("[XHCI] %x %x %x %x \n",trbres->bar1,trbres->bar2,trbres->bar3,trbres->bar4);
-			trbres = ((TRB*)0x41400+0x10);
+			TRB *trbres = ((TRB*)0x41400);
 			printf("[XHCI] %x %x %x %x \n",trbres->bar1,trbres->bar2,trbres->bar3,trbres->bar4);
 			
-//			asm volatile ("cli\nhlt");
+			for(;;);
 		}
 	}
 	
