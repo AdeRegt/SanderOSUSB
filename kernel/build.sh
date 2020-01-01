@@ -28,6 +28,8 @@ gcc -T linker.ld -o myos.bin -m32 -ffreestanding -O2 -nostdlib boot.o kernel.o i
 rm *.o
 
 cp myos.bin ../kernel.bin
+ar rcs ../lib/libsos.a ../kernel.bin
+
 cd ..
 
 for i in programs/*.inc
@@ -53,6 +55,7 @@ rm cdrom.iso
 mkdir mnt
 mkdir mnt/prgs
 cp programs/*.bin mnt/prgs
+cp test.asm mnt/test.asm
 rm programs/*.bin
 mkdir mnt/boot
 mkdir mnt/boot/grub

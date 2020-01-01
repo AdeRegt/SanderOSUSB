@@ -65,7 +65,6 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	if(deviceid==0x22B5){
 		printf("[XHCI] INTELL XHCI CONTROLLER\n");
 		basebar = bar+0x7C;
-		rtsoff += 0xC;
 	}else if(deviceid==0xD){
 		printf("[XHCI] QEMU XHCI CONTROLLER\n");
 		unsigned long premature = bar + (getBARaddress(bus,slot,function,0x34) & 0x000000FF);
@@ -146,10 +145,12 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	unsigned long bse = 0x1500;
 	unsigned long bse1 = bse<<6;
 	((unsigned long*)crcr)[0] |= bse1;
+	((unsigned long*)crcr)[1] = 0;
 	
 	// DCBAAP
-	unsigned long btc = 0x2000;
+	unsigned long btc = 0x6000;
 	((unsigned long*)bcbaap)[0] |= (unsigned long)btc;
+	((unsigned long*)bcbaap)[1] = 0;
 	
 	// setting first interrupt enabled.
 	if(0){
@@ -206,7 +207,12 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 		
 		if(val&3){
 			printf("[XHCI] Port %x is initialising....\n",i);
+			
 			//
+			// Device Slot Assignment
+			//
+			printf("[XHCI] Obtaining device slot...\n");
+			
 			// setting up TRB
 			
 			TRB* trb2 = ((TRB*)0x54000);
@@ -215,7 +221,6 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			trb2->bar3 = 0;
 			trb2->bar4 = 0b00000000000000000010010000000000;
 			
-			//
 			// STOP CODON
 			TRB* trb = ((TRB*)0x54010);
 			trb->bar1 = 0;
@@ -245,6 +250,16 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				printf("[XHCI] Panic: completioncode != 1 \n");
 				continue;
 			}
+			
+			//
+			// Device Slot Initialisation
+			//
+			
+			printf("[XHCI] Device Slot Initialisation \n");
+			unsigned long bse = malloc(0x420);
+			((unsigned long*)0x6000)[(assignedSloth*2)+0] 	= bse;
+			((unsigned long*)0x6000)[(assignedSloth*2)+1] 	= 0;
+			
 			for(;;);
 		}
 	}
@@ -253,7 +268,4 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 		printf("[XHCI] circulair command ring is running\n");
 	}
 	printf("[XHCI] All finished!\n");
-	if(att>0){
-		for(;;);
-	}
 }
