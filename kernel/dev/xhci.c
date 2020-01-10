@@ -23,6 +23,8 @@ unsigned long rtsoff = 0;
 TRB* ring = ((TRB*)0x1500);
 TRB evts[10];
 
+unsigned long ic[0xC0] __attribute__ ((aligned (0x100)));
+
 void irq_xhci(){
 	unsigned long xhci_usbsts = ((unsigned long*)usbsts)[0];
 	if(xhci_usbsts&4){
@@ -248,7 +250,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			printf("[XHCI] Completion event arived. slot=%x code=%x \n",assignedSloth,completioncode);
 			if(completioncode!=1){
 				printf("[XHCI] Panic: completioncode != 1 \n");
-				continue;
+				for(;;);
 			}
 			
 			//
@@ -256,10 +258,51 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			//
 			
 			printf("[XHCI] Device Slot Initialisation \n");
-			unsigned long bse = malloc(0x420);
+			unsigned long bse = (unsigned long)malloc(0x420);
 			((unsigned long*)0x6000)[(assignedSloth*2)+0] 	= bse;
 			((unsigned long*)0x6000)[(assignedSloth*2)+1] 	= 0;
 			
+			ic[0] = 0;
+			ic[1] = 3;
+			// Address Device Command
+			trb = ((TRB*)0x54010);
+			trb->bar1 = (unsigned long)&ic;
+			trb->bar2 = 0;
+			trb->bar3 = 0;
+			trb->bar4 = 0b00000000000000000010110000000000;
+			unsigned long longsloth = assignedSloth;
+			longsloth = longsloth << 24;
+			trb->bar4 |= longsloth;
+			
+			// stop codon
+			TRB *trb3 = ((TRB*)0x54020);
+			trb3->bar1 = 0;
+			trb3->bar2 = 0;
+			trb3->bar3 = 0;
+			trb3->bar4 = 1;
+			
+			// doorbell
+			((unsigned long*)tingdongaddr)[0] = 0;
+			
+			// wait
+			while(1){
+				unsigned long r = ((unsigned long*)iman_addr)[0];
+				if(r&1){
+					break;
+				}
+			}
+			
+			// RESULTS
+			trbres = ((TRB*)0x41410);
+			assignedSloth = (trbres->bar4 & 0b111111100000000000000000000000) >> 24;
+			completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
+			printf("[XHCI] Completion event arived. slot=%x code=%x \n",assignedSloth,completioncode);
+			if(completioncode!=1){
+				printf("[XHCI] Panic: completioncode != 1 \n");
+				for(;;);
+			}
+			
+			printf("[XHCI] Device initialised succesfully\n");
 			for(;;);
 		}
 	}

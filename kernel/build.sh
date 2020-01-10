@@ -46,7 +46,7 @@ done
 for i in programs/*.c
 do
 	gcc -c $i -o programs/`basename $i .c`.o  -m32  -std=gnu99 -ffreestanding -Wall -Wextra  || exit
-	gcc -T programs/proglinker.ld -m32 -ffreestanding -nostdlib programs/base.o programs/`basename $i .c`.o -o programs/`basename $i .c`.bin || exit
+	gcc -L lib -l sos -T programs/proglinker.ld -m32 -ffreestanding -nostdlib programs/base.o programs/`basename $i .c`.o -o programs/`basename $i .c`.bin || exit
 done
 
 rm programs/*.o
