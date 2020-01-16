@@ -56,7 +56,6 @@ mkdir mnt
 mkdir mnt/prgs
 cp programs/*.bin mnt/prgs
 cp test.asm mnt/test.asm
-rm programs/*.bin
 mkdir mnt/boot
 mkdir mnt/boot/grub
 cp kernel.bin mnt/kernel.bin

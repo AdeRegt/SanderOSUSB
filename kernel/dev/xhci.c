@@ -24,6 +24,7 @@ TRB* ring = ((TRB*)0x1500);
 TRB evts[10];
 
 unsigned long ic[0xC0] __attribute__ ((aligned (0x100)));
+TRB devring[10] __attribute__ ((aligned(0x100)));
 
 void irq_xhci(){
 	unsigned long xhci_usbsts = ((unsigned long*)usbsts)[0];
@@ -262,8 +263,36 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			((unsigned long*)0x6000)[(assignedSloth*2)+0] 	= bse;
 			((unsigned long*)0x6000)[(assignedSloth*2)+1] 	= 0;
 			
-			ic[0] = 0;
-			ic[1] = 3;
+			// Input Control Context
+			ic[0x00] = 0;
+			ic[0x01] = 3;
+			ic[0x02] = 0;
+			ic[0x03] = 0;
+			ic[0x04] = 0;
+			ic[0x05] = 0;
+			ic[0x06] = 0;
+			ic[0x07] = 0;
+			
+			// Slot(h) Context
+			ic[0x08] = 0b00001000000000000000000000000000;
+			ic[0x09] = 0;
+			ic[0x0A] = 0;
+			ic[0x0B] = 0;
+			ic[0x0C] = 0;
+			ic[0x0D] = 0;
+			ic[0x0E] = 0;
+			ic[0x0F] = 0;
+			
+			// Input default control Endpoint 0 Context
+			ic[0x10] = 0b00000000000000000000000000000000;
+			ic[0x11] = 0b00000000000000010000000000100110;
+			ic[0x12] = ((unsigned long)&devring) | 1;
+			ic[0x13] = 0b00000000000000000000000000000000;
+			ic[0x14] = 0b00000000000000000000000000000000;
+			ic[0x15] = 0b00000000000000000000000000000000;
+			ic[0x16] = 0b00000000000000000000000000000000;
+			ic[0x17] = 0b00000000000000000000000000000000;
+			
 			// Address Device Command
 			trb = ((TRB*)0x54010);
 			trb->bar1 = (unsigned long)&ic;
