@@ -23,8 +23,8 @@ unsigned long rtsoff = 0;
 TRB* ring = ((TRB*)0x1500);
 TRB evts[10];
 
-unsigned long ic[0xC0] __attribute__ ((aligned (0x100)));
-TRB devring[10] __attribute__ ((aligned(0x100)));
+unsigned long *ic = (unsigned long*)0x54080;
+TRB* devring = (TRB*)0x54100;
 
 void irq_xhci(){
 	unsigned long xhci_usbsts = ((unsigned long*)usbsts)[0];
@@ -52,11 +52,31 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 //	
 //	GETTING BASIC INFO
 	unsigned long deviceid = (getBARaddress(bus,slot,function,0) & 0xFFFF0000) >> 16;
+	unsigned long ccr = (getBARaddress(bus,slot,function,0x08) & 0b11111111111111111111111100000000) >> 8;
 	unsigned long bar = getBARaddress(bus,slot,function,0x10);
+	unsigned long sbrn = (getBARaddress(bus,slot,function,0x60) & 0x0000FF);
+	printf("[XHCI] Serial Bus Release Number Register %x \n",sbrn);
+	printf("[XHCI] Class Code Register %x \n",ccr);
+	if(!(ccr==0x0C0330&&(sbrn==0x30||sbrn==0x31))){
+		printf("[XHCI] Incompatible device!\n");
+		return;
+	}
+	unsigned long hciversionaddr = bar+2;
+	unsigned long hciversion = ((unsigned long*)hciversionaddr)[0];
+	printf("[XHCI] hciversion %x \n",hciversion);
 	unsigned long capdb = bar+0x14;
 	unsigned long hciparamadr = bar+0x04;
 	unsigned long hciparam1 = ((unsigned long*)hciparamadr)[0];
 	unsigned long portcount = hciparam1>>24;
+	unsigned long hccparams1adr = bar+0x10;
+	unsigned long hccparams1 = ((unsigned long*)hccparams1adr)[0];
+	printf("[XHCI] hccparams1 %x \n",hccparams1);
+	if(hccparams1&1){
+		printf("[XHCI] has 64-bit Addressing Capability\n");
+	}
+	if(hccparams1&0xFFFF0000){
+		printf("[XHCI] has xHCI Extended Capabilities Pointer ( %x )\n",(hccparams1&0xFFFF0000)>>16);
+	}
 	unsigned long rtsoffa = bar+0x18;
 	rtsoff = bar+(((unsigned long*)rtsoffa)[0]);
 	printf("[XHCI] Runtime offset %x \n",rtsoff);
@@ -68,13 +88,21 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	if(deviceid==0x22B5){
 		printf("[XHCI] INTELL XHCI CONTROLLER\n");
 		basebar = bar+0x7C;
+		printf("[XHCI] Controller not supported yet!\n");return;
 	}else if(deviceid==0xD){
 		printf("[XHCI] QEMU XHCI CONTROLLER\n");
-		unsigned long premature = bar + (getBARaddress(bus,slot,function,0x34) & 0x000000FF);
-		basebar = premature+((unsigned char*)premature)[0];
+		basebar = bar  + ((unsigned char*)bar)[0];
+		printf("[XHCI] Controller not supported yet!\n");return;
+	}else if(deviceid==0x15){
+		printf("[XHCI] BOCHS XHCI CONTROLLER\n");
+		basebar = bar + ((unsigned char*)bar)[0];
+	}else if(deviceid==0x1E31){
+		printf("[XHCI] VIRTUALBOX XHCI CONTROLLER\n");
+		basebar = bar + ((unsigned char*)bar)[0];return;
 	}else{
 		printf("[XHCI] UNKNOWN XHCI CONTROLLER %x \n",deviceid);
 		basebar = bar + ((unsigned char*)bar)[0];
+		printf("[XHCI] Controller not supported yet!\n");return;
 	}
 //
 // Calculating other addresses
@@ -210,6 +238,10 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 		
 		if(val&3){
 			printf("[XHCI] Port %x is initialising....\n",i);
+		
+			// detecting speed....
+			unsigned long speed = (val >> 10) & 0b000000000000000000000000000111;
+			printf("[XHCI] Port %x devicespeed is %x \n",i,speed);
 			
 			//
 			// Device Slot Assignment
@@ -263,39 +295,28 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			((unsigned long*)0x6000)[(assignedSloth*2)+0] 	= bse;
 			((unsigned long*)0x6000)[(assignedSloth*2)+1] 	= 0;
 			
+			unsigned long speedint = (speed << 20) & 0b1111;
 			// Input Control Context
-			ic[0x00] = 0;
-			ic[0x01] = 3;
-			ic[0x02] = 0;
-			ic[0x03] = 0;
-			ic[0x04] = 0;
-			ic[0x05] = 0;
-			ic[0x06] = 0;
-			ic[0x07] = 0;
+			((unsigned long*)0x54080)[0] = 0;
+			((unsigned long*)0x54084)[0] = 3;
+			((unsigned long*)0x54088)[0] = 0;
+			((unsigned long*)0x5408C)[0] = 0;
 			
 			// Slot(h) Context
-			ic[0x08] = 0b00001000000000000000000000000000;
-			ic[0x09] = 0;
-			ic[0x0A] = 0;
-			ic[0x0B] = 0;
-			ic[0x0C] = 0;
-			ic[0x0D] = 0;
-			ic[0x0E] = 0;
-			ic[0x0F] = 0;
+			((unsigned long*)0x540C0)[0] = 0b00001000000000000000000000000000;
+			((unsigned long*)0x540C4)[0] = 0;
+			((unsigned long*)0x540C8)[0] = 0b00000000010000000000000000000000;
+			((unsigned long*)0x540CC)[0] = 0;
 			
-			// Input default control Endpoint 0 Context
-			ic[0x10] = 0b00000000000000000000000000000000;
-			ic[0x11] = 0b00000000000000010000000000100110;
-			ic[0x12] = ((unsigned long)&devring) | 1;
-			ic[0x13] = 0b00000000000000000000000000000000;
-			ic[0x14] = 0b00000000000000000000000000000000;
-			ic[0x15] = 0b00000000000000000000000000000000;
-			ic[0x16] = 0b00000000000000000000000000000000;
-			ic[0x17] = 0b00000000000000000000000000000000;
+			// Endpoint Context
+			((unsigned long*)0x54100)[0] = 1;
+			((unsigned long*)0x54104)[0] = 0b00000000000000010000000000100110;//0;
+			((unsigned long*)0x54108)[0] = ((unsigned long)&devring) | 1;//0;
+			((unsigned long*)0x5410C)[0] = 0;
 			
 			// Address Device Command
 			trb = ((TRB*)0x54010);
-			trb->bar1 = (unsigned long)&ic;
+			trb->bar1 = 0x54080;
 			trb->bar2 = 0;
 			trb->bar3 = 0;
 			trb->bar4 = 0b00000000000000000010110000000000;
@@ -326,7 +347,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			assignedSloth = (trbres->bar4 & 0b111111100000000000000000000000) >> 24;
 			completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
 			printf("[XHCI] Completion event arived. slot=%x code=%x \n",assignedSloth,completioncode);
-			if(completioncode!=1){
+			if(completioncode!=1)
+			{
 				printf("[XHCI] Panic: completioncode != 1 \n");
 				for(;;);
 			}
@@ -340,4 +362,5 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 		printf("[XHCI] circulair command ring is running\n");
 	}
 	printf("[XHCI] All finished!\n");
+	for(;;);
 }
