@@ -24,7 +24,7 @@ TRB* ring = ((TRB*)0x1500);
 TRB evts[10];
 
 unsigned long *ic = (unsigned long*)0x54080;
-TRB* devring = (TRB*)0x54100;
+TRB* devring = (TRB*)0x54500;
 
 void irq_xhci(){
 	unsigned long xhci_usbsts = ((unsigned long*)usbsts)[0];
@@ -304,14 +304,14 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			
 			// Slot(h) Context
 			((unsigned long*)0x540C0)[0] = 0b00001000000000000000000000000000;
-			((unsigned long*)0x540C4)[0] = 0;
-			((unsigned long*)0x540C8)[0] = 0b00000000010000000000000000000000;
+			((unsigned long*)0x540C4)[0] = 0b00000000000000000000000000000000 | (assignedSloth<<16);
+			((unsigned long*)0x540C8)[0] = 0;//0b00000000010000000000000000000000;
 			((unsigned long*)0x540CC)[0] = 0;
 			
 			// Endpoint Context
 			((unsigned long*)0x54100)[0] = 1;
 			((unsigned long*)0x54104)[0] = 0b00000000000000010000000000100110;//0;
-			((unsigned long*)0x54108)[0] = ((unsigned long)&devring) | 1;//0;
+			((unsigned long*)0x54108)[0] = 0x54500 | 1;//0;
 			((unsigned long*)0x5410C)[0] = 0;
 			
 			// Address Device Command
@@ -349,7 +349,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			printf("[XHCI] Completion event arived. slot=%x code=%x \n",assignedSloth,completioncode);
 			if(completioncode!=1)
 			{
-				printf("[XHCI] Panic: completioncode != 1 \n");
+				printf("[XHCI] Panic: completioncode != 1 \n"); // returns 0x04
 				for(;;);
 			}
 			
