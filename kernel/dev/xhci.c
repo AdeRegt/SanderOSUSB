@@ -305,7 +305,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			// Slot(h) Context
 			((unsigned long*)0x540C0)[0] = 0b00001000000000000000000000000000;
 			((unsigned long*)0x540C4)[0] = 0b00000000000000000000000000000000 | (assignedSloth<<16);
-			((unsigned long*)0x540C8)[0] = 0;//0b00000000010000000000000000000000;
+			((unsigned long*)0x540C8)[0] = 0b00000000010000000000000000000000;
 			((unsigned long*)0x540CC)[0] = 0;
 			
 			// Endpoint Context
@@ -352,6 +352,72 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				printf("[XHCI] Panic: completioncode != 1 \n"); // returns 0x04
 				for(;;);
 			}
+			
+			printf("[XHCI] Configure Endpoint Command\n");
+			trb3 = ((TRB*)0x54020);
+			trb3->bar1 = 0x54080;
+			trb3->bar2 = 0;
+			trb3->bar3 = 0;
+			trb3->bar4 = 0b00000000000000000011000000000000;
+			longsloth = assignedSloth;
+			longsloth = longsloth << 24;
+			trb3->bar4 |= longsloth;
+			
+			TRB *trb4 = ((TRB*)0x54030);
+			trb4->bar1 = 0;
+			trb4->bar2 = 0;
+			trb4->bar3 = 0;
+			trb4->bar4 = 1;
+			
+			((unsigned long*)tingdongaddr)[0] = 0;
+			
+			// wait
+			while(1){
+				unsigned long r = ((unsigned long*)iman_addr)[0];
+				if(r&1){
+					break;
+				}
+			}
+			
+			// RESULTS
+			trbres = ((TRB*)0x41420);
+			assignedSloth = (trbres->bar4 & 0b111111100000000000000000000000) >> 24;
+			completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
+			printf("[XHCI] Completion event arived. slot=%x code=%x \n",assignedSloth,completioncode);
+			if(completioncode!=1)
+			{
+				printf("[XHCI] Panic: completioncode != 1 \n");
+				for(;;);
+			}
+			
+			//
+			// GET DEVICE DESCRIPTOR
+			// trb-type=2
+			// trt=3
+			// transferlength=8
+			// IOC=0
+			// IDT=1
+			// reqtype= 0x80
+			// req=6
+			// wValue=0100
+			// wIndex=0
+			// wLength=0
+			//
+			
+			unsigned char devicedescriptor[8];
+			TRB *dc1 = ((TRB*)0x54500);
+			dc1->bar1 = 0b00000000000001000000011010000000;
+			dc1->bar2 = 0b00000000000000000000000000000000;
+			dc1->bar3 = 0b00000000010000000000000000001000;
+			dc1->bar4 = 0b00000000000000011000100001000001;
+			
+			TRB *dc2 = ((TRB*)0x54510);
+			dc2->bar1 = 0;//0b00000000000001000000011010000000;
+			dc2->bar2 = 0;//0b00000000000000000000000000000000;
+			dc2->bar3 = 0;//0b00000000010000000000000000001000;
+			dc2->bar4 = 1;//
+			
+			((unsigned long*)tingdongaddr)[assignedSloth] = 0;
 			
 			printf("[XHCI] Device initialised succesfully\n");
 			for(;;);
