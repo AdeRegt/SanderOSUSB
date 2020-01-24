@@ -411,10 +411,16 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			dc1->bar1 = 0b00000000000001000000011010000000;
 			dc1->bar2 = 0b00000000000000000000000000000000;
 			dc1->bar3 = 0b00000000010000000000000000001000;
-			dc1->bar4 = 0b00000000000000011000100001000000;
+			dc1->bar4 = 0b00000000000000011000100001000001;
+			
+			TRB *dc2 = ((TRB*)0x54510);
+			dc2->bar1 = 0;
+			dc2->bar2 = 0;
+			dc2->bar3 = 0;
+			dc2->bar4 = 0;
 			
 			
-			((unsigned long*)tingdongaddr)[assignedSloth] = 0;
+			((unsigned long*)tingdongaddr)[assignedSloth] = 1;
 			
 			printf("[XHCI] Device initialised succesfully\n");
 			for(;;);
