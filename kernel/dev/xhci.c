@@ -88,7 +88,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	if(deviceid==0x22B5){
 		printf("[XHCI] INTELL XHCI CONTROLLER\n");
 		basebar = bar+0x7C;
-		printf("[XHCI] Controller not supported yet!\n");return;
+		rtsoff += 0x7C;
+		printf("[XHCI] Controller not supported yet!\n");
 	}else if(deviceid==0xD){
 		printf("[XHCI] QEMU XHCI CONTROLLER\n");
 		basebar = bar  + ((unsigned char*)bar)[0];
@@ -305,7 +306,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			// Slot(h) Context
 			((unsigned long*)0x540C0)[0] = 0b00001000000000000000000000000000;
 			((unsigned long*)0x540C4)[0] = 0b00000000000000000000000000000000 | (assignedSloth<<16);
-			((unsigned long*)0x540C8)[0] = 0b00000000010000000000000000000000;
+			((unsigned long*)0x540C8)[0] = 0;//0b00000000010000000000000000000000;
 			((unsigned long*)0x540CC)[0] = 0;
 			
 			// Endpoint Context
@@ -352,6 +353,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				printf("[XHCI] Panic: completioncode != 1 \n"); // returns 0x04
 				for(;;);
 			}
+			
 			
 			printf("[XHCI] Configure Endpoint Command\n");
 			trb3 = ((TRB*)0x54020);
@@ -409,13 +411,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			dc1->bar1 = 0b00000000000001000000011010000000;
 			dc1->bar2 = 0b00000000000000000000000000000000;
 			dc1->bar3 = 0b00000000010000000000000000001000;
-			dc1->bar4 = 0b00000000000000011000100001000001;
+			dc1->bar4 = 0b00000000000000011000100001000000;
 			
-			TRB *dc2 = ((TRB*)0x54510);
-			dc2->bar1 = 0;//0b00000000000001000000011010000000;
-			dc2->bar2 = 0;//0b00000000000000000000000000000000;
-			dc2->bar3 = 0;//0b00000000010000000000000000001000;
-			dc2->bar4 = 1;//
 			
 			((unsigned long*)tingdongaddr)[assignedSloth] = 0;
 			
