@@ -20,7 +20,10 @@ void resetTicks(){
 
 void sleep(int ms){
 	clock=0;
-	while(clock!=ms){}
+	again:
+	if(clock<ms){
+		goto again;
+	}
 }
 
 void irq_timer(){
