@@ -1,4 +1,5 @@
 #include "../kernel.h"
+#define XHCI_DEVICE_BOCHS 0x15
 
 typedef struct{
 	unsigned long bar1;
@@ -72,7 +73,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 		printf("[XHCI] QEMU XHCI CONTROLLER\n");
 		basebar = bar  + ((unsigned char*)bar)[0];
 		printf("[XHCI] Controller not supported yet!\n");
-	}else if(deviceid==0x15){
+	}else if(deviceid==XHCI_DEVICE_BOCHS){
 		printf("[XHCI] BOCHS XHCI CONTROLLER\n");
 		basebar = bar + ((unsigned char*)bar)[0];
 	}else if(deviceid==0x1E31){
@@ -277,14 +278,22 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			trb2->bar1 = 0;
 			trb2->bar2 = 0;
 			trb2->bar3 = 0;
-			trb2->bar4 = 0b00000000000000000010010000000000;
+			if(deviceid!=XHCI_DEVICE_BOCHS){
+				trb2->bar4 = 0b00000000000000000010010000000001;
+			}else{
+				trb2->bar4 = 0b00000000000000000010010000000000;
+			}
 			
 			// STOP CODON
 			TRB* trb = ((TRB*)((unsigned long)(&command_ring_control)+0x10));
 			trb->bar1 = 0;
 			trb->bar2 = 0;
 			trb->bar3 = 0;
-			trb->bar4 = 1;
+			if(deviceid!=XHCI_DEVICE_BOCHS){
+				trb->bar4 = 0;
+			}else{
+				trb->bar4 = 1;
+			}
 			
 			// doorbel
 			unsigned long tingdongaddr = doorbel;
@@ -347,7 +356,11 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			trb->bar1 = (unsigned long)t;
 			trb->bar2 = 0;
 			trb->bar3 = 0;
-			trb->bar4 = 0b00000000000000000010110000000000;
+			if(deviceid!=XHCI_DEVICE_BOCHS){
+				trb->bar4 = 0b00000000000000000010110000000001;
+			}else{
+				trb->bar4 = 0b00000000000000000010110000000000;
+			}
 			unsigned long longsloth = assignedSloth;
 			longsloth = longsloth << 24;
 			trb->bar4 |= longsloth;
@@ -357,7 +370,11 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			trb3->bar1 = 0;
 			trb3->bar2 = 0;
 			trb3->bar3 = 0;
-			trb3->bar4 = 1;
+			if(deviceid!=XHCI_DEVICE_BOCHS){
+				trb3->bar4 = 0;
+			}else{
+				trb3->bar4 = 1;
+			}
 			
 			// doorbell
 			((unsigned long*)tingdongaddr)[0] = 0;
@@ -396,7 +413,11 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			trb4->bar1 = 0;
 			trb4->bar2 = 0;
 			trb4->bar3 = 0;
-			trb4->bar4 = 1;
+			if(deviceid!=XHCI_DEVICE_BOCHS){
+				trb4->bar4 = 0;
+			}else{
+				trb4->bar4 = 1;
+			}
 			
 			((unsigned long*)tingdongaddr)[0] = 0;
 			
