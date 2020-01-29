@@ -173,10 +173,11 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	
 	// setting up "Event Ring Segment Table"
 	TRB event_ring_queue[20] __attribute__ ((aligned (0x100))); 
-	unsigned long rsb1  __attribute__ ((aligned (0x100)));
+	unsigned long rsb1[20]  __attribute__ ((aligned (0x100)));
 	unsigned long rsb2 = ((unsigned long)&rsb1)+4;
 	unsigned long rsb3 = ((unsigned long)&rsb1)+8;
-	((unsigned long*)&rsb1)[0] |= ((unsigned long)&event_ring_queue); 	// pointer to event ring queue 0x41400
+	
+	((unsigned long*)&rsb1)[0] = ((unsigned long)&event_ring_queue); 	// pointer to event ring queue 0x41400
 	((unsigned long*)rsb2)[0] = 0;
 	((unsigned long*)rsb3)[0] |= 16;	// size of ring segment (minimal length)
 	
@@ -193,7 +194,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	// setting up "Event Ring Segment Table Base Address Register (ERSTBA)"
 	unsigned long erstba_addr = rtsoff + 0x030;
 	((unsigned long*)erstba_addr)[0] = (unsigned long)&rsb1; 	// table at 0x1000 for now
-	((unsigned long*)erstba_addr)[1] = 0x0; 	// sending 0 to make sure...
+	((unsigned long*)erstba_addr)[1] = 0; 	// sending 0 to make sure...
 	
 	// setting up "Command Ring Control Register (CRCR)"
 	TRB command_ring_control[20] __attribute__ ((aligned (0x100)));
