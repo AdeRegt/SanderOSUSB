@@ -52,10 +52,14 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	unsigned long bar = getBARaddress(bus,slot,function,0x10);
 	unsigned long sbrn = (getBARaddress(bus,slot,function,0x60) & 0x0000FF);
 	
-	while(1){
-		if((bar&0xFF)>0x80){bar++;}else{bar--;}
-		if((bar&0xFF)==00){
-			break;
+	signed long offset = 0;
+	
+	if(deviceid!=0x22B5){
+		while(1){
+			if((bar&0xFF)>0x80){bar++;offset--;}else{bar--;offset++;}
+			if((bar&0xFF)==00){
+				break;
+			}
 		}
 	}
 //
@@ -73,11 +77,13 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 		basebar = bar + ((unsigned char*)bar)[0];
 	}else if(deviceid==0x1E31){
 		printf("[XHCI] VIRTUALBOX XHCI CONTROLLER\n");
-		basebar = bar + ((unsigned char*)bar)[0];return;
+		basebar = bar + ((unsigned char*)bar)[0];
+		return;
 	}else{
 		printf("[XHCI] UNKNOWN XHCI CONTROLLER %x \n",deviceid);
 		basebar = bar + ((unsigned char*)bar)[0];
-		printf("[XHCI] Controller not supported yet!\n");return;
+		printf("[XHCI] Controller not supported yet!\n");
+		return;
 	}
 	printf("[XHCI] Serial Bus Release Number Register %x \n",sbrn);
 	printf("[XHCI] Class Code Register %x \n",ccr);
@@ -168,9 +174,11 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	// setting up "Event Ring Segment Table"
 	TRB event_ring_queue[20] __attribute__ ((aligned (0x100))); 
 	unsigned long rsb1  __attribute__ ((aligned (0x100)));
-	unsigned long rsb2 = ((unsigned long)&rsb1)+8;
+	unsigned long rsb2 = ((unsigned long)&rsb1)+4;
+	unsigned long rsb3 = ((unsigned long)&rsb1)+8;
 	((unsigned long*)&rsb1)[0] |= ((unsigned long)&event_ring_queue); 	// pointer to event ring queue 0x41400
-	((unsigned long*)rsb2)[0] |= 16;	// size of ring segment (minimal length)
+	((unsigned long*)rsb2)[0] = 0;
+	((unsigned long*)rsb3)[0] |= 16;	// size of ring segment (minimal length)
 	
 	// setting up "Event Ring Segment Table Size Register (ERSTSZ)"
 	unsigned long erstsz_addr = rtsoff + 0x028;
@@ -180,6 +188,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	unsigned long erdp_addr = rtsoff + 0x038;
 	((unsigned long*)erdp_addr)[0] = ((unsigned long)&event_ring_queue); // set addr of event ring dequeue pointer register
 	((unsigned long*)erdp_addr)[0] &= ~0b1000; // clear bit 3
+	((unsigned long*)erdp_addr)[1] = 0; // clear 64bit
 	
 	// setting up "Event Ring Segment Table Base Address Register (ERSTBA)"
 	unsigned long erstba_addr = rtsoff + 0x030;
