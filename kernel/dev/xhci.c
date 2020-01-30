@@ -266,6 +266,9 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			// detecting speed....
 			unsigned long speed = (val >> 10) & 0b000000000000000000000000000111;
 			printf("[XHCI] Port %x : devicespeed is %x \n",i,speed);
+			if(speed==3){
+				printf("[XHCI] Port %x : device is highspeed\n",i);
+			}
 			
 			//
 			// Device Slot Assignment
@@ -340,14 +343,14 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			t[0x03] = 0;
 			
 			// Slot(h) Context
-			t[0x10] = 0b00001000000000000000000000000000;
+			t[0x10] = 0b00001000000110000000000000000000;
 			t[0x11] = 0b00000000000000000000000000000000 | (assignedSloth<<16);
 			t[0x12] = 0;//0b00000000010000000000000000000000;
 			t[0x13] = 0;
 			
 			// Endpoint Context
 			t[0x20] = 1;
-			t[0x21] = 0b00000000000000010000000000100110;//0;
+			t[0x21] = 0b00000000001000000000000000100110;//0b00000000000000010000000000100110;//0;
 			t[0x22] = ((unsigned long)&local_ring_control) | 1;//0;
 			t[0x23] = 0;
 			
@@ -357,9 +360,9 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			trb->bar2 = 0;
 			trb->bar3 = 0;
 			if(deviceid!=XHCI_DEVICE_BOCHS){
-				trb->bar4 = 0b00000000000000000010110000000001;
+				trb->bar4 = 0b00000000000000000010111000000001;
 			}else{
-				trb->bar4 = 0b00000000000000000010110000000000;
+				trb->bar4 = 0b00000000000000000010111000000000;
 			}
 			unsigned long longsloth = assignedSloth;
 			longsloth = longsloth << 24;
