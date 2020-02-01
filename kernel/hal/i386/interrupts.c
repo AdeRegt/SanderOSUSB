@@ -52,7 +52,7 @@ extern void irq_common_stub();
 extern void isr_special_stub();
 
 void fault_handler(){
-	printstring(" -= KERNEL PANIC =- ");
+	printf("\n\n -= KERNEL PANIC =- \n\n");
 	asm volatile("cli");
 	asm volatile("hlt");
 }
