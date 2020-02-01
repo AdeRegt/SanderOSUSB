@@ -76,13 +76,9 @@ int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char 
 	// RESULTS
 	TRB* trbres2 = ((TRB*)((unsigned long)(&event_ring_queue)+event_ring_offset));
 	unsigned long completioncode2 = (trbres2->bar3 & 0b111111100000000000000000000000) >> 24;
-	if(completioncode2!=1)
-	{
-		return 0;
-	}
 	
 	event_ring_offset += 0x10;
-	return 1;
+	return completioncode2;
 }
 
 int xhci_enable_slot(){
@@ -467,8 +463,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			
 			printf("[XHCI] Port %x : Obtaining SETADDRESS(BSR=1)\n",i);
 			int sares = xhci_set_address(assignedSloth,t,1);
-			if(sares==0){
-				printf("[XHCI] Port %x : Assignation of device slot address failed!\n",i);
+			if(sares!=1){
+				printf("[XHCI] Port %x : Assignation of device slot address failed with %x !\n",i,sares);
 				continue;
 			}
 			
