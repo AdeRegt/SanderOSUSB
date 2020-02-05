@@ -5,6 +5,205 @@
 #define XHCI_SPEED_HI     3
 #define XHCI_SPEED_SUPER  4
 
+#define XHCI_TRB_SET_CYCLE_BIT(x)      				(((x) & 0x0F) << 00)
+#define XHCI_TRB_SET_TRB_TYPE(x)      				(((x) & 0x3F) << 10)
+#define XHCI_TRB_SET_SLOT(x)      				(((x) & 0xFF) << 24)
+
+#define XHCI_TRB_ENABLE_SLOT_SLOTTYPE(x)      			(((x) & 0x1F) << 16)
+
+#define XHCI_TRB_SET_ADDRESS_POINTER(x)      			(((x) & 0xFFFFFFF0))
+#define XHCI_TRB_SET_ADDRESS_BSR(x)      			(((x) & 0x1) << 9)
+
+#define XHCI_INPUT_CONTROL_CONTEXT_CONFIGURATION_VALUE(x) 	(((x) & 0xFF))
+#define XHCI_INPUT_CONTROL_CONTEXT_INTERFACE_NUMBER(x)		(((x) & 0xFF) << 8)
+#define XHCI_INPUT_CONTROL_CONTEXT_ALTERNATE_SETTING(x)		(((x) & 0xFF) << 16)
+
+#define XHCI_SLOT_CONTEXT_ROUTE_STRING(x)			(((x) & 0xFFFFF))
+#define XHCI_SLOT_CONTEXT_SPEED(x)				(((x) & 0xF) << 20)
+#define XHCI_SLOT_CONTEXT_MTT(x)				(((x) & 0x1) << 25)
+#define XHCI_SLOT_CONTEXT_HUB(x)				(((x) & 0x1) << 26)
+#define XHCI_SLOT_CONTEXT_CONTEXT_ENTRIES(x)			(((x) & 0x1F) << 27)
+#define XHCI_SLOT_CONTEXT_MAX_EXIT_LATENCY(x)			(((x) & 0xFFFF))
+#define XHCI_SLOT_CONTEXT_ROOT_HUB_PORT_NUMBER(x)		(((x) & 0xFF) << 16)
+#define XHCI_SLOT_CONTEXT_NUM_OF_PORTS(x)			(((x) & 0xFF) << 24)
+#define XHCI_SLOT_CONTEXT_TT_HUB_SLOT_ID(x)			(((x) & 0xFF) )
+#define XHCI_SLOT_CONTEXT_TT_PORT_NUMBER(x)			(((x) & 0xFF) << 8)
+#define XHCI_SLOT_CONTEXT_TTT(x)				(((x) & 0x3) << 16)
+#define XHCI_SLOT_CONTEXT_INTERRUPTER_TARGET(x)			(((x) & 0x3FF) << 22)
+#define XHCI_SLOT_CONTEXT_USB_DEVICE_ADDRESS(x)			(((x) & 0xFF) )
+#define XHCI_SLOT_CONTEXT_SLOT_STATE(x)				(((x) & 0x1F) << 27)
+
+typedef struct{
+	// Cycle bit (C). This bit is used to mark the Enqueue Pointer of a Command Ring.
+	unsigned char cyclebit;
+	// TRB Type. This field identifies the type of the TRB.
+	unsigned char trbtype; 
+	// Slot Type. This field identifies the type of Slot that will be enabled by this command.
+	unsigned char slottype;
+}XHCI_TRB_ENABLE_SLOT;
+
+typedef struct{
+
+	// Input Context Pointer Hi and Lo. This field represents the high order bits of the 64-bit base
+	// address of the Input Context data structure associated with this command. Refer to section 6.2.5
+	// for more information on the Input Context data structure.
+	// The memory structure referenced by this physical memory pointer shall be aligned on a 16-byte
+	// address boundary.
+	unsigned long long input_context;
+	
+	// Cycle bit (C). This bit is used to mark the Enqueue Pointer of a Command Ring.
+	unsigned char cyclebit;
+	
+	// Block Set Address Request (BSR). When this flag is set to ‘0’ the Address Device Command shall
+	// generate a USB SET_ADDRESS request to the device. When this flag is set to ‘1’ the Address
+	// Device Command shall not generate a USB SET_ADDRESS request. Refer to section 4.6.5 for
+	// more information on the use of this flag.
+	unsigned char bsr;
+	
+	// TRB Type. This field identifies the type of the TRB. Refer to Table 6-86 for the definition of the
+	// Address Device Command TRB type ID.
+	unsigned char trbtype;
+	
+	// Slot ID. The ID of the Device Slot that is the target of this command.
+	unsigned char slotid;
+	
+}XHCI_TRB_SET_ADDRESS;
+
+typedef struct{
+	
+	// Drop Context flags (D2 - D31). These single bit fields identify which Device Context data
+	// structures should be disabled by command. If set to ‘1’, the respective Endpoint Context shall be
+	// disabled. If cleared to ‘0’, the Endpoint Context is ignored.
+	unsigned long D;
+	
+	// Add Context flags (A0 - A31). These single bit fields identify which Device Context data
+	// structures shall be evaluated and/or enabled by a command. If set to ‘1’, the respective Context
+	// shall be evaluated. If cleared to ‘0’, the Context is ignored.
+	unsigned long A;
+	
+	// Configuration Value. If CIC = ‘1’, CIE = ‘1’, and this Input Context is associated with a Configure
+	// Endpoint Command, then this field contains the value of the Standard Configuration Descriptor
+	// bConfigurationValue field associated with the command, otherwise the this field shall be
+	// cleared to ‘0’.
+	unsigned char configuration_value;
+	
+	// Interface Number. If CIC = ‘1’, CIE = ‘1’, this Input Context is associated with a Configure
+	// Endpoint Command, and the command was issued due to a SET_INTERFACE request, then this
+	// field contains the value of the Standard Interface Descriptor bInterfaceNumber field associated
+	// with the command, otherwise the this field shall be cleared to ‘0’.
+	unsigned char interface_number;
+	
+	// Alternate Setting. If CIC = ‘1’, CIE = ‘1’, this Input Context is associated with a Configure
+	// Endpoint Command, and the command was issued due to a SET_INTERFACE request, then this
+	// field contains the value of the Standard Interface Descriptor bAlternateSetting field associated
+	// with the command, otherwise the this field shall be cleared to ‘0’.
+	unsigned char alternate_setting;
+	
+}XHCI_INPUT_CONTROL_CONTEXT;
+
+typedef struct{
+	
+	// Route String. This field is used by hubs to route packets to the correct downstream port. The
+	// format of the Route String is defined in section 8.9 the USB3 specification.
+	// As Input, this field shall be set for all USB devices, irrespective of their speed, to indicate their
+	// location in the USB topology 105 .
+	unsigned long route_string;
+	
+	// Speed. This field indicates the speed of the device. Refer to the PORTSC Port Speed field in
+	// Table 5-26 for the definition of the valid values.
+	unsigned char speed;
+	
+	// Multi-TT (MTT) 106 . This flag is set to '1' by software if this is a High-speed hub (Speed = ‘3’ and
+	// Hub = ‘1’) that supports Multiple TTs and the Multiple TT Interface has been enabled by
+	// software, or if this is a Low-/Full-speed device (Speed = ‘1’ or ‘2’, and Hub = ‘0’) and connected
+	// to the xHC through a parent 107 High-speed hub that supports Multiple TTs and the Multiple TT
+	// Interface of the parent hub has been enabled by software, or ‘0’ if not.
+	unsigned char mtt;
+	
+	// Hub. This flag is set to '1' by software if this device is a USB hub, or '0' if it is a USB function.
+	unsigned char hub;
+	
+	// Context Entries. This field identifies the index of the last valid Endpoint Context within this
+	// Device Context structure. The value of ‘0’ is Reserved and is not a valid entry for this field. Valid
+	// entries for this field shall be in the range of 1-31. This field indicates the size of the Device
+	// Context structure. For example, ((Context Entries+1) * 32 bytes) = Total bytes for this structure.
+	// Note, Output Context Entries values are written by the xHC, and Input Context Entries values are
+	// written by software.
+	unsigned char context_entries;
+	
+	// Max Exit Latency. The Maximum Exit Latency is in microseconds, and indicates the worst case
+	// time it takes to wake up all the links in the path to the device, given the current USB link level
+	// power management settings.
+	// Refer to section 4.23.5.2 for more information on the use of this field.
+	unsigned char max_exit_latency;
+	
+	// Root Hub Port Number. This field identifies the Root Hub Port Number used to access the USB
+	// device. Refer to section 4.19.7 for port numbering information.
+	// Note: Ports are numbered from 1 to MaxPorts.
+	unsigned char root_hub_port_number;
+	
+	// Number of Ports. If this device is a hub (Hub = ‘1’), then this field is set by software to identify
+	// the number of downstream facing ports supported by the hub. Refer to the bNbrPorts field
+	// description in the Hub Descriptor (Table 11-13) of the USB2 spec. If this device is not a hub (Hub
+	// = ‘0’), then this field shall be ‘0’.
+	unsigned char number_of_ports;
+	
+	// TT Hub Slot ID. If this device is Low-/Full-speed and connected through a High-speed hub, then
+	// this field shall contain the Slot ID of the parent High-speed hub 108 . If this device is attached to a
+	// Root Hub port or it is not Low-/Full-speed then this field shall be '0'.
+	unsigned char tt_hub_slot_id;
+	
+	// TT Port Number. If this device is Low-/Full-speed and connected through a High-speed hub,
+	// then this field contains the number of the downstream facing port of the parent High-speed 108
+	// hub. If this device is attached to a Root Hub port or it is not Low-/Full-speed then this field shall
+	// be '0'.
+	unsigned char tt_port_number;
+	
+	// TT Think Time (TTT). If this is a High-speed hub (Hub = ‘1’ and Speed = High-Speed), then this
+	// field shall be set by software to identify the time the TT of the hub requires to proceed to the
+	// next full-/low-speed transaction.
+	// Value Think Time
+	// 0 TT requires at most 8 FS bit times of inter-transaction gap on a full-/low-speed
+	// downstream bus.
+	// 1 TT requires at most 16 FS bit times.
+	// 2 TT requires at most 24 FS bit times.
+	// 3 TT requires at most 32 FS bit times.
+	// Refer to the TT Think Time sub-field of the wHubCharacteristics field description in the Hub
+	// Descriptor (Table 11-13) and section 11.18.2 of the USB2 spec for more information on TT
+	// Think Time. If this device is not a High-speed hub (Hub = ‘0’ or Speed != High-speed), then this
+	// field shall be ‘0’.
+	unsigned char tt_think_time;
+	
+	// Interrupter Target. This field defines the index of the Interrupter that will receive Bandwidth
+	// Request Events and Device Notification Events generated by this slot, or when a Ring Underrun
+	// or Ring Overrun condition is reported (refer to section 4.10.3.1). Valid values are between 0 and
+	// MaxIntrs-1.
+	unsigned char interrupter_target;
+	
+	// USB Device Address. This field identifies the address assigned to the USB device by the xHC,
+	// and is set upon the successful completion of a Set Address Command. Refer to the USB2 spec
+	// for a more detailed description.
+	// As Output, this field is invalid if the Slot State = Disabled or Default.
+	// As Input, software shall initialize the field to ‘0’.
+	unsigned char usb_device_address;
+	
+	// Slot State. This field is updated by the xHC when a Device Slot transitions from one state to
+	// another.
+	// Value Slot State
+	// 0 Disabled/Enabled
+	// 1 Default
+	// 2 Addressed
+	// 3 Configured
+	// 31-4 Reserved
+	// Slot States are defined in section 4.5.3.
+	// As Output, since software initializes all fields of the Device Context data structure to ‘0’, this field
+	// shall initially indicate the Disabled state.
+	// As Input, software shall initialize the field to ‘0’.
+	// Refer to section 4.5.3 for more information on Slot State.
+	unsigned char slot_state;
+	
+}XHCI_SLOT_CONTEXT;
+
 typedef struct{
 	unsigned long bar1;
 	unsigned long bar2;
@@ -33,34 +232,87 @@ TRB command_ring_control[20] __attribute__ ((aligned (0x100)));
 unsigned long command_ring_offset = 0;
 unsigned long event_ring_offset = 0;
 
+void xhci_stop_codon_to_trb(TRB *out){
+	out->bar1 = 0;
+	out->bar2 = 0;
+	out->bar3 = 0;
+	out->bar4 = 0;
+	
+	
+	if(deviceid!=XHCI_DEVICE_BOCHS){
+		out->bar4 = 0;
+	}else{
+		out->bar4 = 1;
+	}
+}
+
+void xhci_trb_enable_slot_to_trb(XHCI_TRB_ENABLE_SLOT in,TRB *out){
+	out->bar1 = 0;
+	out->bar2 = 0;
+	out->bar3 = 0;
+	out->bar4 = 0;
+	
+	out->bar4 =  XHCI_TRB_ENABLE_SLOT_SLOTTYPE(in.slottype) | XHCI_TRB_SET_TRB_TYPE(in.trbtype) | XHCI_TRB_SET_CYCLE_BIT(in.cyclebit);
+}
+
+void xhci_trb_set_address_to_trb(XHCI_TRB_SET_ADDRESS in,TRB *out){
+	out->bar1 = 0;
+	out->bar2 = 0;
+	out->bar3 = 0;
+	out->bar4 = 0;
+	
+	out->bar1 = XHCI_TRB_SET_ADDRESS_POINTER(in.input_context);
+	out->bar4 = XHCI_TRB_SET_SLOT(in.slotid) | XHCI_TRB_SET_TRB_TYPE(in.trbtype) | XHCI_TRB_SET_ADDRESS_BSR(in.bsr) | XHCI_TRB_SET_CYCLE_BIT(in.cyclebit);
+}
+
+void xhci_input_control_conext_to_addr(XHCI_INPUT_CONTROL_CONTEXT in,unsigned long *out){
+	out[0] = 0;
+	out[1] = 0;
+	out[2] = 0;
+	out[3] = 0;
+	out[4] = 0;
+	out[5] = 0;
+	out[6] = 0;
+	out[7] = 0;
+	
+	out[0] = in.D;
+	out[1] = in.A;
+	
+	out[7] = XHCI_INPUT_CONTROL_CONTEXT_ALTERNATE_SETTING(in.alternate_setting) | XHCI_INPUT_CONTROL_CONTEXT_INTERFACE_NUMBER(in.interface_number) | XHCI_INPUT_CONTROL_CONTEXT_CONFIGURATION_VALUE(in.configuration_value);
+}
+
+void xhci_slot_context_to_addr(XHCI_SLOT_CONTEXT in , unsigned long *out){
+	out[0] = 0;
+	out[1] = 0;
+	out[2] = 0;
+	out[3] = 0;
+	out[4] = 0;
+	out[5] = 0;
+	out[6] = 0;
+	out[7] = 0;
+	
+	out[0] = XHCI_SLOT_CONTEXT_CONTEXT_ENTRIES(in.context_entries) | XHCI_SLOT_CONTEXT_MTT(in.hub) | XHCI_SLOT_CONTEXT_MTT(in.mtt) | XHCI_SLOT_CONTEXT_SPEED(in.speed) | XHCI_SLOT_CONTEXT_ROUTE_STRING(in.route_string);
+	out[1] = XHCI_SLOT_CONTEXT_NUM_OF_PORTS(in.number_of_ports) | XHCI_SLOT_CONTEXT_ROOT_HUB_PORT_NUMBER(in.root_hub_port_number) | XHCI_SLOT_CONTEXT_MAX_EXIT_LATENCY(in.max_exit_latency);
+	out[2] = XHCI_SLOT_CONTEXT_INTERRUPTER_TARGET(in.interrupter_target) | XHCI_SLOT_CONTEXT_TTT(in.tt_think_time) | XHCI_SLOT_CONTEXT_TT_PORT_NUMBER(in.tt_port_number) | XHCI_SLOT_CONTEXT_TT_HUB_SLOT_ID(in.tt_hub_slot_id);
+	out[3] = XHCI_SLOT_CONTEXT_SLOT_STATE(in.slot_state) | XHCI_SLOT_CONTEXT_USB_DEVICE_ADDRESS(in.usb_device_address);
+}
+
 int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char bsr){
 	// Address Device Command BSR1
 	TRB* trb = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
-	trb->bar1 = (unsigned long)t&0xFFFFFFF0;
-	trb->bar2 = 0;
-	trb->bar3 = 0;
-	trb->bar4 = 0;
-	if(deviceid!=XHCI_DEVICE_BOCHS){
-		trb->bar4 |= 1; // set cycle bit
-	}
-	if(bsr){
-		trb->bar4 |= (1<<9); // set bsr bit
-	}
-	trb->bar4 |= (11<<10); // trb type
-	trb->bar4 |= (assignedSloth<<24); // assigned sloth
+	XHCI_TRB_SET_ADDRESS set_address;
+	set_address.input_context = (unsigned long) t;
+	set_address.cyclebit = deviceid!=XHCI_DEVICE_BOCHS?1:0;
+	set_address.bsr = bsr;
+	set_address.trbtype = 11;
+	set_address.slotid = assignedSloth;
+	xhci_trb_set_address_to_trb(set_address,trb);
 	
 	command_ring_offset += 0x10;
 	
 	// stop codon
 	TRB *trb6 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
-	trb6->bar1 = 0;
-	trb6->bar2 = 0;
-	trb6->bar3 = 0;
-	if(deviceid!=XHCI_DEVICE_BOCHS){
-		trb6->bar4 = 0;
-	}else{
-		trb6->bar4 = 1;
-	}
+	xhci_stop_codon_to_trb(trb6);
 	
 	// doorbell
 	((unsigned long*)doorbel)[0] = 0;
@@ -83,26 +335,16 @@ int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char 
 
 int xhci_enable_slot(){
 	TRB* trb2 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
-	trb2->bar1 = 0;
-	trb2->bar2 = 0;
-	trb2->bar3 = 0;
-	if(deviceid!=XHCI_DEVICE_BOCHS){
-		trb2->bar4 = 0b00000000000000000010010000000001;
-	}else{
-		trb2->bar4 = 0b00000000000000000010010000000000;
-	}
+	XHCI_TRB_ENABLE_SLOT enable_slot;
+	enable_slot.cyclebit = deviceid!=XHCI_DEVICE_BOCHS?1:0;
+	enable_slot.trbtype = 9;
+	enable_slot.slottype = 0;
+	xhci_trb_enable_slot_to_trb(enable_slot,trb2);
 	
 	command_ring_offset += 0x10;
 	
 	TRB* trb = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
-	trb->bar1 = 0;
-	trb->bar2 = 0;
-	trb->bar3 = 0;
-	if(deviceid!=XHCI_DEVICE_BOCHS){
-		trb->bar4 = 0;
-	}else{
-		trb->bar4 = 1;
-	}
+	xhci_stop_codon_to_trb(trb);
 	
 	((unsigned long*)doorbel)[0] = 0;
 	
@@ -129,15 +371,15 @@ void irq_xhci(){
 	if(xhci_usbsts&4){
 		printf("[XHCI] Host system error interrupt\n");
 	}
-//	if(xhci_usbsts&8){
-//		printf("[XHCI] Event interrupt\n");
-//	}
-//	if(xhci_usbsts&0x10){
-//		printf("[XHCI] Port interrupt\n");
-//	}
-//	unsigned long iman_addr = rtsoff + 0x020;
-//	((unsigned long*)iman_addr)[0] &= ~1;
-//	printf("[XHCI] ISTS %x \n",((unsigned long*)iman_addr)[0]);
+	if(xhci_usbsts&8){
+		printf("[XHCI] Event interrupt\n");
+	}
+	if(xhci_usbsts&0x10){
+		printf("[XHCI] Port interrupt\n");
+	}
+	unsigned long iman_addr = rtsoff + 0x020;
+	((unsigned long*)iman_addr)[0] &= ~1;
+	printf("[XHCI] ISTS %x \n",((unsigned long*)iman_addr)[0]);
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
 }
@@ -415,27 +657,21 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			btc[(assignedSloth*2)+1] 	= 0;
 			
 			printf("[XHCI] Port %x : Setting up input controll\n",i);
-			unsigned long *t = (unsigned long*)malloc(0x54);
+			unsigned long t[0x30] __attribute__ ((aligned(0x1000)));
 			
 			printf("[XHCI] Port %x : Setting up Input Controll Context\n",i);
 			// Input Control Context
-			t[0x00] = 0;
-			t[0x01] = 0;
-			t[0x02] = 0;
-			t[0x03] = 0;
-			
-			t[0x01] |= 0b00000000000000000000000000000011 ; // enabling A0 and A1
+			XHCI_INPUT_CONTROL_CONTEXT input_control_context;
+			input_control_context.A = 0b11;
+			xhci_input_control_conext_to_addr(input_control_context,t);
 			
 			printf("[XHCI] Port %x : Setting up Slot Context\n",i);
 			// Slot(h) Context
-			t[0x10] = 0;
-			t[0x11] = 0;
-			t[0x12] = 0;
-			t[0x13] = 0;
-			
-			t[0x11] |= (1<<16); // Root hub port number
-			t[0x10] |= 0; // route string
-			t[0x10] |= (1<<27); // context entries 
+			XHCI_SLOT_CONTEXT slot_context;
+			slot_context.root_hub_port_number = 1;
+			slot_context.route_string = 0;
+			slot_context.context_entries = 1;
+			xhci_slot_context_to_addr(slot_context,&t[0x10]); 
 			
 			printf("[XHCI] Port %x : Setting up Endpoint Context\n",i);
 			// Endpoint Context
