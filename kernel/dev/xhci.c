@@ -241,14 +241,14 @@ typedef struct{
 	// detected.
 	// As Input, this field is initialized to ‘0’ by software.
 	// Refer to section 4.8.3 for more information on Endpoint State.
-	unsigned char endpoint_state;
+	unsigned short endpoint_state;
 	
 	// Mult. If LEC = ‘0’, then this field indicates the maximum number of bursts within an Interval that
 	// this endpoint supports, where the valid range of values is ‘0’ to ‘2’, where ‘0’ = 1 burst, ‘1’ = 2
 	// bursts, etc. 109 This field shall be ‘0’ for all endpoint types except for SS Isochronous.
 	// If LEC = ‘1’, then this field shall be RsvdZ and Mult is calculated as:
 	// (Max ESIT Payload / Max Packet Size / Max Burst Size) rounded up to the nearest integer value.
-	unsigned char mult;
+	unsigned short mult;
 	
 	// Max Primary Streams (MaxPStreams). This field identifies the maximum number of Primary
 	// Stream IDs this endpoint supports. Valid values are defined below. If the value of this field is ‘0’,
@@ -263,7 +263,7 @@ typedef struct{
 	// in the HCCPARAMS1 register (refer to Table 5-13).
 	// This field shall be '0' for all SS Control, Isoch, and Interrupt endpoints, and for all non-SS
 	// endpoints.
-	unsigned char maxpstreams;
+	unsigned short maxpstreams;
 	
 	// Linear Stream Array (LSA). This field identifies how a Stream ID shall be interpreted.
 	// Setting this bit to a value of ‘1’ shall disable Secondary Stream Arrays and a Stream ID shall be
@@ -275,7 +275,7 @@ typedef struct{
 	// as a linear index into the Secondary Stream Array.
 	// If MaxPStreams = ‘0’, this field RsvdZ.
 	// Refer to section 4.12.2 for more information.
-	unsigned char lsa;
+	unsigned short lsa;
 	
 	// Interval. The period between consecutive requests to a USB endpoint to send or receive data.
 	// Expressed in 125 μs. increments. The period is calculated as 125 μs. * 2 Interval ; e.g., an Interval
@@ -283,12 +283,12 @@ typedef struct{
 	// = 2 * 125 μs.), a value of 4 means a period of 2 ms. (2 4 = 16 * 125 μs.), etc. Refer to Table 6-12
 	// for legal Interval field values. See further discussion of this field below. Refer to section 6.2.3.6
 	// for more information.
-	unsigned char interval;
+	unsigned short interval;
 	
 	// Max Endpoint Service Time Interval Payload High (Max ESIT Payload Hi). If LEC = '1', then this
 	// field indicates the high order 8 bits of the Max ESIT Payload value. If LEC = '0', then this field
 	// shall be RsvdZ. Refer to section 6.2.3.8 for more information.
-	unsigned char maxexitpayloadhigh;
+	unsigned short maxexitpayloadhigh;
 	
 	// Error Count (CErr) 110 . This field defines a 2-bit down count, which identifies the number of
 	// consecutive USB Bus Errors allowed while executing a TD. If this field is programmed with a
@@ -302,7 +302,7 @@ typedef struct{
 	// operation of the Bus Error Counter.
 	// Note: CErr does not apply to Isoch endpoints and shall be set to ‘0’ if EP Type = Isoch Out ('1') or
 	// Isoch In ('5').
-	unsigned char cerr;
+	unsigned short cerr;
 	
 	// Endpoint Type (EP Type). This field identifies whether an Endpoint Context is Valid, and if so,
 	// what type of endpoint the context defines.
@@ -316,28 +316,28 @@ typedef struct{
 	// 5 Isoch In
 	// 6 Bulk In
 	// 7 Interrupt In
-	unsigned char endpointtype;
+	unsigned short endpointtype;
 	
 	// Host Initiate Disable (HID). This field affects Stream enabled endpoints, allowing the Host
 	// Initiated Stream selection feature to be disabled for the endpoint. Setting this bit to a value of
 	// ‘1’ shall disable the Host Initiated Stream selection feature. A value of ‘0’ will enable normal
 	// Stream operation. Refer to section 4.12.1.1 for more information.
-	unsigned char hid;
+	unsigned short hid;
 	
 	// Max Burst Size. This field indicates to the xHC the maximum number of consecutive USB
 	// transactions that should be executed per scheduling opportunity. This is a “zero-based” value,
 	// where 0 to 15 represents burst sizes of 1 to 16, respectively. Refer to section 6.2.3.4 for more
 	// information.
-	unsigned char maxburstsize;
+	unsigned short maxburstsize;
 	
 	// Max Packet Size. This field indicates the maximum packet size in bytes that this endpoint is
 	// capable of sending or receiving when configured. Refer to section 6.2.3.5 for more information.
-	unsigned char maxpacketsize;
+	unsigned short maxpacketsize;
 	
 	// Dequeue Cycle State (DCS). This bit identifies the value of the xHC Consumer Cycle State (CCS)
 	// flag for the TRB referenced by the TR Dequeue Pointer. Refer to section 4.9.2 for more
 	// information. This field shall be ‘0’ if MaxPStreams > ‘0’.
-	unsigned char dcs;
+	unsigned short dcs;
 	
 	// TR Dequeue Pointer. As Input, this field represents the high order bits of the 64-bit base address
 	// of a Transfer Ring or a Stream Context Array associated with this endpoint. If MaxPStreams = '0'
@@ -355,13 +355,13 @@ typedef struct{
 	// endpoint. The value of this field shall be greater than ‘0’. Refer to section 4.14.1.1 and the
 	// implementation note TRB Lengths and System Bus Bandwidth for more information.
 	// The xHC shall use this parameter to calculate system bus bandwidth requirements.
-	unsigned char average_trb_length;
+	unsigned short average_trb_length;
 	
 	// Max Endpoint Service Time Interval Payload Low (Max ESIT Payload Lo). This field indicates
 	// the low order 16 bits of the Max ESIT Payload. The Max ESIT Payload represents the total
 	// number of bytes this endpoint will transfer during an ESIT. This field is only valid for periodic
 	// endpoints. Refer to section 6.2.3.8 for more information.
-	unsigned char maxpayloadlow;
+	unsigned short maxpayloadlow;
 }XHCI_ENDPOINT_CONTEXT;
 
 typedef struct{
@@ -442,35 +442,35 @@ void xhci_input_control_conext_to_addr(XHCI_INPUT_CONTROL_CONTEXT in,unsigned lo
 }
 
 void xhci_slot_context_to_addr(XHCI_SLOT_CONTEXT in , unsigned long *out){
-	out[0] = 0;
-	out[1] = 0;
-	out[2] = 0;
-	out[3] = 0;
-	out[4] = 0;
-	out[5] = 0;
-	out[6] = 0;
-	out[7] = 0;
+	out[0+0x10] = 0;
+	out[1+0x10] = 0;
+	out[2+0x10] = 0;
+	out[3+0x10] = 0;
+	out[4+0x10] = 0;
+	out[5+0x10] = 0;
+	out[6+0x10] = 0;
+	out[7+0x10] = 0;
 	
-	out[0] = XHCI_SLOT_CONTEXT_CONTEXT_ENTRIES(in.context_entries) | XHCI_SLOT_CONTEXT_MTT(in.hub) | XHCI_SLOT_CONTEXT_MTT(in.mtt) | XHCI_SLOT_CONTEXT_SPEED(in.speed) | XHCI_SLOT_CONTEXT_ROUTE_STRING(in.route_string);
-	out[1] = XHCI_SLOT_CONTEXT_NUM_OF_PORTS(in.number_of_ports) | XHCI_SLOT_CONTEXT_ROOT_HUB_PORT_NUMBER(in.root_hub_port_number) | XHCI_SLOT_CONTEXT_MAX_EXIT_LATENCY(in.max_exit_latency);
-	out[2] = XHCI_SLOT_CONTEXT_INTERRUPTER_TARGET(in.interrupter_target) | XHCI_SLOT_CONTEXT_TTT(in.tt_think_time) | XHCI_SLOT_CONTEXT_TT_PORT_NUMBER(in.tt_port_number) | XHCI_SLOT_CONTEXT_TT_HUB_SLOT_ID(in.tt_hub_slot_id);
-	out[3] = XHCI_SLOT_CONTEXT_SLOT_STATE(in.slot_state) | XHCI_SLOT_CONTEXT_USB_DEVICE_ADDRESS(in.usb_device_address);
+	out[0+0x10] = XHCI_SLOT_CONTEXT_CONTEXT_ENTRIES(in.context_entries) | XHCI_SLOT_CONTEXT_MTT(in.hub) | XHCI_SLOT_CONTEXT_MTT(in.mtt) | XHCI_SLOT_CONTEXT_SPEED(in.speed) | XHCI_SLOT_CONTEXT_ROUTE_STRING(in.route_string);
+	out[1+0x10] = XHCI_SLOT_CONTEXT_NUM_OF_PORTS(in.number_of_ports) | XHCI_SLOT_CONTEXT_ROOT_HUB_PORT_NUMBER(in.root_hub_port_number) | XHCI_SLOT_CONTEXT_MAX_EXIT_LATENCY(in.max_exit_latency);
+	out[2+0x10] = XHCI_SLOT_CONTEXT_INTERRUPTER_TARGET(in.interrupter_target) | XHCI_SLOT_CONTEXT_TTT(in.tt_think_time) | XHCI_SLOT_CONTEXT_TT_PORT_NUMBER(in.tt_port_number) | XHCI_SLOT_CONTEXT_TT_HUB_SLOT_ID(in.tt_hub_slot_id);
+	out[3+0x10] = XHCI_SLOT_CONTEXT_SLOT_STATE(in.slot_state) | XHCI_SLOT_CONTEXT_USB_DEVICE_ADDRESS(in.usb_device_address);
 }
 
-void xhci_endpoint_context_to_addr(XHCI_ENDPOINT_CONTEXT in, unsigned long *out){
-	out[0] = 0;
-	out[1] = 0;
-	out[2] = 0;
-	out[3] = 0;
-	out[4] = 0;
-	out[5] = 0;
-	out[6] = 0;
-	out[7] = 0;
+void xhci_endpoint_context_to_addr(XHCI_ENDPOINT_CONTEXT *in, unsigned long *out){
+	out[0x20+0] = 0;
+	out[0x20+1] = 0;
+	out[0x20+2] = 0;
+	out[0x20+3] = 0;
+	out[0x20+4] = 0;
+	out[0x20+5] = 0;
+	out[0x20+6] = 0;
+	out[0x20+7] = 0;
 	
-	out[0] = XHCI_ENDPOINT_CONTEXT_MAX_ENDPOINT_SERVICE(in.maxexitpayloadhigh) | XHCI_ENDPOINT_CONTEXT_INTERVAL(in.interval) | XHCI_ENDPOINT_CONTEXT_LINEAR_STREAM_ARRAY(in.lsa) | XHCI_ENDPOINT_CONTEXT_MAX_PRIMAIRY_STREAMS(in.maxpstreams) | XHCI_ENDPOINT_CONTEXT_MULT(in.mult) | XHCI_ENDPOINT_CONTEXT_ENDPOINT_STATE(in.endpoint_state);
-	out[1] = XHCI_ENDPOINT_CONTEXT_MAX_PACKET_SIZE(in.maxpacketsize) | XHCI_ENDPOINT_CONTEXT_MAX_BURST_SIZE(in.maxburstsize) | XHCI_ENDPOINT_CONTEXT_HOST_INITIATE_DISABLE(in.hid) | XHCI_ENDPOINT_CONTEXT_ENDPOINT_TYPE(in.endpointtype) | XHCI_ENDPOINT_CONTEXT_ERR_CNT(in.cerr);
-	out[2] = XHCI_ENDPOINT_CONTEXT_DP(in.dequeuepointer) | XHCI_ENDPOINT_CONTEXT_DSC(in.dcs);
-	out[4] = XHCI_ENDPOINT_CONTEXT_MAX_ENDPOINT_SERVICE_LO(in.maxpayloadlow) | XHCI_ENDPOINT_CONTEXT_AVG_TRB_LENGTH(in.average_trb_length);
+	out[0x20+0] = XHCI_ENDPOINT_CONTEXT_MAX_ENDPOINT_SERVICE(in->maxexitpayloadhigh) | XHCI_ENDPOINT_CONTEXT_INTERVAL(in->interval) | XHCI_ENDPOINT_CONTEXT_LINEAR_STREAM_ARRAY(in->lsa) | XHCI_ENDPOINT_CONTEXT_MAX_PRIMAIRY_STREAMS(in->maxpstreams) | XHCI_ENDPOINT_CONTEXT_MULT(in->mult) | XHCI_ENDPOINT_CONTEXT_ENDPOINT_STATE(in->endpoint_state);
+	out[0x20+1] = XHCI_ENDPOINT_CONTEXT_MAX_PACKET_SIZE(in->maxpacketsize) | XHCI_ENDPOINT_CONTEXT_MAX_BURST_SIZE(in->maxburstsize) | XHCI_ENDPOINT_CONTEXT_HOST_INITIATE_DISABLE(in->hid) | XHCI_ENDPOINT_CONTEXT_ENDPOINT_TYPE(in->endpointtype) | XHCI_ENDPOINT_CONTEXT_ERR_CNT(in->cerr);
+	out[0x20+2] = XHCI_ENDPOINT_CONTEXT_DP(in->dequeuepointer) | XHCI_ENDPOINT_CONTEXT_DSC(in->dcs);
+	out[0x20+4] = XHCI_ENDPOINT_CONTEXT_MAX_ENDPOINT_SERVICE_LO(in->maxpayloadlow) | XHCI_ENDPOINT_CONTEXT_AVG_TRB_LENGTH(in->average_trb_length);
 }
 
 int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char bsr){
@@ -851,22 +851,21 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			slot_context.root_hub_port_number = 1;
 			slot_context.route_string = 0;
 			slot_context.context_entries = 1;
-			xhci_slot_context_to_addr(slot_context,&t[0x10]); 
+			xhci_slot_context_to_addr(slot_context,t); 
 			
-			printf("[XHCI] Port %x : Setting up Endpoint Context\n",i);
+			printf("[XHCI] Port %x : Setting up Endpoint Context \n",i);
 			// Endpoint Context
-			XHCI_ENDPOINT_CONTEXT endpoint_context;
-			endpoint_context.endpointtype = 4;
-			endpoint_context.maxpstreams = 0;
-			endpoint_context.mult = 0;
-			endpoint_context.cerr = 3;
-			endpoint_context.maxburstsize = 0;
-			endpoint_context.maxpacketsize = devicespeed;
-			endpoint_context.interval = 0;
-			endpoint_context.dequeuepointer = (unsigned long)&local_ring_control;
-			endpoint_context.dcs = 1;
-			xhci_endpoint_context_to_addr(endpoint_context,&t[0x20]);
-			
+			XHCI_ENDPOINT_CONTEXT* endpoint_context = (XHCI_ENDPOINT_CONTEXT*)malloc(sizeof(XHCI_ENDPOINT_CONTEXT));
+			endpoint_context->endpointtype = 4;
+			endpoint_context->maxpstreams = 0;
+			endpoint_context->mult = 0;
+			endpoint_context->cerr = 3;
+			endpoint_context->maxburstsize = 0;
+			endpoint_context->maxpacketsize = devicespeed;
+			endpoint_context->interval = 0;
+			endpoint_context->dequeuepointer = (unsigned long)&local_ring_control;
+			endpoint_context->dcs = 1;
+			xhci_endpoint_context_to_addr(endpoint_context,t);
 			//
 			//
 			// SETADDRESS commando
@@ -903,7 +902,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			dc1->bar1 = 0b00000000000001000000011010000000;
 			dc1->bar2 = 0b00000000000000000000000000000000;
 			dc1->bar3 = 0b00000000010000000000000000001000;
-			dc1->bar4 = 0b00000000000000110000100001000001;
+			dc1->bar4 = 0b00000000000000110000100001000000;
 			
 			// single date stage
 			// TRB Type = Data Stage TRB.
@@ -918,13 +917,13 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			dc2->bar1 = (unsigned long)devicedescriptor;
 			dc2->bar2 = 0b00000000000000000000000000000000;
 			dc2->bar3 = 0b00000000000000000000000000001000;
-			dc2->bar4 = 0b00000000000000010000110000000001;
+			dc2->bar4 = 0b00000000000000010000110000000000;
 			
 			TRB *dc3 = ((TRB*)((unsigned long)(&local_ring_control)+0x20));
 			dc3->bar1 = 0;
 			dc3->bar2 = 0;
 			dc3->bar3 = 0;
-			dc3->bar4 = 0;
+			dc3->bar4 = 1;
 			
 			
 			((unsigned long*)doorbel)[assignedSloth] = 1;
