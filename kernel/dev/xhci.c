@@ -839,6 +839,10 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			// Input Control Context
 			XHCI_INPUT_CONTROL_CONTEXT input_control_context;
 			input_control_context.A = 0b11;
+			input_control_context.D = 0b0;
+			input_control_context.alternate_setting = 0;
+			input_control_context.interface_number = 0;
+			input_control_context.configuration_value = 0;
 			xhci_input_control_conext_to_addr(input_control_context,t);
 			
 			printf("[XHCI] Port %x : Setting up Slot Context\n",i);
