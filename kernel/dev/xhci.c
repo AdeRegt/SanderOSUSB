@@ -33,6 +33,22 @@
 #define XHCI_SLOT_CONTEXT_USB_DEVICE_ADDRESS(x)			(((x) & 0xFF) )
 #define XHCI_SLOT_CONTEXT_SLOT_STATE(x)				(((x) & 0x1F) << 27)
 
+#define XHCI_ENDPOINT_CONTEXT_ENDPOINT_STATE(x)			(((x) & 0b11) << 0)
+#define XHCI_ENDPOINT_CONTEXT_MULT(x)				(((x) & 0b11) << 8)
+#define XHCI_ENDPOINT_CONTEXT_MAX_PRIMAIRY_STREAMS(x)		(((x) & 0b11111) << 10)
+#define XHCI_ENDPOINT_CONTEXT_LINEAR_STREAM_ARRAY(x)		(((x) & 0x1) << 15)
+#define XHCI_ENDPOINT_CONTEXT_INTERVAL(x)			(((x) & 0b11111111) << 16)
+#define XHCI_ENDPOINT_CONTEXT_MAX_ENDPOINT_SERVICE(x)		(((x) & 0xFF) << 24)
+#define XHCI_ENDPOINT_CONTEXT_ERR_CNT(x)			(((x) & 0b11) << 1)
+#define XHCI_ENDPOINT_CONTEXT_ENDPOINT_TYPE(x)			(((x) & 0b111) << 3)
+#define XHCI_ENDPOINT_CONTEXT_HOST_INITIATE_DISABLE(x)		(((x) & 0x1) << 7)
+#define XHCI_ENDPOINT_CONTEXT_MAX_BURST_SIZE(x)			(((x) & 0b11111111) << 8)
+#define XHCI_ENDPOINT_CONTEXT_MAX_PACKET_SIZE(x)		(((x) & 0b11111111111111111) << 16)
+#define XHCI_ENDPOINT_CONTEXT_DSC(x)				(((x) & 0x1) << 0)
+#define XHCI_ENDPOINT_CONTEXT_DP(x)				(((x) & 0b1111111111111111111111111111) << 4)
+#define XHCI_ENDPOINT_CONTEXT_AVG_TRB_LENGTH(x)			(((x) & 0b1111111111111111) << 0)
+#define XHCI_ENDPOINT_CONTEXT_MAX_ENDPOINT_SERVICE_LO(x)	(((x) & 0b1111111111111111) << 16)
+	
 typedef struct{
 	// Cycle bit (C). This bit is used to mark the Enqueue Pointer of a Command Ring.
 	unsigned char cyclebit;
@@ -205,6 +221,150 @@ typedef struct{
 }XHCI_SLOT_CONTEXT;
 
 typedef struct{
+	// Endpoint State (EP State). The Endpoint State identifies the current operational state of the
+	// endpoint.
+	// Value Definition
+	// 0 Disabled The endpoint is not operational
+	// 1 Running The endpoint is operational, either waiting for a doorbell ring or processing
+	// TDs.
+	// 2 Halted The endpoint is halted due to a Halt condition detected on the USB. SW shall issue
+	// Reset Endpoint Command to recover from the Halt condition and transition to the Stopped
+	// state. SW may manipulate the Transfer Ring while in this state.
+	// 3 Stopped The endpoint is not running due to a Stop Endpoint Command or recovering
+	// from a Halt condition. SW may manipulate the Transfer Ring while in this state.
+	// 4 Error The endpoint is not running due to a TRB Error. SW may manipulate the Transfer
+	// Ring while in this state.
+	// 5-7
+	// Reserved
+	// As Output, a Running to Halted transition is forced by the xHC if a STALL condition is detected
+	// on the endpoint. A Running to Error transition is forced by the xHC if a TRB Error condition is
+	// detected.
+	// As Input, this field is initialized to ‘0’ by software.
+	// Refer to section 4.8.3 for more information on Endpoint State.
+	unsigned char endpoint_state;
+	
+	// Mult. If LEC = ‘0’, then this field indicates the maximum number of bursts within an Interval that
+	// this endpoint supports, where the valid range of values is ‘0’ to ‘2’, where ‘0’ = 1 burst, ‘1’ = 2
+	// bursts, etc. 109 This field shall be ‘0’ for all endpoint types except for SS Isochronous.
+	// If LEC = ‘1’, then this field shall be RsvdZ and Mult is calculated as:
+	// (Max ESIT Payload / Max Packet Size / Max Burst Size) rounded up to the nearest integer value.
+	unsigned char mult;
+	
+	// Max Primary Streams (MaxPStreams). This field identifies the maximum number of Primary
+	// Stream IDs this endpoint supports. Valid values are defined below. If the value of this field is ‘0’,
+	// then the TR Dequeue Pointer field shall point to a Transfer Ring. If this field is > '0' then the TR
+	// Dequeue Pointer field shall point to a Primary Stream Context Array. Refer to section 4.12 for
+	// more information.
+	// A value of ‘0’ indicates that Streams are not supported by this endpoint and the Endpoint
+	// Context TR Dequeue Pointer field references a Transfer Ring.
+	// A value of ‘1’ to ‘15’ indicates that the Primary Stream ID Width is MaxPstreams+1 and the
+	// Primary Stream Array contains 2 MaxPStreams+1 entries.
+	// For SS Bulk endpoints, the range of valid values for this field is defined by the MaxPSASize field
+	// in the HCCPARAMS1 register (refer to Table 5-13).
+	// This field shall be '0' for all SS Control, Isoch, and Interrupt endpoints, and for all non-SS
+	// endpoints.
+	unsigned char maxpstreams;
+	
+	// Linear Stream Array (LSA). This field identifies how a Stream ID shall be interpreted.
+	// Setting this bit to a value of ‘1’ shall disable Secondary Stream Arrays and a Stream ID shall be
+	// interpreted as a linear index into the Primary Stream Array, where valid values for MaxPStreams
+	// are ‘1’ to ‘15’.
+	// A value of ‘0’ shall enable Secondary Stream Arrays, where the low order (MaxPStreams+1) bits
+	// of a Stream ID shall be interpreted as a linear index into the Primary Stream Array, where valid
+	// values for MaxPStreams are ‘1’ to ‘7’. And the high order bits of a Stream ID shall be interpreted
+	// as a linear index into the Secondary Stream Array.
+	// If MaxPStreams = ‘0’, this field RsvdZ.
+	// Refer to section 4.12.2 for more information.
+	unsigned char lsa;
+	
+	// Interval. The period between consecutive requests to a USB endpoint to send or receive data.
+	// Expressed in 125 μs. increments. The period is calculated as 125 μs. * 2 Interval ; e.g., an Interval
+	// value of 0 means a period of 125 μs. (2 0 = 1 * 125 μs.), a value of 1 means a period of 250 μs. (2 1
+	// = 2 * 125 μs.), a value of 4 means a period of 2 ms. (2 4 = 16 * 125 μs.), etc. Refer to Table 6-12
+	// for legal Interval field values. See further discussion of this field below. Refer to section 6.2.3.6
+	// for more information.
+	unsigned char interval;
+	
+	// Max Endpoint Service Time Interval Payload High (Max ESIT Payload Hi). If LEC = '1', then this
+	// field indicates the high order 8 bits of the Max ESIT Payload value. If LEC = '0', then this field
+	// shall be RsvdZ. Refer to section 6.2.3.8 for more information.
+	unsigned char maxexitpayloadhigh;
+	
+	// Error Count (CErr) 110 . This field defines a 2-bit down count, which identifies the number of
+	// consecutive USB Bus Errors allowed while executing a TD. If this field is programmed with a
+	// non-zero value when the Endpoint Context is initialized, the xHC loads this value into an internal
+	// Bus Error Counter before executing a USB transaction and decrements it if the transaction fails.
+	// If the Bus Error Counter counts from ‘1’ to ‘0’, the xHC ceases execution of the TRB, sets the
+	// endpoint to the Halted state, and generates a USB Transaction Error Event for the TRB that
+	// caused the internal Bus Error Counter to decrement to ‘0’. If system software programs this field
+	// to ‘0’, the xHC shall not count errors for TRBs on the Endpoint’s Transfer Ring and there shall be
+	// no limit on the number of TRB retries. Refer to section 4.10.2.7 for more information on the
+	// operation of the Bus Error Counter.
+	// Note: CErr does not apply to Isoch endpoints and shall be set to ‘0’ if EP Type = Isoch Out ('1') or
+	// Isoch In ('5').
+	unsigned char cerr;
+	
+	// Endpoint Type (EP Type). This field identifies whether an Endpoint Context is Valid, and if so,
+	// what type of endpoint the context defines.
+	// Value Endpoint Type Direction
+	// 0 Not Valid N/A
+	// 1 Isoch Out
+	// 2 Bulk Out
+	// 3 Interrupt Out
+	// 4 Control
+	// Bidirectional
+	// 5 Isoch In
+	// 6 Bulk In
+	// 7 Interrupt In
+	unsigned char endpointtype;
+	
+	// Host Initiate Disable (HID). This field affects Stream enabled endpoints, allowing the Host
+	// Initiated Stream selection feature to be disabled for the endpoint. Setting this bit to a value of
+	// ‘1’ shall disable the Host Initiated Stream selection feature. A value of ‘0’ will enable normal
+	// Stream operation. Refer to section 4.12.1.1 for more information.
+	unsigned char hid;
+	
+	// Max Burst Size. This field indicates to the xHC the maximum number of consecutive USB
+	// transactions that should be executed per scheduling opportunity. This is a “zero-based” value,
+	// where 0 to 15 represents burst sizes of 1 to 16, respectively. Refer to section 6.2.3.4 for more
+	// information.
+	unsigned char maxburstsize;
+	
+	// Max Packet Size. This field indicates the maximum packet size in bytes that this endpoint is
+	// capable of sending or receiving when configured. Refer to section 6.2.3.5 for more information.
+	unsigned char maxpacketsize;
+	
+	// Dequeue Cycle State (DCS). This bit identifies the value of the xHC Consumer Cycle State (CCS)
+	// flag for the TRB referenced by the TR Dequeue Pointer. Refer to section 4.9.2 for more
+	// information. This field shall be ‘0’ if MaxPStreams > ‘0’.
+	unsigned char dcs;
+	
+	// TR Dequeue Pointer. As Input, this field represents the high order bits of the 64-bit base address
+	// of a Transfer Ring or a Stream Context Array associated with this endpoint. If MaxPStreams = '0'
+	// then this field shall point to a Transfer Ring. If MaxPStreams > '0' then this field shall point to a
+	// Stream Context Array.
+	// As Output, if MaxPStreams = ‘0’ this field shall be used by the xHC to store the value of the
+	// Dequeue Pointer when the endpoint enters the Halted or Stopped states, and the value of the
+	// this field shall be undefined when the endpoint is not in the Halted or Stopped states. if
+	// MaxPStreams > ‘0’ then this field shall point to a Stream Context Array.
+	// The memory structure referenced by this physical memory pointer shall be aligned to a 16-byte
+	// boundary.
+	unsigned long long dequeuepointer;
+	
+	// Average TRB Length. This field represents the average Length of the TRBs executed by this
+	// endpoint. The value of this field shall be greater than ‘0’. Refer to section 4.14.1.1 and the
+	// implementation note TRB Lengths and System Bus Bandwidth for more information.
+	// The xHC shall use this parameter to calculate system bus bandwidth requirements.
+	unsigned char average_trb_length;
+	
+	// Max Endpoint Service Time Interval Payload Low (Max ESIT Payload Lo). This field indicates
+	// the low order 16 bits of the Max ESIT Payload. The Max ESIT Payload represents the total
+	// number of bytes this endpoint will transfer during an ESIT. This field is only valid for periodic
+	// endpoints. Refer to section 6.2.3.8 for more information.
+	unsigned char maxpayloadlow;
+}XHCI_ENDPOINT_CONTEXT;
+
+typedef struct{
 	unsigned long bar1;
 	unsigned long bar2;
 	unsigned long bar3;
@@ -295,6 +455,22 @@ void xhci_slot_context_to_addr(XHCI_SLOT_CONTEXT in , unsigned long *out){
 	out[1] = XHCI_SLOT_CONTEXT_NUM_OF_PORTS(in.number_of_ports) | XHCI_SLOT_CONTEXT_ROOT_HUB_PORT_NUMBER(in.root_hub_port_number) | XHCI_SLOT_CONTEXT_MAX_EXIT_LATENCY(in.max_exit_latency);
 	out[2] = XHCI_SLOT_CONTEXT_INTERRUPTER_TARGET(in.interrupter_target) | XHCI_SLOT_CONTEXT_TTT(in.tt_think_time) | XHCI_SLOT_CONTEXT_TT_PORT_NUMBER(in.tt_port_number) | XHCI_SLOT_CONTEXT_TT_HUB_SLOT_ID(in.tt_hub_slot_id);
 	out[3] = XHCI_SLOT_CONTEXT_SLOT_STATE(in.slot_state) | XHCI_SLOT_CONTEXT_USB_DEVICE_ADDRESS(in.usb_device_address);
+}
+
+void xhci_endpoint_context_to_addr(XHCI_ENDPOINT_CONTEXT in, unsigned long *out){
+	out[0] = 0;
+	out[1] = 0;
+	out[2] = 0;
+	out[3] = 0;
+	out[4] = 0;
+	out[5] = 0;
+	out[6] = 0;
+	out[7] = 0;
+	
+	out[0] = XHCI_ENDPOINT_CONTEXT_MAX_ENDPOINT_SERVICE(in.maxexitpayloadhigh) | XHCI_ENDPOINT_CONTEXT_INTERVAL(in.interval) | XHCI_ENDPOINT_CONTEXT_LINEAR_STREAM_ARRAY(in.lsa) | XHCI_ENDPOINT_CONTEXT_MAX_PRIMAIRY_STREAMS(in.maxpstreams) | XHCI_ENDPOINT_CONTEXT_MULT(in.mult) | XHCI_ENDPOINT_CONTEXT_ENDPOINT_STATE(in.endpoint_state);
+	out[1] = XHCI_ENDPOINT_CONTEXT_MAX_PACKET_SIZE(in.maxpacketsize) | XHCI_ENDPOINT_CONTEXT_MAX_BURST_SIZE(in.maxburstsize) | XHCI_ENDPOINT_CONTEXT_HOST_INITIATE_DISABLE(in.hid) | XHCI_ENDPOINT_CONTEXT_ENDPOINT_TYPE(in.endpointtype) | XHCI_ENDPOINT_CONTEXT_ERR_CNT(in.cerr);
+	out[2] = XHCI_ENDPOINT_CONTEXT_DP(in.dequeuepointer) | XHCI_ENDPOINT_CONTEXT_DSC(in.dcs);
+	out[4] = XHCI_ENDPOINT_CONTEXT_MAX_ENDPOINT_SERVICE_LO(in.maxpayloadlow) | XHCI_ENDPOINT_CONTEXT_AVG_TRB_LENGTH(in.average_trb_length);
 }
 
 int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char bsr){
@@ -675,20 +851,17 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			
 			printf("[XHCI] Port %x : Setting up Endpoint Context\n",i);
 			// Endpoint Context
-			t[0x20] = 0;
-			t[0x21] = 0;
-			t[0x22] = 0;
-			t[0x23] = 0;
-			
-			t[0x21] |= (4<<3); // set ep_type to controll
-			t[0x21] |= (devicespeed<<16); // set max packet size
-			t[0x21] |= (0<<8); // max burst size
-			t[0x22] |= (unsigned long)&local_ring_control; // TR dequeue pointer
-			t[0x22] |= 1; // dequeue cycle state
-			t[0x20] |= (0<<16); // set interval 
-			t[0x20] |= (0<<10); // set max primairy streams
-			t[0x20] |= (0<<8); // set mult
-			t[0x21] |= (3<<1); // set CErr
+			XHCI_ENDPOINT_CONTEXT endpoint_context;
+			endpoint_context.endpointtype = 4;
+			endpoint_context.maxpstreams = 0;
+			endpoint_context.mult = 0;
+			endpoint_context.cerr = 3;
+			endpoint_context.maxburstsize = 0;
+			endpoint_context.maxpacketsize = devicespeed;
+			endpoint_context.interval = 0;
+			endpoint_context.dequeuepointer = (unsigned long)&local_ring_control;
+			endpoint_context.dcs = 1;
+			xhci_endpoint_context_to_addr(endpoint_context,&t[0x20]);
 			
 			//
 			//
