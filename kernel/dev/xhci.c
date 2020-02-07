@@ -869,7 +869,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			//
 			//
 			// SETADDRESS commando
-			//
+			// this fails on qemu with errorcode 5. on bochs this succeeds but reading the descriptors fails
 			//
 			
 			
