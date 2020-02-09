@@ -464,35 +464,35 @@ void xhci_input_control_conext_to_addr(XHCI_INPUT_CONTROL_CONTEXT in,unsigned lo
 }
 
 void xhci_slot_context_to_addr(XHCI_SLOT_CONTEXT in , unsigned long *out){
-	out[0+0x10] = 0;
-	out[1+0x10] = 0;
-	out[2+0x10] = 0;
-	out[3+0x10] = 0;
-	out[4+0x10] = 0;
-	out[5+0x10] = 0;
-	out[6+0x10] = 0;
-	out[7+0x10] = 0;
+	out[0] = 0;
+	out[1] = 0;
+	out[2] = 0;
+	out[3] = 0;
+	out[4] = 0;
+	out[5] = 0;
+	out[6] = 0;
+	out[7] = 0;
 	
-	out[0+0x10] = XHCI_SLOT_CONTEXT_CONTEXT_ENTRIES(in.context_entries) | XHCI_SLOT_CONTEXT_MTT(in.hub) | XHCI_SLOT_CONTEXT_MTT(in.mtt) | XHCI_SLOT_CONTEXT_SPEED(in.speed) | XHCI_SLOT_CONTEXT_ROUTE_STRING(in.route_string);
-	out[1+0x10] = XHCI_SLOT_CONTEXT_NUM_OF_PORTS(in.number_of_ports) | XHCI_SLOT_CONTEXT_ROOT_HUB_PORT_NUMBER(in.root_hub_port_number) | XHCI_SLOT_CONTEXT_MAX_EXIT_LATENCY(in.max_exit_latency);
-	out[2+0x10] = XHCI_SLOT_CONTEXT_INTERRUPTER_TARGET(in.interrupter_target) | XHCI_SLOT_CONTEXT_TTT(in.tt_think_time) | XHCI_SLOT_CONTEXT_TT_PORT_NUMBER(in.tt_port_number) | XHCI_SLOT_CONTEXT_TT_HUB_SLOT_ID(in.tt_hub_slot_id);
-	out[3+0x10] = XHCI_SLOT_CONTEXT_SLOT_STATE(in.slot_state) | XHCI_SLOT_CONTEXT_USB_DEVICE_ADDRESS(in.usb_device_address);
+	out[0] = XHCI_SLOT_CONTEXT_CONTEXT_ENTRIES(in.context_entries) | XHCI_SLOT_CONTEXT_MTT(in.hub) | XHCI_SLOT_CONTEXT_MTT(in.mtt) | XHCI_SLOT_CONTEXT_SPEED(in.speed) | XHCI_SLOT_CONTEXT_ROUTE_STRING(in.route_string);
+	out[1] = XHCI_SLOT_CONTEXT_NUM_OF_PORTS(in.number_of_ports) | XHCI_SLOT_CONTEXT_ROOT_HUB_PORT_NUMBER(in.root_hub_port_number) | XHCI_SLOT_CONTEXT_MAX_EXIT_LATENCY(in.max_exit_latency);
+	out[2] = XHCI_SLOT_CONTEXT_INTERRUPTER_TARGET(in.interrupter_target) | XHCI_SLOT_CONTEXT_TTT(in.tt_think_time) | XHCI_SLOT_CONTEXT_TT_PORT_NUMBER(in.tt_port_number) | XHCI_SLOT_CONTEXT_TT_HUB_SLOT_ID(in.tt_hub_slot_id);
+	out[3] = XHCI_SLOT_CONTEXT_SLOT_STATE(in.slot_state) | XHCI_SLOT_CONTEXT_USB_DEVICE_ADDRESS(in.usb_device_address);
 }
 
 void xhci_endpoint_context_to_addr(XHCI_ENDPOINT_CONTEXT *in, unsigned long *out){
-	out[0x20+0] = 0;
-	out[0x20+1] = 0;
-	out[0x20+2] = 0;
-	out[0x20+3] = 0;
-	out[0x20+4] = 0;
-	out[0x20+5] = 0;
-	out[0x20+6] = 0;
-	out[0x20+7] = 0;
+	out[0] = 0;
+	out[1] = 0;
+	out[2] = 0;
+	out[3] = 0;
+	out[4] = 0;
+	out[5] = 0;
+	out[6] = 0;
+	out[7] = 0;
 	
-	out[0x20+0] = XHCI_ENDPOINT_CONTEXT_MAX_ENDPOINT_SERVICE(in->maxexitpayloadhigh) | XHCI_ENDPOINT_CONTEXT_INTERVAL(in->interval) | XHCI_ENDPOINT_CONTEXT_LINEAR_STREAM_ARRAY(in->lsa) | XHCI_ENDPOINT_CONTEXT_MAX_PRIMAIRY_STREAMS(in->maxpstreams) | XHCI_ENDPOINT_CONTEXT_MULT(in->mult) | XHCI_ENDPOINT_CONTEXT_ENDPOINT_STATE(in->endpoint_state);
-	out[0x20+1] = XHCI_ENDPOINT_CONTEXT_MAX_PACKET_SIZE(in->maxpacketsize) | XHCI_ENDPOINT_CONTEXT_MAX_BURST_SIZE(in->maxburstsize) | XHCI_ENDPOINT_CONTEXT_HOST_INITIATE_DISABLE(in->hid) | XHCI_ENDPOINT_CONTEXT_ENDPOINT_TYPE(in->endpointtype) | XHCI_ENDPOINT_CONTEXT_ERR_CNT(in->cerr);
-	out[0x20+2] = XHCI_ENDPOINT_CONTEXT_DP(in->dequeuepointer) | XHCI_ENDPOINT_CONTEXT_DSC(in->dcs);
-	out[0x20+4] = XHCI_ENDPOINT_CONTEXT_MAX_ENDPOINT_SERVICE_LO(in->maxpayloadlow) | XHCI_ENDPOINT_CONTEXT_AVG_TRB_LENGTH(in->average_trb_length);
+	out[0] = XHCI_ENDPOINT_CONTEXT_MAX_ENDPOINT_SERVICE(in->maxexitpayloadhigh) | XHCI_ENDPOINT_CONTEXT_INTERVAL(in->interval) | XHCI_ENDPOINT_CONTEXT_LINEAR_STREAM_ARRAY(in->lsa) | XHCI_ENDPOINT_CONTEXT_MAX_PRIMAIRY_STREAMS(in->maxpstreams) | XHCI_ENDPOINT_CONTEXT_MULT(in->mult) | XHCI_ENDPOINT_CONTEXT_ENDPOINT_STATE(in->endpoint_state);
+	out[1] = XHCI_ENDPOINT_CONTEXT_MAX_PACKET_SIZE(in->maxpacketsize) | XHCI_ENDPOINT_CONTEXT_MAX_BURST_SIZE(in->maxburstsize) | XHCI_ENDPOINT_CONTEXT_HOST_INITIATE_DISABLE(in->hid) | XHCI_ENDPOINT_CONTEXT_ENDPOINT_TYPE(in->endpointtype) | XHCI_ENDPOINT_CONTEXT_ERR_CNT(in->cerr);
+	out[2] = XHCI_ENDPOINT_CONTEXT_DP(in->dequeuepointer) | XHCI_ENDPOINT_CONTEXT_DSC(in->dcs);
+	out[4] = XHCI_ENDPOINT_CONTEXT_MAX_ENDPOINT_SERVICE_LO(in->maxpayloadlow) | XHCI_ENDPOINT_CONTEXT_AVG_TRB_LENGTH(in->average_trb_length);
 }
 
 int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char bsr){
@@ -884,11 +884,12 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			unsigned long bse = (unsigned long)malloc(0x420);
 			btc[(assignedSloth*2)+0] 	= bse;
 			btc[(assignedSloth*2)+1] 	= 0;
+			printf("[XHCI] Port %x : BCPAAP for port at %x \n",i,bse);
 			
 			printf("[XHCI] Port %x : Setting up input controll\n",i);
-			unsigned long t[0x30] __attribute__ ((aligned(0x1000)));
+			unsigned long t[0x60] __attribute__ ((aligned(0x1000)));
 			
-			printf("[XHCI] Port %x : Setting up Input Controll Context\n",i);
+			printf("[XHCI] Port %x : Setting up Input Controll Context at %x \n",i,&t);
 			// Input Control Context
 			XHCI_INPUT_CONTROL_CONTEXT input_control_context;
 			input_control_context.A = 0b11;
@@ -904,7 +905,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			slot_context.root_hub_port_number = 1;
 			slot_context.route_string = 0;
 			slot_context.context_entries = 1;
-			xhci_slot_context_to_addr(slot_context,t); 
+			unsigned long kappa = ((unsigned long)&t)+32;
+			xhci_slot_context_to_addr(slot_context,(unsigned long*)(kappa)); 
 			
 			printf("[XHCI] Port %x : Setting up Endpoint Context \n",i);
 			// Endpoint Context
@@ -918,7 +920,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			endpoint_context->interval = 0;
 			endpoint_context->dequeuepointer = (unsigned long)&local_ring_control;
 			endpoint_context->dcs = 1;
-			xhci_endpoint_context_to_addr(endpoint_context,t);
+			xhci_endpoint_context_to_addr(endpoint_context,((unsigned long)&t)+64);
 			printf("[XHCI] Port %x : local transfer ring points to %x  and trb points to %x \n",i,(unsigned long)&local_ring_control,t[0x20+2]);
 			
 			//
