@@ -493,6 +493,15 @@ void xhci_endpoint_context_to_addr(XHCI_ENDPOINT_CONTEXT *in, unsigned long *out
 	out[1] = XHCI_ENDPOINT_CONTEXT_MAX_PACKET_SIZE(in->maxpacketsize) | XHCI_ENDPOINT_CONTEXT_MAX_BURST_SIZE(in->maxburstsize) | XHCI_ENDPOINT_CONTEXT_HOST_INITIATE_DISABLE(in->hid) | XHCI_ENDPOINT_CONTEXT_ENDPOINT_TYPE(in->endpointtype) | XHCI_ENDPOINT_CONTEXT_ERR_CNT(in->cerr);
 	out[2] = XHCI_ENDPOINT_CONTEXT_DP(in->dequeuepointer) | XHCI_ENDPOINT_CONTEXT_DSC(in->dcs);
 	out[4] = XHCI_ENDPOINT_CONTEXT_MAX_ENDPOINT_SERVICE_LO(in->maxpayloadlow) | XHCI_ENDPOINT_CONTEXT_AVG_TRB_LENGTH(in->average_trb_length);
+	
+//	out[0] = 0xFFFFFFFFFFFF;
+//	out[1] = 0xFFFFFFFFFFFF;
+//	out[2] = 0xFFFFFFFFFFFF;
+//	out[3] = 0xFFFFFFFFFFFF;
+//	out[4] = 0xFFFFFFFFFFFF;
+//	out[5] = 0xFFFFFFFFFFFF;
+//	out[6] = 0xFFFFFFFFFFFF;
+//	out[7] = 0xFFFFFFFFFFFF;
 }
 
 int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char bsr){
@@ -531,7 +540,7 @@ int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char 
 	return completioncode2;
 }
 
-void xhci_disable_slot(assignedSloth){
+unsigned int xhci_disable_slot(unsigned long assignedSloth){
 	TRB* trb2 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	XHCI_TRB_DISABLE_SLOT disable_slot;
 	disable_slot.cycle_bit = deviceid!=XHCI_DEVICE_BOCHS?1:0;
@@ -560,6 +569,7 @@ void xhci_disable_slot(assignedSloth){
 	}
 	
 	event_ring_offset += 0x10;
+	return 1;
 }
 
 int xhci_enable_slot(){
@@ -879,6 +889,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			printf("[XHCI] Port %x : Device Slot Initialisation BSR1 \n",i);
 			
 			TRB local_ring_control[20] __attribute__ ((aligned (0x100)));
+			unsigned char offsetA = deviceid!=XHCI_DEVICE_BOCHS?32:64;
+			unsigned char offsetB = deviceid!=XHCI_DEVICE_BOCHS?64:128;
 	
 			printf("[XHCI] Port %x : Setting up DCBAAP for port \n",i);
 			unsigned long bse = (unsigned long)malloc(0x420);
@@ -905,7 +917,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			slot_context.root_hub_port_number = 1;
 			slot_context.route_string = 0;
 			slot_context.context_entries = 1;
-			unsigned long kappa = ((unsigned long)&t)+32;
+			unsigned long kappa = ((unsigned long)&t)+offsetA;
 			xhci_slot_context_to_addr(slot_context,(unsigned long*)(kappa)); 
 			
 			printf("[XHCI] Port %x : Setting up Endpoint Context \n",i);
@@ -920,23 +932,18 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			endpoint_context->interval = 0;
 			endpoint_context->dequeuepointer = (unsigned long)&local_ring_control;
 			endpoint_context->dcs = 1;
-			xhci_endpoint_context_to_addr(endpoint_context,((unsigned long)&t)+64);
-			printf("[XHCI] Port %x : local transfer ring points to %x  and trb points to %x \n",i,(unsigned long)&local_ring_control,t[0x20+2]);
+			unsigned long sigma = ((unsigned long)&t)+offsetB;
+			xhci_endpoint_context_to_addr(endpoint_context,(unsigned long*)(sigma));
+			printf("[XHCI] Port %x : local transfer ring points to %x  and trb points to %x \n",i,(unsigned long)&local_ring_control,((unsigned long*)(&t)+0x20)[2]);
 			
 			//
 			//
 			// SETADDRESS commando
-			// this fails on qemu with errorcode 5. on bochs this succeeds but reading the descriptors fails
+			//
 			//
 			
-			TRB *trbx = ((TRB*)((unsigned long)(&local_ring_control)));
-			trbx->bar1 = 0;
-			trbx->bar2 = 0;
-			trbx->bar3 = 0;
-			trbx->bar4 = (8<<10) | 1;
-			
 			printf("[XHCI] Port %x : Obtaining SETADDRESS(BSR=1)\n",i);
-			int sares = xhci_set_address(assignedSloth,t,1);
+			int sares = xhci_set_address(assignedSloth,(unsigned long*)&t,1);
 			if(sares==5){
 				printf("[XHCI] Port %x : Local ring not defined as it should be....\n",i);
 				goto disabledevice;
@@ -945,16 +952,16 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				goto disabledevice;
 			}
 			
-			printf("[XHCI] Port %x : Triggering NO-OPT TRB\n",i);
-			((unsigned long*)doorbel)[assignedSloth] = 1;
-			
-			while(1){
-				unsigned long r = ((unsigned long*)iman_addr)[0];
-				if(r&1){
-					break;
-				}
+			unsigned long lrcoffset = 0;
+			if(0){
+				printf("[XHCI] Port %x : NOOP ring control\n",i);
+				TRB *trbx = ((TRB*)((unsigned long)(&local_ring_control)+lrcoffset));
+				trbx->bar1 = 0;
+				trbx->bar2 = 0;
+				trbx->bar3 = 0;
+				trbx->bar4 = (8<<10) | 0b01;
+				lrcoffset += 0x10;
 			}
-			
 			
 			printf("[XHCI] Port %x : GET DEVICE DESCRIPTOR\n",i);
 			//
@@ -972,11 +979,25 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			//
 			
 			unsigned char *devicedescriptor = (unsigned char*)malloc(8);
-			TRB *dc1 = ((TRB*)((unsigned long)(&local_ring_control)+0x10));
-			dc1->bar1 = 0b00000000000001000000011010000000;
-			dc1->bar2 = 0b00000000000000000000000000000000;
-			dc1->bar3 = 0b00000000010000000000000000001000;
-			dc1->bar4 = 0b00000000000000110000100001000000 | 1;
+			TRB *dc1 = ((TRB*)((unsigned long*)(&local_ring_control)+lrcoffset));
+			dc1->bar1 = 0;
+			dc1->bar2 = 0;
+			dc1->bar3 = 0;
+			dc1->bar4 = 0;
+			
+			dc1->bar1 |= 0x80; // reqtype=0x80
+			dc1->bar1 |= (6<<8); // req=6
+			dc1->bar1 |= (0x100 << 16); // wValue = 0100
+			dc1->bar2 |= 0; // windex=0
+			dc1->bar2 |= (0 << 16); // wlength=0
+			dc1->bar3 |= 8; // trbtransferlength
+			dc1->bar3 |= (0 << 22); // interrupetertrager
+			dc1->bar4 |= 1; // cyclebit
+			dc1->bar4 |= (00<<5); // ioc=0
+			dc1->bar4 |= (1<<6); // idt=1
+			dc1->bar4 |= (2<<10); // trbtype
+			dc1->bar4 |= (3<<16); // trt = 3;
+			lrcoffset += 0x10;
 			
 			// single date stage
 			// TRB Type = Data Stage TRB.
@@ -987,18 +1008,12 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			// X Immediate Data (IDT) = 0.
 			// X Data Buffer Pointer = The address of the Device Descriptor receive buffer.
 			// X Cycle bit = Current Producer Cycle State.
-			TRB *dc2 = ((TRB*)((unsigned long)(&local_ring_control)+0x20));
+			TRB *dc2 = ((TRB*)((unsigned long)(&local_ring_control)+lrcoffset));
 			dc2->bar1 = (unsigned long)devicedescriptor;
 			dc2->bar2 = 0b00000000000000000000000000000000;
 			dc2->bar3 = 0b00000000000000000000000000001000;
 			dc2->bar4 = 0b00000000000000010000110000000000;
-			
-			TRB *dc3 = ((TRB*)((unsigned long)(&local_ring_control)+0x30));
-			dc3->bar1 = 0;
-			dc3->bar2 = 0;
-			dc3->bar3 = 0;
-			dc3->bar4 = 1;
-			
+			lrcoffset+=0x10;
 			
 			((unsigned long*)doorbel)[assignedSloth] = 1;
 			
