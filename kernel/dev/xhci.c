@@ -978,7 +978,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			// wLength=0
 			//
 			
-			unsigned char *devicedescriptor = (unsigned char*)malloc(8);
+			unsigned char devicedescriptor[8];
 			TRB *dc1 = ((TRB*)((unsigned long*)(&local_ring_control)+lrcoffset));
 			dc1->bar1 = 0;
 			dc1->bar2 = 0;
@@ -987,9 +987,9 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			
 			dc1->bar1 |= 0x80; // reqtype=0x80
 			dc1->bar1 |= (0x06<<8); // req=6
-			dc1->bar1 |= (0b100 << 16); // wValue = 0100
+			dc1->bar1 |= (0x100 << 16); // wValue = 0100
 			dc1->bar2 |= 0; // windex=0
-			dc1->bar2 |= (0 << 16); // wlength=0
+			dc1->bar2 |= (0 << 16); // wlength=0 // 0x80000
 			dc1->bar3 |= 8; // trbtransferlength
 			dc1->bar3 |= (0 << 22); // interrupetertrager
 			dc1->bar4 |= 1; // cyclebit
@@ -1009,7 +1009,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			// X Data Buffer Pointer = The address of the Device Descriptor receive buffer.
 			// X Cycle bit = Current Producer Cycle State.
 			TRB *dc2 = ((TRB*)((unsigned long)(&local_ring_control)+lrcoffset));
-			dc2->bar1 = (unsigned long)devicedescriptor;
+			dc2->bar1 = (unsigned long*)&devicedescriptor;
 			dc2->bar2 = 0b00000000000000000000000000000000;
 			dc2->bar3 = 0b00000000000000000000000000001000;
 			dc2->bar4 = 0b00000000000000010000110000000001;
@@ -1019,7 +1019,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			dc3->bar1 = 0;
 			dc3->bar2 = 0;
 			dc3->bar3 = 0;
-			dc3->bar4 = 1 | (4<<10);
+			dc3->bar4 = 1 | (4<<10) | 0x20;
 			lrcoffset+=0x10;
 			
 			((unsigned long*)doorbel)[assignedSloth] = 1;
@@ -1030,6 +1030,12 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 					break;
 				}
 			}
+			TRB *trbres = ((TRB*)((unsigned long)(&event_ring_queue)+event_ring_offset));
+			unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
+			if(completioncode!=1){
+				printf("[XHCI] Port %x : completioncode is not 1\n",i);
+			}
+			event_ring_offset += 0x10;
 			
 			printf("[XHCI] Port %x : devdesc %x %x %x %x %x %x %x %x \n",i,devicedescriptor[0],devicedescriptor[1],devicedescriptor[2],devicedescriptor[3],devicedescriptor[4],devicedescriptor[5],devicedescriptor[6],devicedescriptor[7]);
 			printf("[XHCI] Port %x : deviceclass=%x \n",i,devicedescriptor[4]);
