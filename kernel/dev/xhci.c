@@ -986,8 +986,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			dc1->bar4 = 0;
 			
 			dc1->bar1 |= 0x80; // reqtype=0x80
-			dc1->bar1 |= (6<<8); // req=6
-			dc1->bar1 |= (0x100 << 16); // wValue = 0100
+			dc1->bar1 |= (0x06<<8); // req=6
+			dc1->bar1 |= (0b100 << 16); // wValue = 0100
 			dc1->bar2 |= 0; // windex=0
 			dc1->bar2 |= (0 << 16); // wlength=0
 			dc1->bar3 |= 8; // trbtransferlength
@@ -1012,7 +1012,14 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			dc2->bar1 = (unsigned long)devicedescriptor;
 			dc2->bar2 = 0b00000000000000000000000000000000;
 			dc2->bar3 = 0b00000000000000000000000000001000;
-			dc2->bar4 = 0b00000000000000010000110000000000;
+			dc2->bar4 = 0b00000000000000010000110000000001;
+			lrcoffset+=0x10;
+			
+			TRB *dc3 = ((TRB*)((unsigned long)(&local_ring_control)+lrcoffset));
+			dc3->bar1 = 0;
+			dc3->bar2 = 0;
+			dc3->bar3 = 0;
+			dc3->bar4 = 1 | (4<<10);
 			lrcoffset+=0x10;
 			
 			((unsigned long*)doorbel)[assignedSloth] = 1;
