@@ -978,7 +978,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			// wLength=0
 			//
 			
-			unsigned char devicedescriptor[8];
+			unsigned char devicedescriptor[12];
 			TRB *dc1 = ((TRB*)((unsigned long*)(&local_ring_control)+lrcoffset));
 			dc1->bar1 = 0;
 			dc1->bar2 = 0;
@@ -1043,8 +1043,78 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				printf("[XHCI] Port %x : Deviceclass cannot be 0! \n",i);
 				goto disabledevice;
 			}
-			maxpackagesize = pow(2,sigma2[7]);
-			printf("[XHCI] Port %x : Device initialised succesfully with maxpackagesize %x \n",i,maxpackagesize);
+			if(sigma2[7]==16||sigma2[7]==32||sigma2[7]==64||sigma2[7]==512){
+				maxpackagesize = sigma2[7];
+			}else{
+				maxpackagesize = pow(2,sigma2[7]);
+			}
+			printf("[XHCI] Port %x : Device with maxpackagesize %x \n",i,maxpackagesize);
+			
+			// reset the device again....
+			printf("[XHCI] Port %x : Second reset port\n",i);
+			((unsigned long*)map)[0] = 0b1000010000; // activate power and reset port
+			resetTicks();
+			while(getTicks()<5);
+			val = ((unsigned long*)map)[0];
+			if((val&3)==0){
+				printf("[XHCI] Port %x : Second reset failed\n",i);
+				goto disabledevice;
+			}
+			
+			// set address with BSR=0
+			printf("[XHCI] Port %x : Obtaining SETADDRESS(BSR=0)\n",i);
+			endpoint_context->maxpacketsize = maxpackagesize;
+			sigma = ((unsigned long)&t)+offsetB;
+			xhci_endpoint_context_to_addr(endpoint_context,(unsigned long*)(sigma));
+			sares = xhci_set_address(assignedSloth,(unsigned long*)&t,0);
+			if(sares==5){
+				printf("[XHCI] Port %x : Local ring not defined as it should be....\n",i);
+				goto disabledevice;
+			}else if(sares!=1){
+				printf("[XHCI] Port %x : Assignation of device slot address failed with %x !\n",i,sares);
+				goto disabledevice;
+			}
+			printf("[XHCI] Port %x : Second portreset ended succesfully\n",i);
+			
+			printf("[XHCI] Port %x : Getting full device descriptor\n",i);
+			unsigned char descz = 18;
+			dc1->bar1 = 0;
+			dc1->bar2 = 0;
+			dc1->bar3 = 0;
+			dc1->bar4 = 0;
+			
+			dc1->bar1 |= 0x80; // reqtype=0x80
+			dc1->bar1 |= (0x06<<8); // req=6
+			dc1->bar1 |= (0x100 << 16); // wValue = 0100
+			dc1->bar2 |= 0; // windex=0
+			dc1->bar2 |= (0 << 16); // wlength=0 // 0x80000
+			dc1->bar3 |= descz; // trbtransferlength
+			dc1->bar3 |= (descz << 22); // interrupetertrager
+			dc1->bar4 |= 1; // cyclebit
+			dc1->bar4 |= (00<<5); // ioc=0
+			dc1->bar4 |= (1<<6); // idt=1
+			dc1->bar4 |= (2<<10); // trbtype
+			dc1->bar4 |= (3<<16); // trt = 3;
+			
+			dc2->bar3 = descz;
+			dc2->bar4 = 0b00000000000000010000110000000001;
+			
+			dc3->bar4 = 1 | (4<<10) | 0x20 | (1 << 16);
+			
+			((unsigned long*)doorbel)[assignedSloth] = 1;
+			
+			while(1){
+				unsigned long r = ((unsigned long*)iman_addr)[0];
+				if(r&1){
+					break;
+				}
+			}
+			
+			printf("[XHCI] Port %x : descriptor",i);
+			for(int z = 0 ; z < descz ; z++){
+				printf(" %x",sigma2[z]);
+			}
+			printf(" \n");
 			
 			sleep(10000);
 			
