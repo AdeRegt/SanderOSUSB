@@ -151,6 +151,8 @@ void detectFilesystemsOnMBR(Device* dev);
 void initialiseExt2(Device* device);
 void initialiseFAT(Device* device);
 
+int pow(int base,int exp);
+
 typedef struct{
     unsigned int gs, fs, es, ds;      /* pushed the segs last */
     unsigned int edi, esi, ebp, esp, ebx, edx, ecx, eax;  /* pushed by 'pusha' */

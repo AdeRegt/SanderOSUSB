@@ -1038,14 +1038,14 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			event_ring_offset += 0x10;
 			
 			unsigned char* sigma2 = (unsigned char*)&devicedescriptor;
-			unsigned char maxpackagesize = 0;
+			unsigned long maxpackagesize = 0;
 			if(!(sigma2[0]==0x12&&sigma2[1]==1)){
 				printf("[XHCI] Port %x : Deviceclass cannot be 0! \n",i);
 				goto disabledevice;
-			}else{
-				maxpackagesize = sigma2[7];
-				printf("[XHCI] Port %x : Device initialised succesfully with maxpackagesize %x \n",i,maxpackagesize);
 			}
+			maxpackagesize = pow(2,sigma2[7]);
+			printf("[XHCI] Port %x : Device initialised succesfully with maxpackagesize %x \n",i,maxpackagesize);
+			
 			sleep(10000);
 			
 			continue;
