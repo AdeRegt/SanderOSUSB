@@ -384,6 +384,16 @@ typedef struct{
 	unsigned long bar4;
 }TRB;
 
+typedef struct{
+	unsigned char bLength; // 18
+	unsigned char bDescriptorType; // 1
+	unsigned short bcdUSB; // specnumber
+	unsigned char bDeviceClass; // classcode
+	unsigned char bDeviceSubClass; 
+	unsigned char bDeviceProtocol;
+	unsigned char bMaxPacketSize;
+}XHCI_DEVICE_DESCRIPTOR;
+
 extern void xhciirq();
 
 unsigned long basebar = 0;
@@ -608,17 +618,17 @@ int xhci_enable_slot(){
 void irq_xhci(){
 	unsigned long xhci_usbsts = ((unsigned long*)usbsts)[0];
 	if(xhci_usbsts&4){
-		printf("[XHCI] Host system error interrupt\n");
+		//printf("[XHCI] Host system error interrupt\n");
 	}
 	if(xhci_usbsts&8){
-		printf("[XHCI] Event interrupt\n");
+		//printf("[XHCI] Event interrupt\n");
 	}
 	if(xhci_usbsts&0x10){
-		printf("[XHCI] Port interrupt\n");
+		//printf("[XHCI] Port interrupt\n");
 	}
-	unsigned long iman_addr = rtsoff + 0x020;
-	((unsigned long*)iman_addr)[0] &= ~1;
-	printf("[XHCI] ISTS %x \n",((unsigned long*)iman_addr)[0]);
+	//unsigned long iman_addr = rtsoff + 0x020;
+	//((unsigned long*)iman_addr)[0] &= ~1;
+	//printf("[XHCI] ISTS %x \n",((unsigned long*)iman_addr)[0]);
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
 }
@@ -798,17 +808,11 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	printf("[XHCI] Use interrupts\n");
 	((unsigned long*)usbcmd)[0] |= 4;
 	
-	printf("[XHCI] Wait 5s\n");
-	resetTicks();
-	while(getTicks()<5);
 //
 // Start system
 	printf("[XHCI] Run!\n");
 	((unsigned long*)usbcmd)[0] |= 1;
 	
-	printf("[XHCI] Wait 5s\n");
-	resetTicks();
-	while(getTicks()<5);
 	xhci_usbcmd = ((unsigned long*)usbcmd)[0];
 	xhci_usbsts = ((unsigned long*)usbsts)[0];
 	printf("[XHCI] System up and running with USBCMD %x and USBSTS %x \n",xhci_usbcmd,xhci_usbsts);
@@ -1043,7 +1047,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				printf("[XHCI] Port %x : Deviceclass cannot be 0! \n",i);
 				goto disabledevice;
 			}
-			if(sigma2[7]==16||sigma2[7]==32||sigma2[7]==64||sigma2[7]==512){
+			if(sigma2[7]==8||sigma2[7]==16||sigma2[7]==32||sigma2[7]==64){
 				maxpackagesize = sigma2[7];
 			}else{
 				maxpackagesize = pow(2,sigma2[7]);
@@ -1076,8 +1080,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			}
 			printf("[XHCI] Port %x : Second portreset ended succesfully\n",i);
 			
-			printf("[XHCI] Port %x : Getting full device descriptor\n",i);
-			unsigned char descz = 18;
+			unsigned char descz = 8;
+			printf("[XHCI] Port %x : Getting %x bytes of device descriptor\n",i,descz);
 			dc1->bar1 = 0;
 			dc1->bar2 = 0;
 			dc1->bar3 = 0;
@@ -1110,11 +1114,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				}
 			}
 			
-			printf("[XHCI] Port %x : descriptor",i);
-			for(int z = 0 ; z < descz ; z++){
-				printf(" %x",sigma2[z]);
-			}
-			printf(" \n");
+			XHCI_DEVICE_DESCRIPTOR *xdd = (XHCI_DEVICE_DESCRIPTOR*) sigma2;
+			printf("[XHCI] Port %x : device descriptor deviceclass=%x \n",i,xdd->bDeviceClass);
 			
 			sleep(10000);
 			
@@ -1131,5 +1132,5 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	if(((unsigned long*)crcr)[0]==0x8){
 		printf("[XHCI] circulair command ring is running\n");
 	}
-	printf("[XHCI] All finished!\n");for(;;);
+	printf("[XHCI] All finished!\n");
 }
