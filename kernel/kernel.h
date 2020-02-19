@@ -82,6 +82,9 @@ void init_ps2();
 // PCI
 void init_pci();
 unsigned long getBARaddress(int bus,int slot,int function,int barNO);
+void init_xhci(unsigned long bus,unsigned long slot,unsigned long function);
+void dumpPCI(int bus,int slot,int function);
+void memdump(unsigned long location);
 
 // SERIAL
 void init_serial();
@@ -147,6 +150,8 @@ unsigned long loadelf(void * buffer);
 void detectFilesystemsOnMBR(Device* dev);
 void initialiseExt2(Device* device);
 void initialiseFAT(Device* device);
+
+int pow(int base,int exp);
 
 typedef struct{
     unsigned int gs, fs, es, ds;      /* pushed the segs last */
