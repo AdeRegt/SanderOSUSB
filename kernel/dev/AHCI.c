@@ -519,8 +519,8 @@ int ahci_atapi_eject(HBA_PORT *port)
 	cmdfis->featureh = 0;
 	cmdfis->c = 1;	// Command
 	cmdfis->command = 0xA0;
-	int i = 0;
-	cmdtbl->prdt_entry[i].i = 1;
+	int t = 0;
+	cmdtbl->prdt_entry[t].i = 1;
 	
 	cmdtbl->acmd[ 0] = 0x1B;
     	cmdtbl->acmd[ 1] = 0x00;
@@ -713,12 +713,17 @@ void ahci_atapi_init(HBA_PORT *port,int i){
 	for(int z = 0 ; z < 512 ; z++){
 		buffer[z] = 0x00;
 	}
-	ahci_atapi_read(port, 0, 0, 1, (unsigned short *)buffer);
+	printf("[AHCI] ATAPI read test sector...\n");
+	if(ahci_atapi_read(port, 0, 0, 1, (unsigned short *)buffer)==0){
+		printf("[AHCI] ATAPI is unable to read sectors...\n");
+		printf("[AHCI] ATAPI will eject drive....\n");
+		ahci_atapi_eject(port);
+		return;
+	}
 	if(buffer[510]==0x55&&buffer[511]==0xAA){
 		printf("[AHCI] ATAPI is bootable\n");
 	}else{
 		printf("[AHCI] ATAPI is not bootable\n");
-		return;
 	}
 	int choice = -1;
 	for(int i = 0 ; i < 10 ; i++){
@@ -764,6 +769,91 @@ void ahci_init(int bus,int slot,int function){
 	printf("[AHCI] 0:%x  1:%x 2:%x 3:%x 4:%x 5:%x!\n",bar0,bar1,bar2,bar3,bar4,bar5);
 	//init_ide2();
 	HBA_MEM *target = (HBA_MEM *)base;
+	
+	//
+	// printing systeminfo
+	printf("[AHCI] AHCI SYSTEM INFO\n");
+	printf("[AHCI] CAP - HBA Capabilities: ");
+	if(target->cap & 0b10000000000000000000000000000000){
+		printf("64bit ");
+	}
+	if(target->cap & 0b01000000000000000000000000000000){
+		printf("SNCQ ");
+	}
+	if(target->cap & 0b00100000000000000000000000000000){
+		printf("SSNTF ");
+	}
+	if(target->cap & 0b00010000000000000000000000000000){
+		printf("SMPS ");
+	}
+	if(target->cap & 0b00001000000000000000000000000000){
+		printf("SSS ");
+	}
+	if(target->cap & 0b00000100000000000000000000000000){
+		printf("SALP ");
+	}
+	if(target->cap & 0b00000010000000000000000000000000){
+		printf("SAL ");
+	}
+	if(target->cap & 0b00000001000000000000000000000000){
+		printf("SCLO ");
+	}
+	if(target->cap & 0b00000000111110000000000000000000){
+		printf("ISS ");
+	}
+	if(target->cap & 0b00000000000001000000000000000000){
+		printf("SAM ");
+	}
+	if(target->cap & 0b00000000000000100000000000000000){
+		printf("SPM ");
+	}
+	if(target->cap & 0b00000000000000010000000000000000){
+		printf("FBSS ");
+	}
+	if(target->cap & 0b00000000000000001000000000000000){
+		printf("PMD ");
+	}
+	if(target->cap & 0b00000000000000000100000000000000){
+		printf("SSC ");
+	}
+	if(target->cap & 0b00000000000000000010000000000000){
+		printf("PSC ");
+	}
+	if(target->cap & 0b00000000000000000001111100000000){
+		printf("NCS[%x] ",(target->cap & 0b00000000000000000001111100000000)>>8);
+	}
+	if(target->cap & 0b00000000000000000000000010000000){
+		printf("CCCS ");
+	}
+	if(target->cap & 0b00000000000000000000000001000000){
+		printf("EMS ");
+	}
+	if(target->cap & 0b00000000000000000000000000100000){
+		printf("SXS ");
+	}
+	if(target->cap & 0b00000000000000000000000000011111){
+		printf("NP[%x] ",target->cap & 0b00000000000000000000000000011111);
+	}
+	printf("\n");
+	printf("[AHCI] GHC - Global HBA control : ");
+	if(target->ghc & 0b10000000000000000000000000000000){
+		printf("AE ");
+	}
+	if(target->ghc & 0b00000000000000000000000000000100){
+		printf("MRSM ");
+	}
+	if(target->ghc & 0b00000000000000000000000000000010){
+		printf("IE ");
+	}
+	printf("\n");
+	printf("[AHCI] version: %x \n",target->vs);
+	printf("[AHCI] Trigger reset\n");
+	target->ghc |= 1;
+	while(1){
+		if(((*(volatile unsigned long*)target->ghc)&1)==0){ // wait untill reset bit has been unset
+			break;
+		}
+	}
 	unsigned short pi = target->pi;
 	int i = 0;
 	while (i<33){
