@@ -93,6 +93,7 @@ void init_serial();
 void init_ide(unsigned short BAR);
 void init_ide2();
 void ahci_init(int bus,int slot,int function);
+void uhci_init(int bus,int slot,int function);
 
 
 typedef struct{
