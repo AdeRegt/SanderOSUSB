@@ -81,7 +81,7 @@ int uhci_init_port(unsigned long port,int i){
 extern void uhciirq();
 
 void irq_uhci(){
-	//printf("[UHCI] Int fired!\n");
+	printf("[UHCI] Int fired!\n");
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
 }
@@ -103,6 +103,13 @@ void uhci_init(int bus,int slot,int function){
 	printf("[UHCI] Installing interrupts at %x \n",usbint);
 	setNormalInt(usbint,(unsigned long)uhciirq);
 	
+	unsigned short deviceid = (getBARaddress(bus,slot,function,0) & 0xFFFF0000) >> 16;
+	printf("[UHCI] Deviceid=%x \n",deviceid);
+	if(deviceid==0x7020){
+		printf("[UHCI] UHCI-device comes from BOCHS. Halting\n");
+		return;
+	}
+	
 	USBCMD = base+0x00;
 	USBSTS = base+0x02;
 	USBINT = base+0x04;
@@ -121,21 +128,13 @@ void uhci_init(int bus,int slot,int function){
 	outportw(USBINT,0);
 	outportw(FRNUM,0);
 	for(int i = 0 ; i < FRAMELIST_MAX_SIZE ; i++){
-		framelist[i] = 0xFFFFFFFF;
+		framelist[i] = 0x3;
 	}
 	outportl(FLBSAD,(unsigned long)&framelist);
 	outportb(SOF,0x40);
 	uhci_ring_doorbell();
-	int wachten = 0;
 	printf("[UHCI] Detecting ports\n");
-	if(uhci_init_port(PORT01,1)){
-		wachten = 1;
-	}
-	if(uhci_init_port(PORT02,2)){
-		wachten = 1;
-	}
+	uhci_init_port(PORT01,1);
+	uhci_init_port(PORT02,2);
 	printf("[UHCI] That is it for now\n");
-	if(wachten){
-		for(;;);
-	}
 }

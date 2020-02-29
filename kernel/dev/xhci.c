@@ -692,7 +692,44 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 		printf("[XHCI] has 64-bit Addressing Capability\n");
 	}
 	if(hccparams1&0xFFFF0000){
-		printf("[XHCI] has xHCI Extended Capabilities Pointer ( %x )\n",(hccparams1&0xFFFF0000)>>16);
+		unsigned long extcappoint = bar+((hccparams1&0xFFFF0000)>>14);
+		printf("[XHCI] has xHCI Extended Capabilities Pointer ( %x : %x )\n",extcappoint,(hccparams1&0xFFFF0000)>>14);
+		int offsetx = 0;
+		for(int i = 0 ; i < 20 ; i++){
+			unsigned long tx = extcappoint+offsetx;
+			unsigned long fault = ((unsigned long*)tx)[0];
+			unsigned char capid = fault & 0x00FF;
+			unsigned char capof = (fault & 0xFF00)>>8;
+			if(capid==0){
+				break;
+			}
+			printf("[XHCI] capid=%x capof=%x \n",capid,capof);
+			if(capid==1){
+				printf("[XHCI] Legacy extended capability found!\n");
+				if(fault&0x1010000){
+					printf("[XHCI] Owner specified!\n");
+					if(fault&0x10000){
+						printf("[XHCI] Currently, BIOS owns XHCI controller\n");
+						printf("[XHCI] Grabbing the controlls\n");
+						((unsigned long*)tx)[0] |= 0x1000000;
+						tryagain:
+						fault = ((volatile unsigned long*)tx)[0];
+						if(fault&0x10000){
+							goto tryagain;
+						}
+					}
+					if(fault&0x1000000){
+						printf("[XHCI] Currently, We own the XHCI controller\n");
+					}
+				}else{
+					printf("[XHCI] No owner specified!\n");
+				}
+			}
+			offsetx += (capof*sizeof(unsigned long));
+			if(capof==0){
+				break;
+			}
+		}
 	}
 	
 	while(1){
@@ -1082,40 +1119,71 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			
 			unsigned char descz = 8;
 			printf("[XHCI] Port %x : Getting %x bytes of device descriptor\n",i,descz);
-			dc1->bar1 = 0;
-			dc1->bar2 = 0;
-			dc1->bar3 = 0;
-			dc1->bar4 = 0;
-			
-			dc1->bar1 |= 0x80; // reqtype=0x80
-			dc1->bar1 |= (0x06<<8); // req=6
-			dc1->bar1 |= (0x100 << 16); // wValue = 0100
-			dc1->bar2 |= 0; // windex=0
-			dc1->bar2 |= (0 << 16); // wlength=0 // 0x80000
-			dc1->bar3 |= descz; // trbtransferlength
-			dc1->bar3 |= (descz << 22); // interrupetertrager
-			dc1->bar4 |= 1; // cyclebit
-			dc1->bar4 |= (00<<5); // ioc=0
-			dc1->bar4 |= (1<<6); // idt=1
-			dc1->bar4 |= (2<<10); // trbtype
-			dc1->bar4 |= (3<<16); // trt = 3;
-			
-			dc2->bar3 = descz;
-			dc2->bar4 = 0b00000000000000010000110000000001;
-			
-			dc3->bar4 = 1 | (4<<10) | 0x20 | (1 << 16);
-			
-			((unsigned long*)doorbel)[assignedSloth] = 1;
-			
-			while(1){
-				unsigned long r = ((unsigned long*)iman_addr)[0];
-				if(r&1){
-					break;
-				}
-			}
 			
 			XHCI_DEVICE_DESCRIPTOR *xdd = (XHCI_DEVICE_DESCRIPTOR*) sigma2;
 			printf("[XHCI] Port %x : device descriptor deviceclass=%x \n",i,xdd->bDeviceClass);
+			unsigned char deviceclass = xdd->bDeviceClass;
+			if(deviceclass==0x00){
+				printf("[XHCI] Port %x : Deviceclass of devicedescriptor is NULL\n",i);
+				
+				//
+				// Demand configuration data...
+				unsigned char deviceconfig[12];
+				TRB *dc4 = ((TRB*)((unsigned long*)(&local_ring_control)+lrcoffset));
+				dc4->bar1 = 0;
+				dc4->bar2 = 0;
+				dc4->bar3 = 0;
+				dc4->bar4 = 0;
+				
+				dc4->bar1 |= 0x80; // reqtype=0x80
+				dc4->bar1 |= (0x06<<8); // req=6
+				dc4->bar1 |= (0x200 << 16); // wValue = 0100
+				dc4->bar2 |= 0; // windex=0
+				dc4->bar2 |= (8 << 16); // 8 wlength=0 // 0x80000
+				dc4->bar3 |= 8; // trbtransferlength
+				dc4->bar3 |= (0 << 22); // interrupetertrager
+				dc4->bar4 |= 1; // cyclebit
+				dc4->bar4 |= (00<<5); // ioc=0
+				dc4->bar4 |= (1<<6); // idt=1
+				dc4->bar4 |= (2<<10); // trbtype
+				dc4->bar4 |= (3<<16); // trt = 3;
+				lrcoffset += 0x10;
+				
+				// single date stage
+				TRB *dc5 = ((TRB*)((unsigned long)(&local_ring_control)+lrcoffset));
+				dc5->bar1 = (unsigned long)&deviceconfig;
+				dc5->bar2 = 0b00000000000000000000000000000000;
+				dc5->bar3 = 0b00000000000000000000000000001000;
+				dc5->bar4 = 0b00000000000000010000110000000001;
+				lrcoffset+=0x10;
+				
+				TRB *dc6 = ((TRB*)((unsigned long)(&local_ring_control)+lrcoffset));
+				dc6->bar1 = 0;
+				dc6->bar2 = 0;
+				dc6->bar3 = 0;
+				dc6->bar4 = 1 | (4<<10) | 0x20 | (1 << 16);
+				lrcoffset+=0x10;
+			
+				((unsigned long*)doorbel)[assignedSloth] = 1;
+				
+				while(1){
+					unsigned long r = ((unsigned long*)iman_addr)[0];
+					if(r&1){
+						break;
+					}
+				}
+				
+				printf("[XHCI] ");
+				unsigned char* sigma3 = (unsigned char*)&deviceconfig;
+				for(int z = 0 ; z < 8 ; z++){
+					printf("%x ",sigma3[z]);
+				}
+				printf(" \n");
+			}
+			if(deviceclass==0x00){
+				printf("[XHCI] Port %x : Failed to detect deviceclass\n",i);
+				goto disabledevice;
+			}
 			
 			sleep(10000);
 			
@@ -1132,5 +1200,5 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	if(((unsigned long*)crcr)[0]==0x8){
 		printf("[XHCI] circulair command ring is running\n");
 	}
-	printf("[XHCI] All finished!\n");
+	printf("[XHCI] All finished!\n");for(;;);
 }
