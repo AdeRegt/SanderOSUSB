@@ -21,6 +21,7 @@ void uhci_ring_doorbell(){
 	outportw(FRNUM,0);
 	sleep(500);
 	outportw(USBCMD,0x01);
+	sleep(1000);
 	//sleep(50);
 	//outportw(USBCMD,0x00);
 }

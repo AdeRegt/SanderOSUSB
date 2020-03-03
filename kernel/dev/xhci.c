@@ -596,19 +596,21 @@ int xhci_enable_slot(){
 	xhci_stop_codon_to_trb(trb);
 	
 	((unsigned long*)doorbel)[0] = 0;
-	
 	while(1){
-		unsigned long r = ((unsigned long*)iman_addr)[0];
+		volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
 		if(r&1){
 			break;
 		}
 	}
 	
-	TRB *trbres = ((TRB*)((unsigned long)(&event_ring_queue)+event_ring_offset));
-	unsigned char assignedSloth = (trbres->bar4 & 0b111111100000000000000000000000) >> 24;
-	unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
+	volatile TRB *trbres = ((TRB*)((volatile unsigned long)(&event_ring_queue)+event_ring_offset));
+	volatile unsigned char assignedSloth = (trbres->bar4 & 0b111111100000000000000000000000) >> 24;
+	volatile unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
 	if(completioncode!=1){
-		return 0;
+		{
+			printf("[XHCI] INIT SLOT PANIC DEVCOE IS %x \n",completioncode);
+			return -1;
+		}
 	}
 	
 	event_ring_offset += 0x10;
@@ -618,13 +620,13 @@ int xhci_enable_slot(){
 void irq_xhci(){
 	unsigned long xhci_usbsts = ((unsigned long*)usbsts)[0];
 	if(xhci_usbsts&4){
-		//printf("[XHCI] Host system error interrupt\n");
+		printf("[XHCI] Host system error interrupt\n");
 	}
 	if(xhci_usbsts&8){
-		//printf("[XHCI] Event interrupt\n");
+		printf("[XHCI] Event interrupt\n");
 	}
 	if(xhci_usbsts&0x10){
-		//printf("[XHCI] Port interrupt\n");
+		printf("[XHCI] Port interrupt\n");
 	}
 	//unsigned long iman_addr = rtsoff + 0x020;
 	//((unsigned long*)iman_addr)[0] &= ~1;
@@ -915,8 +917,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			//
 			
 			printf("[XHCI] Port %x : Obtaining device slot...\n",i);
-			unsigned long assignedSloth = xhci_enable_slot();
-			if(assignedSloth==0){
+			int assignedSloth = xhci_enable_slot();
+			if(assignedSloth==-1){
 				printf("[XHCI] Port %x : Assignation of device slot failed!\n",i);
 				goto disabledevice;
 			}
@@ -1101,6 +1103,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				printf("[XHCI] Port %x : Second reset failed\n",i);
 				goto disabledevice;
 			}
+			lrcoffset=0;
 			
 			// set address with BSR=0
 			printf("[XHCI] Port %x : Obtaining SETADDRESS(BSR=0)\n",i);
@@ -1128,7 +1131,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				
 				//
 				// Demand configuration data...
-				unsigned char deviceconfig[12];
+				unsigned char deviceconfig[0x10];
 				TRB *dc4 = ((TRB*)((unsigned long*)(&local_ring_control)+lrcoffset));
 				dc4->bar1 = 0;
 				dc4->bar2 = 0;
@@ -1139,7 +1142,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				dc4->bar1 |= (0x06<<8); // req=6
 				dc4->bar1 |= (0x200 << 16); // wValue = 0100
 				dc4->bar2 |= 0; // windex=0
-				dc4->bar2 |= (8 << 16); // 8 wlength=0 // 0x80000
+				dc4->bar2 |= (0x10 << 16); // 8 wlength=0 // 0x80000
 				dc4->bar3 |= 8; // trbtransferlength
 				dc4->bar3 |= (0 << 22); // interrupetertrager
 				dc4->bar4 |= 1; // cyclebit
@@ -1153,7 +1156,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				TRB *dc5 = ((TRB*)((unsigned long)(&local_ring_control)+lrcoffset));
 				dc5->bar1 = (unsigned long)&deviceconfig;
 				dc5->bar2 = 0b00000000000000000000000000000000;
-				dc5->bar3 = 0b00000000000000000000000000001000;
+				dc5->bar3 = 0b00000000000000000000000000010000;
 				dc5->bar4 = 0b00000000000000010000110000000001;
 				lrcoffset+=0x10;
 				
@@ -1173,12 +1176,10 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 					}
 				}
 				
-				printf("[XHCI] ");
 				unsigned char* sigma3 = (unsigned char*)&deviceconfig;
-				for(int z = 0 ; z < 8 ; z++){
-					printf("%x ",sigma3[z]);
-				}
-				printf(" \n");
+				printf("[XHCI] Port %x : There are %x interfaces supported by this device\n",i,sigma3[4]);
+				deviceclass = sigma3[8+5];
+				printf("[XHCI] Port %x : Deviceclass = %x \n",i,deviceclass);
 			}
 			if(deviceclass==0x00){
 				printf("[XHCI] Port %x : Failed to detect deviceclass\n",i);
