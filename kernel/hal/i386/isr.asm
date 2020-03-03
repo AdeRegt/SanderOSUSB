@@ -70,6 +70,30 @@ mouseirq:
     iret
     
 
+global uhciirq
+extern irq_uhci
+uhciirq:
+	push byte 0
+	push byte 0
+    pusha
+    push ds
+    push es
+    push fs
+    push gs
+    mov eax, esp
+    push eax
+    mov eax, irq_uhci
+    call eax
+    pop eax
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popa
+    add esp, 8
+    iret
+    
+
 global xhciirq
 extern irq_xhci
 xhciirq:
