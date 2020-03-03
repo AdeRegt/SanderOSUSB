@@ -1178,11 +1178,18 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				
 				unsigned char* sigma3 = (unsigned char*)&deviceconfig;
 				printf("[XHCI] Port %x : There are %x interfaces supported by this device\n",i,sigma3[4]);
-				deviceclass = sigma3[8+5];
+				deviceclass = sigma3[8+6];
 				printf("[XHCI] Port %x : Deviceclass = %x \n",i,deviceclass);
 			}
 			if(deviceclass==0x00){
 				printf("[XHCI] Port %x : Failed to detect deviceclass\n",i);
+				goto disabledevice;
+			}else if(deviceclass==0x03){
+				printf("[XHCI] Port %x : Is a Human Interface Device\n",i);
+			}else if(deviceclass==0x08){
+				printf("[XHCI] Port %x : Is a Storage Device\n",i);
+			}else{
+				printf("[XHCI] Port %x : Unknown device type\n",i);
 				goto disabledevice;
 			}
 			
