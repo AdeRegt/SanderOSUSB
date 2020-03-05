@@ -19,6 +19,7 @@ void poweroff();
 void *malloc(unsigned long size);
 void *memset(void *str, int c, int n);
 int memcmp( char *str1, char *str2, int n);
+void *malloc_align(unsigned long size,unsigned long tag);
 
 // BLOCKDEVICE
 //void init_blockdevice();

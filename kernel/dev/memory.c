@@ -50,6 +50,22 @@ void memdump(unsigned long location){
 	}
 }
 
+void *malloc_align(unsigned long size,unsigned long tag){
+	while(1){
+		unsigned long tx = (unsigned long)&memman[mempoint];
+		if((tx&tag)==0){
+			break;
+		}
+		mempoint++;
+	}
+	unsigned long currentloc = (unsigned long)&memman[mempoint];
+	for(unsigned long i = 0 ; i < size ; i++){
+		memman[mempoint+i] = 0x00;
+	}
+	mempoint += size;
+	return (void *)currentloc;
+}
+
 void *malloc(unsigned long size){
 	unsigned long currentloc = (unsigned long)&memman[mempoint];
 	for(unsigned long i = 0 ; i < size ; i++){
