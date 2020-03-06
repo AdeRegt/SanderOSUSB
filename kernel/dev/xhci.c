@@ -1135,7 +1135,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				
 				//
 				// Demand configuration data...
-				unsigned char deviceconfig[0x10];
+				unsigned char deviceconfig[0x15];
 				TRB *dc4 = ((TRB*)((unsigned long*)(local_ring_control)+lrcoffset));
 				dc4->bar1 = 0;
 				dc4->bar2 = 0;
@@ -1146,7 +1146,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				dc4->bar1 |= (0x06<<8); // req=6
 				dc4->bar1 |= (0x200 << 16); // wValue = 0100
 				dc4->bar2 |= 0; // windex=0
-				dc4->bar2 |= (0x10 << 16); // 8 wlength=0 // 0x80000
+				dc4->bar2 |= (0x15 << 16); // 8 wlength=0 // 0x80000
 				dc4->bar3 |= 8; // trbtransferlength
 				dc4->bar3 |= (0 << 22); // interrupetertrager
 				dc4->bar4 |= 1; // cyclebit
@@ -1160,7 +1160,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				TRB *dc5 = ((TRB*)((unsigned long)(local_ring_control)+lrcoffset));
 				dc5->bar1 = (unsigned long)&deviceconfig;
 				dc5->bar2 = 0b00000000000000000000000000000000;
-				dc5->bar3 = 0b00000000000000000000000000010000;
+				dc5->bar3 = 0x15;
 				dc5->bar4 = 0b00000000000000010000110000000001;
 				lrcoffset+=0x10;
 				
