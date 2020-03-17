@@ -1074,10 +1074,11 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 					break;
 				}
 			}
-			TRB *trbres = ((TRB*)((unsigned long)(&event_ring_queue)+event_ring_offset));
+			TRB *trbres = ((TRB*)((unsigned long)(event_ring_queue)+event_ring_offset));
 			unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
 			if(completioncode!=1){
-				printf("[XHCI] Port %x : completioncode is not 1\n",i);
+				printf("[XHCI] Port %x : completioncode is not 1 but %x \n",i,completioncode);
+				goto disabledevice;
 			}
 			event_ring_offset += 0x10;
 			
@@ -1203,7 +1204,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				
 				dc4->bar1 |= 0; // reqtype=0x80
 				dc4->bar1 |= (0x09<<8); // req=6
-				dc4->bar1 |= (confid << 16); // wValue = 0100
+				dc4->bar1 |= (1 << 16); // wValue = 0100
 				dc4->bar2 |= 0; // windex=0
 				dc4->bar2 |= (0 << 16); // 8 wlength=0 // 0x80000
 				dc4->bar3 |= 0; // trbtransferlength
@@ -1217,9 +1218,9 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				
 				// single date stage
 				TRB *dc5 = ((TRB*)((unsigned long)(local_ring_control)+lrcoffset));
-				dc5->bar1 = 0;
-				dc5->bar2 = 0b00000000000000000000000000000000;
-				dc5->bar3 = 0b00000000000000000000000000000000;
+				dc5->bar1 = 0;//(unsigned long)&deviceconfig;
+				dc5->bar2 = 0;//0b00000000000000000000000000000000;
+				dc5->bar3 = 0;//0x15;
 				dc5->bar4 = 0b00000000000000010000110000000001;
 				lrcoffset+=0x10;
 				
@@ -1229,6 +1230,15 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				dc6->bar3 = 0;
 				dc6->bar4 = 1 | (4<<10) | 0x20 | (1 << 16);
 				lrcoffset+=0x10;
+			
+				((unsigned long*)doorbel)[assignedSloth] = 1;
+				
+				while(1){
+					unsigned long r = ((unsigned long*)iman_addr)[0];
+					if(r&1){
+						break;
+					}
+				}
 				
 				if(deviceclass==0x03){
 					printf("[XHCI] Port %x : Is a Human Interface Device\n",i);
