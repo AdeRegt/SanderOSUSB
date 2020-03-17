@@ -162,4 +162,16 @@ typedef struct{
     unsigned int eip, cs, eflags, useresp, ss;   /* pushed by the processor automatically */ 
 }Register;
 
+typedef struct{
+	unsigned char drivertype; // 1,2,3
+	unsigned char portnumber;
+	unsigned long localring;
+	unsigned long localringoffset;
+	
+	unsigned char class;
+	unsigned char subclass;
+	unsigned char protocol;
+}USB_DEVICE;
+void init_xhci_hid(USB_DEVICE* device);
+
 //void dirdev();

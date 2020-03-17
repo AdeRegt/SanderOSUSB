@@ -996,18 +996,23 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				goto disabledevice;
 			}
 			
-			unsigned long lrcoffset = 0;
+			USB_DEVICE* device = (USB_DEVICE*) malloc(sizeof(USB_DEVICE));
+			device->drivertype = 3;
+			device->portnumber = i;
+			device->localring = (unsigned long)local_ring_control;
+			device->localringoffset = 0;
+			
 			if(0){
-				printf("[XHCI] Port %x : NOOP ring control\n",i);
-				TRB *trbx = ((TRB*)((unsigned long)(local_ring_control)+lrcoffset));
+				printf("[XHCI] Port %x : NOOP ring control\n",device->portnumber);
+				TRB *trbx = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 				trbx->bar1 = 0;
 				trbx->bar2 = 0;
 				trbx->bar3 = 0;
 				trbx->bar4 = (8<<10) | 0b01;
-				lrcoffset += 0x10;
+				device->localringoffset += 0x10;
 			}
 			
-			printf("[XHCI] Port %x : GET DEVICE DESCRIPTOR\n",i);
+			printf("[XHCI] Port %x : GET DEVICE DESCRIPTOR\n",device->portnumber);
 			//
 			// GET DEVICE DESCRIPTOR
 			// trb-type=2
@@ -1023,7 +1028,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			//
 			
 			unsigned char devicedescriptor[12];
-			TRB *dc1 = ((TRB*)((unsigned long*)(local_ring_control)+lrcoffset));
+			TRB *dc1 = ((TRB*)((unsigned long*)(device->localring)+device->localringoffset));
 			dc1->bar1 = 0;
 			dc1->bar2 = 0;
 			dc1->bar3 = 0;
@@ -1041,7 +1046,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			dc1->bar4 |= (1<<6); // idt=1
 			dc1->bar4 |= (2<<10); // trbtype
 			dc1->bar4 |= (3<<16); // trt = 3;
-			lrcoffset += 0x10;
+			device->localringoffset += 0x10;
 			
 			// single date stage
 			// TRB Type = Data Stage TRB.
@@ -1052,19 +1057,19 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			// X Immediate Data (IDT) = 0.
 			// X Data Buffer Pointer = The address of the Device Descriptor receive buffer.
 			// X Cycle bit = Current Producer Cycle State.
-			TRB *dc2 = ((TRB*)((unsigned long)(local_ring_control)+lrcoffset));
+			TRB *dc2 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 			dc2->bar1 = (unsigned long)&devicedescriptor;
 			dc2->bar2 = 0b00000000000000000000000000000000;
 			dc2->bar3 = 0b00000000000000000000000000001000;
 			dc2->bar4 = 0b00000000000000010000110000000001;
-			lrcoffset+=0x10;
+			device->localringoffset+=0x10;
 			
-			TRB *dc3 = ((TRB*)((unsigned long)(local_ring_control)+lrcoffset));
+			TRB *dc3 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 			dc3->bar1 = 0;
 			dc3->bar2 = 0;
 			dc3->bar3 = 0;
 			dc3->bar4 = 1 | (4<<10) | 0x20 | (1 << 16);
-			lrcoffset+=0x10;
+			device->localringoffset+=0x10;
 			
 			((unsigned long*)doorbel)[assignedSloth] = 1;
 			
@@ -1077,7 +1082,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			TRB *trbres = ((TRB*)((unsigned long)(event_ring_queue)+event_ring_offset));
 			unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
 			if(completioncode!=1){
-				printf("[XHCI] Port %x : completioncode is not 1 but %x \n",i,completioncode);
+				printf("[XHCI] Port %x : completioncode is not 1 but %x \n",device->portnumber,completioncode);
 				goto disabledevice;
 			}
 			event_ring_offset += 0x10;
@@ -1085,7 +1090,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			unsigned char* sigma2 = (unsigned char*)&devicedescriptor;
 			unsigned long maxpackagesize = 0;
 			if(!(sigma2[0]==0x12&&sigma2[1]==1)){
-				printf("[XHCI] Port %x : Deviceclass cannot be 0! \n",i);
+				printf("[XHCI] Port %x : Deviceclass cannot be 0! \n",device->portnumber);
 				goto disabledevice;
 			}
 			if(sigma2[7]==8||sigma2[7]==16||sigma2[7]==32||sigma2[7]==64){
@@ -1093,51 +1098,50 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			}else{
 				maxpackagesize = pow(2,sigma2[7]);
 			}
-			printf("[XHCI] Port %x : Device with maxpackagesize %x \n",i,maxpackagesize);
+			printf("[XHCI] Port %x : Device with maxpackagesize %x \n",device->portnumber,maxpackagesize);
 			
 			// reset the device again....
-			printf("[XHCI] Port %x : Second reset port\n",i);
+			printf("[XHCI] Port %x : Second reset port\n",device->portnumber);
 			((unsigned long*)map)[0] = 0b1000010000; // activate power and reset port
 			resetTicks();
 			while(getTicks()<5);
 			val = ((unsigned long*)map)[0];
 			if((val&3)==0){
-				printf("[XHCI] Port %x : Second reset failed\n",i);
+				printf("[XHCI] Port %x : Second reset failed\n",device->portnumber);
 				goto disabledevice;
 			}
-			lrcoffset=0;
+			device->localringoffset=0;
 			
 			// set address with BSR=0
-			printf("[XHCI] Port %x : Obtaining SETADDRESS(BSR=0)\n",i);
+			printf("[XHCI] Port %x : Obtaining SETADDRESS(BSR=0)\n",device->portnumber);
 			endpoint_context->maxpacketsize = maxpackagesize;
 			sigma = ((unsigned long)&t)+offsetB;
 			xhci_endpoint_context_to_addr(endpoint_context,(unsigned long*)(sigma));
 			sares = xhci_set_address(assignedSloth,(unsigned long*)&t,0);
 			if(sares==5){
-				printf("[XHCI] Port %x : Local ring not defined as it should be....\n",i);
+				printf("[XHCI] Port %x : Local ring not defined as it should be....\n",device->portnumber);
 				goto disabledevice;
 			}else if(sares!=1){
-				printf("[XHCI] Port %x : Assignation of device slot address failed with %x !\n",i,sares);
+				printf("[XHCI] Port %x : Assignation of device slot address failed with %x !\n",device->portnumber,sares);
 				goto disabledevice;
 			}
-			printf("[XHCI] Port %x : Second portreset ended succesfully\n",i);
+			printf("[XHCI] Port %x : Second portreset ended succesfully\n",device->portnumber);
 			
 			unsigned char descz = 8;
-			printf("[XHCI] Port %x : Getting %x bytes of device descriptor\n",i,descz);
+			printf("[XHCI] Port %x : Getting %x bytes of device descriptor\n",device->portnumber,descz);
 			
 			XHCI_DEVICE_DESCRIPTOR *xdd = (XHCI_DEVICE_DESCRIPTOR*) sigma2;
-			printf("[XHCI] Port %x : device descriptor deviceclass=%x \n",i,xdd->bDeviceClass);
+			printf("[XHCI] Port %x : device descriptor deviceclass=%x \n",device->portnumber,xdd->bDeviceClass);
 			unsigned char deviceclass = xdd->bDeviceClass;
 			unsigned char devsubclass = xdd->bDeviceSubClass;
 			unsigned char devprotocol = xdd->bDeviceProtocol;
-			unsigned char confid = 0;
 			if(deviceclass==0x00){
-				printf("[XHCI] Port %x : Deviceclass of devicedescriptor is NULL\n",i);
+				printf("[XHCI] Port %x : Deviceclass of devicedescriptor is NULL\n",device->portnumber);
 				
 				//
 				// Demand configuration data...
 				unsigned char deviceconfig[0x15];
-				TRB *dc4 = ((TRB*)((unsigned long*)(local_ring_control)+lrcoffset));
+				TRB *dc4 = ((TRB*)((unsigned long*)(device->localring)+device->localringoffset));
 				dc4->bar1 = 0;
 				dc4->bar2 = 0;
 				dc4->bar3 = 0;
@@ -1155,22 +1159,22 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				dc4->bar4 |= (1<<6); // idt=1
 				dc4->bar4 |= (2<<10); // trbtype
 				dc4->bar4 |= (3<<16); // trt = 3;
-				lrcoffset += 0x10;
+				device->localringoffset += 0x10;
 				
 				// single date stage
-				TRB *dc5 = ((TRB*)((unsigned long)(local_ring_control)+lrcoffset));
+				TRB *dc5 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 				dc5->bar1 = (unsigned long)&deviceconfig;
 				dc5->bar2 = 0b00000000000000000000000000000000;
 				dc5->bar3 = 0x15;
 				dc5->bar4 = 0b00000000000000010000110000000001;
-				lrcoffset+=0x10;
+				device->localringoffset+=0x10;
 				
-				TRB *dc6 = ((TRB*)((unsigned long)(local_ring_control)+lrcoffset));
+				TRB *dc6 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 				dc6->bar1 = 0;
 				dc6->bar2 = 0;
 				dc6->bar3 = 0;
 				dc6->bar4 = 1 | (4<<10) | 0x20 | (1 << 16);
-				lrcoffset+=0x10;
+				device->localringoffset+=0x10;
 			
 				((unsigned long*)doorbel)[assignedSloth] = 1;
 				
@@ -1182,21 +1186,25 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				}
 				
 				unsigned char* sigma3 = (unsigned char*)&deviceconfig;
-				printf("[XHCI] Port %x : There are %x interfaces supported by this device\n",i,sigma3[4]);
+				printf("[XHCI] Port %x : There are %x interfaces supported by this device\n",device->portnumber,sigma3[4]);
 				deviceclass = sigma3[8+6];
 				devsubclass = sigma3[8+7];
 				devprotocol = sigma3[8+8];
-				confid = sigma3[5];
-				printf("[XHCI] Port %x : Deviceclass = %x \n",i,deviceclass);
+				printf("[XHCI] Port %x : Deviceclass = %x \n",device->portnumber,deviceclass);
 			}
-			if(deviceclass==0x00){
-				printf("[XHCI] Port %x : Failed to detect deviceclass\n",i);
+			
+			device->class = deviceclass;
+			device->subclass = devsubclass;
+			device->protocol = devprotocol;
+			
+			if(device->class==0x00){
+				printf("[XHCI] Port %x : Failed to detect deviceclass\n",device->portnumber);
 				goto disabledevice;
-			}else if(deviceclass==0x03||deviceclass==0x08){ 
+			}else if(device->class==0x03||device->class==0x08){ 
 				
 				//
 				// Set config
-				TRB *dc4 = ((TRB*)((unsigned long*)(local_ring_control)+lrcoffset));
+				TRB *dc4 = ((TRB*)((unsigned long*)(device->localring)+device->localringoffset));
 				dc4->bar1 = 0;
 				dc4->bar2 = 0;
 				dc4->bar3 = 0;
@@ -1214,22 +1222,22 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				dc4->bar4 |= (0<<6); // idt=1
 				dc4->bar4 |= (2<<10); // trbtype
 				dc4->bar4 |= (0<<16); // trt = 3;
-				lrcoffset += 0x10;
+				device->localringoffset += 0x10;
 				
 				// single date stage
-				TRB *dc5 = ((TRB*)((unsigned long)(local_ring_control)+lrcoffset));
+				TRB *dc5 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 				dc5->bar1 = 0;//(unsigned long)&deviceconfig;
 				dc5->bar2 = 0;//0b00000000000000000000000000000000;
 				dc5->bar3 = 0;//0x15;
 				dc5->bar4 = 0b00000000000000010000110000000001;
-				lrcoffset+=0x10;
+				device->localringoffset+=0x10;
 				
-				TRB *dc6 = ((TRB*)((unsigned long)(local_ring_control)+lrcoffset));
+				TRB *dc6 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 				dc6->bar1 = 0;
 				dc6->bar2 = 0;
 				dc6->bar3 = 0;
 				dc6->bar4 = 1 | (4<<10) | 0x20 | (1 << 16);
-				lrcoffset+=0x10;
+				device->localringoffset+=0x10;
 			
 				((unsigned long*)doorbel)[assignedSloth] = 1;
 				
@@ -1240,27 +1248,13 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 					}
 				}
 				
-				if(deviceclass==0x03){
-					printf("[XHCI] Port %x : Is a Human Interface Device\n",i);
-					if(devsubclass==1){
-						printf("[XHCI] Port %x : HID : bootprotocol supported\n",i);
-					}else if(devsubclass==0){
-						printf("[XHCI] Port %x : HID : reportprotocol supported\n",i);
-					}else{
-						printf("[XHCI] Port %x : HID : unknown protocol\n",i);
-					}
-					if(devprotocol==1){
-						printf("[XHCI] Port %x : HID : is keyboard\n",i);
-					}else if(devprotocol==2){
-						printf("[XHCI] Port %x : HID : is mouse\n",i);
-					}else{
-						printf("[XHCI] Port %x : HID : unknown (%x) \n",i,devprotocol);
-					}
-				}else if(deviceclass==0x08){
-					printf("[XHCI] Port %x : Is a Storage Device\n",i);
+				if(device->class==0x03){
+					init_xhci_hid(device);
+				}else if(device->class==0x08){
+					printf("[XHCI] Port %x : Is a Storage Device\n",device->portnumber);
 				}
 			}else{
-				printf("[XHCI] Port %x : Unknown device type\n",i);
+				printf("[XHCI] Port %x : Unknown device type\n",device->portnumber);
 				goto disabledevice;
 			}
 			
