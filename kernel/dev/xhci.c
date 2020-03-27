@@ -1205,38 +1205,17 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				//
 				// Set config
 				TRB *dc4 = ((TRB*)((unsigned long*)(device->localring)+device->localringoffset));
-				dc4->bar1 = 0;
+				dc4->bar1 = 0x10900; 
 				dc4->bar2 = 0;
-				dc4->bar3 = 0;
-				dc4->bar4 = 0;
-				
-				dc4->bar1 |= 0; // reqtype=0x80
-				dc4->bar1 |= (0x09<<8); // req=6
-				dc4->bar1 |= (1 << 16); // wValue = 0100
-				dc4->bar2 |= 0; // windex=0
-				dc4->bar2 |= (0 << 16); // 8 wlength=0 // 0x80000
-				dc4->bar3 |= 0; // trbtransferlength
-				dc4->bar3 |= (0 << 22); // interrupetertrager
-				dc4->bar4 |= 1; // cyclebit
-				dc4->bar4 |= (00<<5); // ioc=0
-				dc4->bar4 |= (0<<6); // idt=1
-				dc4->bar4 |= (2<<10); // trbtype
-				dc4->bar4 |= (0<<16); // trt = 3;
+				dc4->bar3 = 0x8;
+				dc4->bar4 = 0x841;
 				device->localringoffset += 0x10;
 				
-				// single date stage
 				TRB *dc5 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
-				dc5->bar1 = 0;//(unsigned long)&deviceconfig;
-				dc5->bar2 = 0;//0b00000000000000000000000000000000;
-				dc5->bar3 = 0;//0x15;
-				dc5->bar4 = 0b00000000000000010000110000000001;
-				device->localringoffset+=0x10;
-				
-				TRB *dc6 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
-				dc6->bar1 = 0;
-				dc6->bar2 = 0;
-				dc6->bar3 = 0;
-				dc6->bar4 = 1 | (4<<10) | 0x20 | (1 << 16);
+				dc5->bar1 = 0;
+				dc5->bar2 = 0;
+				dc5->bar3 = 0;
+				dc5->bar4 = 1 | (4<<10) | 0x20 | (1 << 16);
 				device->localringoffset+=0x10;
 			
 				((unsigned long*)doorbel)[assignedSloth] = 1;
@@ -1247,6 +1226,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 						break;
 					}
 				}
+				
+				printf("alfatechnical: %x %x %x %x | %x %x %x %x \n",dc4->bar1,dc4->bar2,dc4->bar3,dc4->bar4,dc5->bar1,dc5->bar2,dc5->bar3,dc5->bar4);
 				
 				if(device->class==0x03){
 					init_xhci_hid(device);
