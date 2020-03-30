@@ -1204,7 +1204,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				
 				//
 				// Set config
-				TRB *dc4 = ((TRB*)((unsigned long*)(device->localring)+device->localringoffset));
+				TRB *dc4 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 				dc4->bar1 = 0x10900; 
 				dc4->bar2 = 0;
 				dc4->bar3 = 0x8;
@@ -1227,7 +1227,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 					}
 				}
 				
-				printf("alfatechnical: %x %x %x %x | %x %x %x %x \n",dc4->bar1,dc4->bar2,dc4->bar3,dc4->bar4,dc5->bar1,dc5->bar2,dc5->bar3,dc5->bar4);
+				printf("alfatechnical[ %x , %x ]: %x %x %x %x | %x %x %x %x \n",dc4,dc5,dc4->bar1,dc4->bar2,dc4->bar3,dc4->bar4,dc5->bar1,dc5->bar2,dc5->bar3,dc5->bar4);
 				
 				if(device->class==0x03){
 					init_xhci_hid(device);
