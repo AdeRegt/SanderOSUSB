@@ -163,14 +163,25 @@ typedef struct{
 }Register;
 
 typedef struct{
+	unsigned long bar1;
+	unsigned long bar2;
+	unsigned long bar3;
+	unsigned long bar4;
+}TRB;
+
+typedef struct{
 	unsigned char drivertype; // 1,2,3
 	unsigned char portnumber;
 	unsigned long localring;
 	unsigned long localringoffset;
 	
+	int assignedSloth;
+	
 	unsigned char class;
 	unsigned char subclass;
 	unsigned char protocol;
+	
+	unsigned long sendMessage;
 }USB_DEVICE;
 void init_xhci_hid(USB_DEVICE* device);
 

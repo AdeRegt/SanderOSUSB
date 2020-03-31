@@ -378,13 +378,6 @@ typedef struct{
 }XHCI_TRB_DISABLE_SLOT;
 
 typedef struct{
-	unsigned long bar1;
-	unsigned long bar2;
-	unsigned long bar3;
-	unsigned long bar4;
-}TRB;
-
-typedef struct{
 	unsigned char bLength; // 18
 	unsigned char bDescriptorType; // 1
 	unsigned short bcdUSB; // specnumber
@@ -633,6 +626,51 @@ void irq_xhci(){
 	//printf("[XHCI] ISTS %x \n",((unsigned long*)iman_addr)[0]);
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
+}
+
+unsigned char xhci_send_message(USB_DEVICE* device,TRB setup,TRB data,TRB end){
+	while(1){
+		TRB *trbres = ((TRB*)((unsigned long)(event_ring_queue)+event_ring_offset));
+		unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
+		if(completioncode==0){break;}
+		event_ring_offset += 0x10;
+	}
+	TRB *dc1 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
+	dc1->bar1 = setup.bar1;
+	dc1->bar2 = setup.bar2;
+	dc1->bar3 = setup.bar3;
+	dc1->bar4 = setup.bar4;
+	device->localringoffset += 0x10;
+	
+	if(!(data.bar1==0&&data.bar2==0&&data.bar3==0&&data.bar4==0)){
+		TRB *dc2 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
+		dc2->bar1 = data.bar1;
+		dc2->bar2 = data.bar2;
+		dc2->bar3 = data.bar3;
+		dc2->bar4 = data.bar4;
+		device->localringoffset+=0x10;
+	}
+	
+	TRB *dc3 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
+	dc3->bar1 = end.bar1;
+	dc3->bar2 = end.bar2;
+	dc3->bar3 = end.bar3;
+	dc3->bar4 = end.bar4;
+	device->localringoffset+=0x10;
+	
+	((unsigned long*)doorbel)[device->assignedSloth] = 1;
+	
+	while(1){
+		unsigned long r = ((unsigned long*)iman_addr)[0];
+		if(r&1){
+			break;
+		}
+	}
+	TRB *trbres = ((TRB*)((unsigned long)(event_ring_queue)+event_ring_offset));
+	unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
+	event_ring_offset += 0x10;
+	
+	return completioncode;
 }
 
 // offset intell xhci 0x47C
@@ -1001,7 +1039,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			device->portnumber = i;
 			device->localring = (unsigned long)local_ring_control;
 			device->localringoffset = 0;
-			
+			device->sendMessage = (unsigned long)&xhci_send_message;
+			device->assignedSloth = assignedSloth;
 			if(0){
 				printf("[XHCI] Port %x : NOOP ring control\n",device->portnumber);
 				TRB *trbx = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
@@ -1028,7 +1067,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			//
 			
 			unsigned char devicedescriptor[12];
-			TRB *dc1 = ((TRB*)((unsigned long*)(device->localring)+device->localringoffset));
+			TRB *dc1 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 			dc1->bar1 = 0;
 			dc1->bar2 = 0;
 			dc1->bar3 = 0;
@@ -1141,7 +1180,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				//
 				// Demand configuration data...
 				unsigned char deviceconfig[0x15];
-				TRB *dc4 = ((TRB*)((unsigned long*)(device->localring)+device->localringoffset));
+				TRB *dc4 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 				dc4->bar1 = 0;
 				dc4->bar2 = 0;
 				dc4->bar3 = 0;
@@ -1184,6 +1223,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 						break;
 					}
 				}
+				event_ring_offset += 0x10;
 				
 				unsigned char* sigma3 = (unsigned char*)&deviceconfig;
 				printf("[XHCI] Port %x : There are %x interfaces supported by this device\n",device->portnumber,sigma3[4]);
@@ -1226,8 +1266,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 						break;
 					}
 				}
-				
-				printf("alfatechnical[ %x , %x ]: %x %x %x %x | %x %x %x %x \n",dc4,dc5,dc4->bar1,dc4->bar2,dc4->bar3,dc4->bar4,dc5->bar1,dc5->bar2,dc5->bar3,dc5->bar4);
+				event_ring_offset += 0x10;
 				
 				if(device->class==0x03){
 					init_xhci_hid(device);
@@ -1239,6 +1278,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				goto disabledevice;
 			}
 			
+			printf("[XHCI] Port %x : Finished installing port\n",i);
 			sleep(10000);
 			
 			continue;
