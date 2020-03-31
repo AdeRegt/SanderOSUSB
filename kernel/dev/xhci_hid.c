@@ -33,13 +33,57 @@ unsigned char get_xhci_hid_keyboard_input(USB_DEVICE* device,unsigned char wait)
 	unsigned char res = xhci_get_packed_hid(device,(unsigned long)&devicedesc);
 	if(res==1){
 		if(devicedesc[2]!=0){
-			return devicedesc[2];
+			unsigned char tx = devicedesc[2];
+			if(tx<0xFF){
+				unsigned char kbdus[128] ={
+				1,
+				1,
+				1,
+				1,
+				'a', // 0x04
+				'b',
+				'c',
+				'd',
+				'e', // 0x08
+				'f',
+				'g',
+				'h',
+				'i', // 0x0C
+				'j',
+				'k',
+				'l',
+				'm',
+				'n',
+				'o', // 0x12
+				'p', // 0x13
+				'q', // 0x14
+				'r', // 0x15
+				's',
+				't', // 0x17
+				'u', // 0x18
+				'v',
+				'w', // 0x1A
+				'x',
+				'y', // 0x1C
+				'z',
+				'1',
+				'2',
+				'3',
+				'4',
+				'5',
+				'6',
+				'7',
+				'8',
+				'9'
+				};
+				return kbdus[tx];
+			}
 		}
 	}else{
 		return 0;
 	}
 	if(wait){
-		sleep(500);
+		sleep(1000);
 		goto again;
 	}
 	return 0;
@@ -53,7 +97,7 @@ void init_xhci_hid_keyboard(USB_DEVICE* device){
 	//
 	// Use GET_REPORT protocol
 	unsigned char key = get_xhci_hid_keyboard_input(device,1);
-	printf("User pressed key %x \n",key);
+	printf("User pressed key %c \n",key);
 	return;
 }
 
