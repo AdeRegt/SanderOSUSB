@@ -346,7 +346,12 @@ InputStatus getInputStatus(){
 	is.mouse_y		= ccr_y;
 	is.mouse_z		= 0xCD;
 	is.mousePressed		= clck;
-	is.keyPressed		= keyword;
+	unsigned long tx = xhci_get_keyboard();
+	if(tx==0){
+		is.keyPressed		= keyword;
+	}else{
+		is.keyPressed		= get_xhci_hid_keyboard_input((USB_DEVICE*)tx,0);
+	}
 	keyword = 0x00;
 	clck	= 0x00;
 	return is;
@@ -355,5 +360,10 @@ InputStatus getInputStatus(){
 extern char keywait();
 
 unsigned char getch(){
-	return keywait();
+	unsigned long tx = xhci_get_keyboard();
+	if(tx==0){
+		return keywait();
+	}else{
+		return get_xhci_hid_keyboard_input((USB_DEVICE*)tx,1);
+	}
 }

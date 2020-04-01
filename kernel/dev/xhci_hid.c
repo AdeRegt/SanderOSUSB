@@ -76,14 +76,26 @@ unsigned char get_xhci_hid_keyboard_input(USB_DEVICE* device,unsigned char wait)
 				'8',
 				'9'
 				};
-				return kbdus[tx];
+				if(tx==0x52){
+					return VK_UP;
+				}else if(tx==0x51){
+					return VK_DOWN;
+				}else if(tx==0x50){
+					return VK_LEFT;
+				}else if(tx==0x4F){
+					return VK_RIGHT;
+				}else if(tx==0x28){
+					return '\n';
+				}else{
+					return kbdus[tx];
+				}
 			}
 		}
 	}else{
 		return 0;
 	}
 	if(wait){
-		sleep(1000);
+		sleep(100);
 		goto again;
 	}
 	return 0;
@@ -93,11 +105,17 @@ unsigned char get_xhci_hid_keyboard_input(USB_DEVICE* device,unsigned char wait)
 //	unsigned char (*send)(USB_DEVICE* device,TRB setup,TRB data,TRB end) = (void*)device->sendMessage;
 //}
 
+unsigned long xhci_hid_has_keyboard = 0;
+
+unsigned long xhci_get_keyboard(){
+	return xhci_hid_has_keyboard;
+}
+
 void init_xhci_hid_keyboard(USB_DEVICE* device){
 	//
 	// Use GET_REPORT protocol
-	unsigned char key = get_xhci_hid_keyboard_input(device,1);
-	printf("User pressed key %c \n",key);
+	xhci_hid_has_keyboard = (unsigned long)device;
+	
 	return;
 }
 

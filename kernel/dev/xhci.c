@@ -1279,13 +1279,13 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			}
 			
 			printf("[XHCI] Port %x : Finished installing port\n",i);
-			sleep(10000);
 			
 			continue;
 			
 			disabledevice:
 			printf("[XHCI] Port %x : Disabling port\n",i);
 			xhci_disable_slot(assignedSloth);
+			for(;;);
 		}else{
 			printf("[XHCI] Port %x : No device attached!\n",i);
 		}
@@ -1294,5 +1294,4 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	if(((unsigned long*)crcr)[0]==0x8){
 		printf("[XHCI] circulair command ring is running\n");
 	}
-	printf("[XHCI] All finished!\n");for(;;);
 }
