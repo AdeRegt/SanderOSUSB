@@ -13,19 +13,19 @@ Currently the following devices are supported:
 * PIC
 * PCI
 * ACPI
+* XHCI - HID - Keyboard
 
 The following devices are on the list to get implemented:
 * EHCI
-* XHCI
 
 The following filesystems are supported:
 * ISO 9660
 * MBR
 * EFI-MBR
 * EXT2 (very basic)
+* FAT 32
 
 The following filesystems will be supported:
-* FAT 32
 * FAT 12
 
 the following executable formats are supported:
