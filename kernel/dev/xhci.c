@@ -402,11 +402,23 @@ unsigned long erstba = 0;
 unsigned long rtsoff = 0;
 unsigned long deviceid = 0;
 unsigned long iman_addr= 0;
+volatile unsigned long interrupter_1 = 0;
 
 TRB event_ring_queue[20] __attribute__ ((aligned (0x100))); 
 TRB command_ring_control[20] __attribute__ ((aligned (0x100)));
 unsigned long command_ring_offset = 0;
 unsigned long event_ring_offset = 0;
+
+void xhci_seek_end_event_queue(){
+	while(1){
+		TRB* trbres2 = ((TRB*)((unsigned long)(&event_ring_queue)+event_ring_offset));
+		unsigned long completioncode2 = (trbres2->bar3 & 0b111111100000000000000000000000) >> 24;
+		if(completioncode2==0){
+			break;
+		}
+		event_ring_offset += 0x10;
+	}
+}
 
 void xhci_stop_codon_to_trb(TRB *out){
 	out->bar1 = 0;
@@ -509,6 +521,7 @@ void xhci_endpoint_context_to_addr(XHCI_ENDPOINT_CONTEXT *in, unsigned long *out
 
 int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char bsr){
 	// Address Device Command BSR1
+	xhci_seek_end_event_queue();
 	TRB* trb = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	XHCI_TRB_SET_ADDRESS set_address;
 	set_address.input_context = (unsigned long) t;
@@ -523,6 +536,7 @@ int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char 
 	// stop codon
 	TRB *trb6 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	xhci_stop_codon_to_trb(trb6);
+	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	
 	// doorbell
 	((unsigned long*)doorbel)[0] = 0;
@@ -533,7 +547,11 @@ int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char 
 		if(r&1){
 			break;
 		}
+		if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
+			break;
+		}
 	}
+	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	
 	// RESULTS
 	TRB* trbres2 = ((TRB*)((unsigned long)(&event_ring_queue)+event_ring_offset));
@@ -544,6 +562,7 @@ int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char 
 }
 
 unsigned int xhci_disable_slot(unsigned long assignedSloth){
+	xhci_seek_end_event_queue();
 	TRB* trb2 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	XHCI_TRB_DISABLE_SLOT disable_slot;
 	disable_slot.cycle_bit = deviceid!=XHCI_DEVICE_BOCHS?1:0;
@@ -555,6 +574,7 @@ unsigned int xhci_disable_slot(unsigned long assignedSloth){
 	
 	TRB* trb = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	xhci_stop_codon_to_trb(trb);
+	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	
 	((unsigned long*)doorbel)[0] = 0;
 	
@@ -563,7 +583,11 @@ unsigned int xhci_disable_slot(unsigned long assignedSloth){
 		if(r&1){
 			break;
 		}
+		if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
+			break;
+		}
 	}
+	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	
 	TRB *trbres = ((TRB*)((unsigned long)(&event_ring_queue)+event_ring_offset));
 	unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
@@ -576,6 +600,7 @@ unsigned int xhci_disable_slot(unsigned long assignedSloth){
 }
 
 int xhci_enable_slot(){
+	xhci_seek_end_event_queue();
 	TRB* trb2 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	XHCI_TRB_ENABLE_SLOT enable_slot;
 	enable_slot.cyclebit = deviceid!=XHCI_DEVICE_BOCHS?1:0;
@@ -587,21 +612,25 @@ int xhci_enable_slot(){
 	
 	TRB* trb = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	xhci_stop_codon_to_trb(trb);
-	
+	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	((unsigned long*)doorbel)[0] = 0;
+	
 	while(1){
 		volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
 		if(r&1){
 			break;
 		}
+		if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
+			break;
+		}
 	}
+	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	
 	volatile TRB *trbres = ((TRB*)((volatile unsigned long)(&event_ring_queue)+event_ring_offset));
 	volatile unsigned char assignedSloth = (trbres->bar4 & 0b111111100000000000000000000000) >> 24;
 	volatile unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
 	if(completioncode!=1){
 		{
-			printf("[XHCI] INIT SLOT PANIC DEVCOE IS %x \n",completioncode);
 			return -1;
 		}
 	}
@@ -621,20 +650,18 @@ void irq_xhci(){
 	if(xhci_usbsts&0x10){
 		printf("[XHCI] Port interrupt\n");
 	}
-	//unsigned long iman_addr = rtsoff + 0x020;
-	//((unsigned long*)iman_addr)[0] &= ~1;
-	//printf("[XHCI] ISTS %x \n",((unsigned long*)iman_addr)[0]);
+	((volatile unsigned long*)&interrupter_1)[0] = 0xCD;
+	
+	((unsigned long*)usbsts)[0] |= 0x8;
+	((unsigned long*)usbsts)[0] |= 0b10000;
+	unsigned long iman_addr = rtsoff + 0x020;
+	((unsigned long*)iman_addr)[0] |= 1;
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
 }
 
 unsigned char xhci_send_message(USB_DEVICE* device,TRB setup,TRB data,TRB end){
-	while(1){
-		TRB *trbres = ((TRB*)((unsigned long)(event_ring_queue)+event_ring_offset));
-		unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
-		if(completioncode==0){break;}
-		event_ring_offset += 0x10;
-	}
+	xhci_seek_end_event_queue();
 	TRB *dc1 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 	dc1->bar1 = setup.bar1;
 	dc1->bar2 = setup.bar2;
@@ -657,6 +684,7 @@ unsigned char xhci_send_message(USB_DEVICE* device,TRB setup,TRB data,TRB end){
 	dc3->bar3 = end.bar3;
 	dc3->bar4 = end.bar4;
 	device->localringoffset+=0x10;
+	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	
 	((unsigned long*)doorbel)[device->assignedSloth] = 1;
 	
@@ -665,7 +693,12 @@ unsigned char xhci_send_message(USB_DEVICE* device,TRB setup,TRB data,TRB end){
 		if(r&1){
 			break;
 		}
+		if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
+			break;
+		}
 	}
+	((volatile unsigned long*)&interrupter_1)[0] = 0;
+	
 	TRB *trbres = ((TRB*)((unsigned long)(event_ring_queue)+event_ring_offset));
 	unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
 	event_ring_offset += 0x10;
@@ -832,7 +865,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 //
 // Setup default parameters
 	// TELL XHCI TO REPORT EVERYTHING
-//	((unsigned long*)dnctrl)[0] |= 0b1111111111111111;
+	((unsigned long*)dnctrl)[0] |= 0b1111111111111111;
 	
 	// setting up interrupter management register
 	
@@ -876,14 +909,16 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	((unsigned long*)bcbaap)[1] = 0;
 	
 	// setting first interrupt enabled.
-	if(0){
+	if(1){
 		printf("[XHCI] Setting up First Interrupter\n");
 		unsigned long iman_addr = rtsoff + 0x020;
 		((unsigned long*)iman_addr)[0] |= 0b10; // Interrupt Enable (IE) – RW
+		sleep(50);
 	}
-	// TELL XHCI TO USE INTERRUPTS
 	printf("[XHCI] Use interrupts\n");
 	((unsigned long*)usbcmd)[0] |= 4;
+	sleep(50);
+	// TELL XHCI TO USE INTERRUPTS
 	
 //
 // Start system
@@ -1016,7 +1051,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			endpoint_context->dcs = 1;
 			unsigned long sigma = ((unsigned long)&t)+offsetB;
 			xhci_endpoint_context_to_addr(endpoint_context,(unsigned long*)(sigma));
-			printf("[XHCI] Port %x : local transfer ring points to %x  and trb points to %x \n",i,(unsigned long)local_ring_control,((unsigned long*)(&t)+0x20)[2]);
+			printf("[XHCI] Port %x : local transfer ring points to %x \n",i,(unsigned long)local_ring_control);
 			
 			//
 			//
@@ -1043,6 +1078,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			device->assignedSloth = assignedSloth;
 			if(0){
 				printf("[XHCI] Port %x : NOOP ring control\n",device->portnumber);
+				((volatile unsigned long*)&interrupter_1)[0] = 0;
 				TRB *trbx = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 				trbx->bar1 = 0;
 				trbx->bar2 = 0;
@@ -1067,6 +1103,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			//
 			
 			unsigned char devicedescriptor[12];
+			((volatile unsigned long*)&interrupter_1)[0] = 0;
 			TRB *dc1 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 			dc1->bar1 = 0;
 			dc1->bar2 = 0;
@@ -1109,6 +1146,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			dc3->bar3 = 0;
 			dc3->bar4 = 1 | (4<<10) | 0x20 | (1 << 16);
 			device->localringoffset+=0x10;
+			xhci_seek_end_event_queue();
 			
 			((unsigned long*)doorbel)[assignedSloth] = 1;
 			
@@ -1117,7 +1155,11 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				if(r&1){
 					break;
 				}
+				if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
+					break;
+				}
 			}
+			((volatile unsigned long*)&interrupter_1)[0] = 0;
 			TRB *trbres = ((TRB*)((unsigned long)(event_ring_queue)+event_ring_offset));
 			unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
 			if(completioncode!=1){
@@ -1180,6 +1222,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				//
 				// Demand configuration data...
 				unsigned char deviceconfig[0x15];
+				xhci_seek_end_event_queue();
+				((volatile unsigned long*)&interrupter_1)[0] = 0;
 				TRB *dc4 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 				dc4->bar1 = 0;
 				dc4->bar2 = 0;
@@ -1222,7 +1266,11 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 					if(r&1){
 						break;
 					}
+					if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
+						break;
+					}
 				}
+				((volatile unsigned long*)&interrupter_1)[0] = 0;
 				event_ring_offset += 0x10;
 				
 				unsigned char* sigma3 = (unsigned char*)&deviceconfig;
@@ -1244,6 +1292,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				
 				//
 				// Set config
+				xhci_seek_end_event_queue();
+				((volatile unsigned long*)&interrupter_1)[0] = 0;
 				TRB *dc4 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 				dc4->bar1 = 0x10900; 
 				dc4->bar2 = 0;
@@ -1265,7 +1315,11 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 					if(r&1){
 						break;
 					}
+					if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
+						break;
+					}
 				}
+				((volatile unsigned long*)&interrupter_1)[0] = 0;
 				event_ring_offset += 0x10;
 				
 				if(device->class==0x03){
