@@ -871,6 +871,10 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	xhci_usbcmd = ((unsigned long*)usbcmd)[0];
 	xhci_usbsts = ((unsigned long*)usbsts)[0];
 	printf("[XHCI] Reset XHCI finished with USBCMD %x and USBSTS %x \n",xhci_usbcmd,xhci_usbsts);
+	
+	//
+	// setting config
+	((unsigned long*)config)[0] |= 10;
 //
 // Setup default parameters
 	// TELL XHCI TO REPORT EVERYTHING
