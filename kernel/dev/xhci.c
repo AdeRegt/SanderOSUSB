@@ -392,6 +392,7 @@ extern void xhciirq();
 unsigned long basebar = 0;
 unsigned long usbcmd = 0;
 unsigned long usbsts = 0;
+unsigned long pagesize = 0;
 unsigned long config = 0;
 unsigned long bcbaap = 0;
 unsigned long crcr   = 0;
@@ -757,10 +758,15 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	unsigned long capdb = bar+0x14;
 	unsigned long hciparamadr = bar+0x04;
 	unsigned long hciparam1 = ((unsigned long*)hciparamadr)[0];
+	unsigned long hciparamadr2 = bar+0x08;
+	unsigned long hciparam2 = ((unsigned long*)hciparamadr2)[0];
 	unsigned long portcount = hciparam1>>24;
 	unsigned long hccparams1adr = bar+0x10;
 	unsigned long hccparams1 = ((unsigned long*)hccparams1adr)[0];
 	printf("[XHCI] hccparams1 %x \n",hccparams1);
+	printf("[XHCI] hccparams2 %x \n",hciparam2);
+	unsigned long maxscratchpad = (hciparam2 & 0xFBE00000)>>21;
+	printf("[XHCI] Scratchpad %x \n",maxscratchpad);
 	if(hccparams1&1){
 		printf("[XHCI] has 64-bit Addressing Capability\n");
 	}
@@ -825,6 +831,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 // Calculating other addresses
 	usbcmd = basebar;
 	usbsts = basebar+0x04;
+	pagesize = basebar+0x08;
 	config = basebar+0x38;
 	bcbaap = basebar+0x30;
 	crcr   = basebar+0x18;
@@ -836,6 +843,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	
 	unsigned long xhci_usbcmd = ((unsigned long*)usbcmd)[0];
 	unsigned long xhci_usbsts = ((unsigned long*)usbsts)[0];
+	unsigned long xhci_pagesize = ((unsigned long*)pagesize)[0];
+	printf("[XHCI] pagesize %x \n",xhci_pagesize);
 //
 // Stopping controller when running
 	if((xhci_usbcmd & 1)==1){
@@ -907,6 +916,16 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	unsigned long btc[20] __attribute__ ((aligned (0x100)));
 	((unsigned long*)bcbaap)[0] |= (unsigned long)&btc;
 	((unsigned long*)bcbaap)[1] = 0;
+	
+	if(xhci_pagesize==1){
+		printf("[XHCI] Setting up scratchpad buffer \n");
+		unsigned long* bse = (unsigned long*)malloc_align(maxscratchpad,0xFF);
+		for(unsigned int i = 0 ; i < 10 ; i++){
+			bse[i] = (unsigned long)malloc_align(0x420,0xFFF);
+		}
+		btc[0] 	= (unsigned long)bse;
+		btc[1] 	= 0;
+	}
 	
 	// setting first interrupt enabled.
 	if(1){
@@ -1010,7 +1029,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			unsigned char offsetB = deviceid!=XHCI_DEVICE_BOCHS?64:128;
 	
 			printf("[XHCI] Port %x : Setting up DCBAAP for port \n",i);
-			unsigned long bse = (unsigned long)malloc(0x420);
+			unsigned long bse = (unsigned long)malloc_align(0x420,0xFF);//malloc(0x420);
 			btc[(assignedSloth*2)+0] 	= bse;
 			btc[(assignedSloth*2)+1] 	= 0;
 			printf("[XHCI] Port %x : BCPAAP for port at %x \n",i,bse);
