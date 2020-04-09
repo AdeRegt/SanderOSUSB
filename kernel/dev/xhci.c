@@ -613,6 +613,7 @@ int xhci_enable_slot(){
 	xhci_stop_codon_to_trb(trb);
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	((unsigned long*)doorbel)[0] = 0;
+	sleep(100);
 	
 	while(1){
 		volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
@@ -624,12 +625,14 @@ int xhci_enable_slot(){
 		}
 	}
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
+	sleep(100);
 	
 	volatile TRB *trbres = ((TRB*)((volatile unsigned long)(&event_ring_queue)+event_ring_offset));
 	volatile unsigned char assignedSloth = (trbres->bar4 & 0b111111100000000000000000000000) >> 24;
 	volatile unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
 	if(completioncode!=1){
 		{
+			printf("[XHCI] Device slot assignation failed with %x \n",completioncode);
 			return -1;
 		}
 	}
@@ -657,7 +660,7 @@ int xhci_noop(){
 	
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	((unsigned long*)doorbel)[0] = 0;
-	sleep(100);
+	sleep(10);
 	
 	while(1){
 		volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
@@ -669,7 +672,7 @@ int xhci_noop(){
 		}
 	}
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
-	sleep(100);
+	sleep(10);
 	
 	volatile TRB *trbres = ((TRB*)((volatile unsigned long)(&event_ring_queue)+event_ring_offset));
 	volatile unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
@@ -841,6 +844,19 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				}else{
 					printf("[XHCI] No owner specified!\n");
 				}
+			}else if(capid==2){
+				printf("[XHCI] Supported Protocol\n");
+				unsigned long protname = ((unsigned long*)tx)[1];
+				unsigned char nA = (protname & 0xFF000000) >> 24;
+				unsigned char nB = (protname & 0x00FF0000) >> 16;
+				unsigned char nC = (protname & 0x0000FF00) >> 8;
+				unsigned char nD = (protname & 0x000000FF);
+				printf("[XHCI] Protocolname [%c%c%c%c] \n",nD,nC,nB,nA);
+				unsigned long protid = ((unsigned long*)tx)[3] & 0x0000000F;
+				printf("[XHCI] Porttype %x \n",protid);
+				if(protid!=0){
+					printf("[XHCI] XHCI protocol not supported!\n");
+				}
 			}
 			offsetx += (capof*sizeof(unsigned long));
 			if(capof==0){
@@ -959,15 +975,13 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	((unsigned long*)bcbaap)[0] |= (unsigned long)&btc;
 	((unsigned long*)bcbaap)[1] = 0;
 	
-	if(xhci_pagesize==1){
-		printf("[XHCI] Setting up scratchpad buffer \n");
-		unsigned long* bse = (unsigned long*)malloc_align(maxscratchpad,0xFF);
-		for(unsigned int i = 0 ; i < 10 ; i++){
-			bse[i] = (unsigned long)malloc_align(0x420,0xFFF);
-		}
-		btc[0] 	= (unsigned long)bse;
-		btc[1] 	= 0;
+	printf("[XHCI] Setting up scratchpad buffer \n");
+	unsigned long* bse = (unsigned long*)malloc_align(maxscratchpad*sizeof(unsigned long),0xFF);
+	for(unsigned int i = 0 ; i < maxscratchpad ; i++){
+		bse[i] = (unsigned long)malloc_align(1 << ((__builtin_ffs(xhci_pagesize) - 1) + 12),0xFFF);
 	}
+	btc[0] 	= (unsigned long)bse;
+	btc[1] 	= 0;
 	
 	// setting first interrupt enabled.
 	if(deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU){
@@ -975,10 +989,10 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 		unsigned long iman_addr = rtsoff + 0x020;
 		((unsigned long*)iman_addr)[0] |= 0b10; // Interrupt Enable (IE) – RW
 		sleep(50);
+		printf("[XHCI] Use interrupts\n");
+		((unsigned long*)usbcmd)[0] |= 4;
+		sleep(50);
 	}
-	printf("[XHCI] Use interrupts\n");
-	((unsigned long*)usbcmd)[0] |= 4;
-	sleep(50);
 	// TELL XHCI TO USE INTERRUPTS
 	
 //
