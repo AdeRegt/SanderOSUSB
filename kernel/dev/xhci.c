@@ -857,6 +857,13 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				if(protid!=0){
 					printf("[XHCI] XHCI protocol not supported!\n");
 				}
+				unsigned char nE = (fault & 0xFF000000) >> 24;
+				unsigned char nF = (fault & 0x00FF0000) >> 16;
+				printf("[XHCI] Portprotocol %x %x \n",nE,nF);
+				unsigned long portrange = ((unsigned long*)tx)[0];
+				unsigned char portrangeoffset = portrange & 0x00FF;
+				unsigned char portrangecount = (portrange & 0xFF00)>>8;
+				printf("[XHCI] Portrange offset=%x count=%x \n",portrangeoffset,portrangecount);
 			}
 			offsetx += (capof*sizeof(unsigned long));
 			if(capof==0){
