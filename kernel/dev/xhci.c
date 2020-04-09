@@ -1,5 +1,6 @@
 #include "../kernel.h"
 #define XHCI_DEVICE_BOCHS 0x15
+#define XHCI_DEVICE_QEMU 0xD
 #define XHCI_SPEED_FULL   1
 #define XHCI_SPEED_LOW    2
 #define XHCI_SPEED_HI     3
@@ -410,6 +411,10 @@ TRB command_ring_control[20] __attribute__ ((aligned (0x100)));
 unsigned long command_ring_offset = 0;
 unsigned long event_ring_offset = 0;
 
+unsigned char getCycleBit(){
+	return deviceid!=XHCI_DEVICE_QEMU?0:1;
+}
+
 void xhci_seek_end_event_queue(){
 	while(1){
 		TRB* trbres2 = ((TRB*)((unsigned long)(&event_ring_queue)+event_ring_offset));
@@ -425,14 +430,7 @@ void xhci_stop_codon_to_trb(TRB *out){
 	out->bar1 = 0;
 	out->bar2 = 0;
 	out->bar3 = 0;
-	out->bar4 = 0;
-	
-	
-	if(deviceid!=XHCI_DEVICE_BOCHS){
-		out->bar4 = 0;
-	}else{
-		out->bar4 = 1;
-	}
+	out->bar4 = getCycleBit()==1?0:1;
 }
 
 void xhci_trb_enable_slot_to_trb(XHCI_TRB_ENABLE_SLOT in,TRB *out){
@@ -526,7 +524,7 @@ int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char 
 	TRB* trb = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	XHCI_TRB_SET_ADDRESS set_address;
 	set_address.input_context = (unsigned long) t;
-	set_address.cyclebit = deviceid!=XHCI_DEVICE_BOCHS?1:0;
+	set_address.cyclebit = getCycleBit();
 	set_address.bsr = bsr;
 	set_address.trbtype = 11;
 	set_address.slotid = assignedSloth;
@@ -566,7 +564,7 @@ unsigned int xhci_disable_slot(unsigned long assignedSloth){
 	xhci_seek_end_event_queue();
 	TRB* trb2 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	XHCI_TRB_DISABLE_SLOT disable_slot;
-	disable_slot.cycle_bit = deviceid!=XHCI_DEVICE_BOCHS?1:0;
+	disable_slot.cycle_bit = getCycleBit();
 	disable_slot.trb_type = 10;
 	disable_slot.slot_id = assignedSloth;
 	xhci_trb_disable_slot_to_trb(disable_slot,trb2);
@@ -604,7 +602,7 @@ int xhci_enable_slot(){
 	xhci_seek_end_event_queue();
 	TRB* trb2 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	XHCI_TRB_ENABLE_SLOT enable_slot;
-	enable_slot.cyclebit = deviceid!=XHCI_DEVICE_BOCHS?1:0;
+	enable_slot.cyclebit = getCycleBit();
 	enable_slot.trbtype = 9;
 	enable_slot.slottype = 0;
 	xhci_trb_enable_slot_to_trb(enable_slot,trb2);
@@ -638,6 +636,46 @@ int xhci_enable_slot(){
 	
 	event_ring_offset += 0x10;
 	return assignedSloth;
+}
+
+int xhci_noop(){
+	unsigned char cs = 0;
+	xhci_seek_end_event_queue();
+	TRB* trb2 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
+	trb2->bar1 = 0;
+	trb2->bar2 = 0;
+	trb2->bar3 = 0;
+	trb2->bar4 = (23<<10) | cs;
+	
+	command_ring_offset += 0x10;
+	
+	TRB* trb = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
+	trb->bar1 = 0;
+	trb->bar2 = 0;
+	trb->bar3 = 0;
+	trb->bar4 = (cs==1?0:1);
+	
+	((volatile unsigned long*)&interrupter_1)[0] = 0;
+	((unsigned long*)doorbel)[0] = 0;
+	sleep(100);
+	
+	while(1){
+		volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
+		if(r&1){
+			break;
+		}
+		if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
+			break;
+		}
+	}
+	((volatile unsigned long*)&interrupter_1)[0] = 0;
+	sleep(100);
+	
+	volatile TRB *trbres = ((TRB*)((volatile unsigned long)(&event_ring_queue)+event_ring_offset));
+	volatile unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
+	
+	event_ring_offset += 0x10;
+	return completioncode;
 }
 
 void irq_xhci(){
@@ -737,7 +775,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	basebar = bar+((unsigned char*)bar)[0];
 	if(deviceid==0x22B5){
 		printf("[XHCI] INTELL XHCI CONTROLLER\n");
-	}else if(deviceid==0xD){
+	}else if(deviceid==XHCI_DEVICE_QEMU){
 		printf("[XHCI] QEMU XHCI CONTROLLER\n");
 	}else if(deviceid==XHCI_DEVICE_BOCHS){
 		printf("[XHCI] BOCHS XHCI CONTROLLER\n");
@@ -932,7 +970,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	}
 	
 	// setting first interrupt enabled.
-	if(1){
+	if(deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU){
 		printf("[XHCI] Setting up First Interrupter\n");
 		unsigned long iman_addr = rtsoff + 0x020;
 		((unsigned long*)iman_addr)[0] |= 0b10; // Interrupt Enable (IE) – RW
@@ -955,6 +993,19 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	printf("[XHCI] Checking if portchange happened\n");
 	if(xhci_usbsts & 0b10000){
 		printf("[XHCI] Portchange detected!\n");
+	}
+	sleep(100);
+	
+	//
+	// Doing a test of the ring except for qemu which miserably fails for it
+	if(deviceid!=XHCI_DEVICE_QEMU){
+		printf("[XHCI] Sending NOOP to check ring\n");
+		unsigned char nope = xhci_noop();
+		if(nope!=1){
+			printf("[XHCI] NOOP does not work (expecting %x found %x)\n",1,nope);
+			return;
+		}
+		printf("[XHCI] Ring works like expected\n");
 	}
 	printf("[XHCI] Probing ports....\n");
 	//

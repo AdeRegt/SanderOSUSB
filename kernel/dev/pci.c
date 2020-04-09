@@ -70,6 +70,21 @@ unsigned short pciConfigReadWord (unsigned char bus, unsigned char slot, unsigne
     return (tmp);
 }
 
+void pciConfigWriteWord (unsigned char bus, unsigned char slot, unsigned char func, unsigned char offset,unsigned long value) {
+    unsigned long address;
+    unsigned long lbus  = (unsigned long)bus;
+    unsigned long lslot = (unsigned long)slot;
+    unsigned long lfunc = (unsigned long)func;
+ 
+    /* create configuration address as per Figure 1 */
+    address = (unsigned long)((lbus << 16) | (lslot << 11) |
+              (lfunc << 8) | (offset & 0xfc) | ((unsigned long)0x80000000));
+ 
+    /* write out the address */
+    outportl(PCI_ADDRESS, address);
+    outportl(PCI_DATA+offset,value);
+}
+
 unsigned long getBARaddress(int bus,int slot,int function,int barNO){
 	unsigned long result = 0;
 	unsigned long partA = pciConfigReadWord(bus,slot,function,barNO);
