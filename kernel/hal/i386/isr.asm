@@ -94,6 +94,30 @@ uhciirq:
     iret
     
 
+global rtl8169irq
+extern irq_rtl8169
+rtl8169irq:
+	push byte 0
+	push byte 0
+    pusha
+    push ds
+    push es
+    push fs
+    push gs
+    mov eax, esp
+    push eax
+    mov eax, irq_rtl8169
+    call eax
+    pop eax
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popa
+    add esp, 8
+    iret
+    
+
 global xhciirq
 extern irq_xhci
 xhciirq:

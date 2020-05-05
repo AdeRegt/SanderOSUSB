@@ -25,8 +25,9 @@ gcc -c exec/elf.c -m32 -o elf.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || e
 gcc -c dev/math.c -m32 -o math.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c dev/uhci.c -m32 -o uhci.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c dev/xhci_hid.c -m32 -o xhci_hid.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
+gcc -c dev/RTL8169.c -m32 -o RTL8169.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 
-gcc -T linker.ld -o myos.bin -m32 -ffreestanding -O2 -nostdlib boot.o kernel.o io_ports.o interrupts.o com_port.o ide.o pci.o memory.o timer.o video.o videoasm.o isr.o ps2.o device.o iso9660.o elf.o vbox.o xhci.o acpi.o ahci.o mbr.o ext.o fat.o math.o uhci.o xhci_hid.o || exit
+gcc -T linker.ld -o myos.bin -m32 -ffreestanding -O2 -nostdlib boot.o kernel.o io_ports.o interrupts.o com_port.o ide.o pci.o memory.o timer.o video.o videoasm.o isr.o ps2.o device.o iso9660.o elf.o vbox.o xhci.o acpi.o ahci.o mbr.o ext.o fat.o math.o uhci.o xhci_hid.o RTL8169.o || exit
 
 rm *.o
 

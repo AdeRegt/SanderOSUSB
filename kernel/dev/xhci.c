@@ -508,14 +508,6 @@ void xhci_endpoint_context_to_addr(XHCI_ENDPOINT_CONTEXT *in, unsigned long *out
 	out[2] = XHCI_ENDPOINT_CONTEXT_DP(in->dequeuepointer) | XHCI_ENDPOINT_CONTEXT_DSC(in->dcs);
 	out[4] = XHCI_ENDPOINT_CONTEXT_MAX_ENDPOINT_SERVICE_LO(in->maxpayloadlow) | XHCI_ENDPOINT_CONTEXT_AVG_TRB_LENGTH(in->average_trb_length);
 	
-//	out[0] = 0xFFFFFFFFFFFF;
-//	out[1] = 0xFFFFFFFFFFFF;
-//	out[2] = 0xFFFFFFFFFFFF;
-//	out[3] = 0xFFFFFFFFFFFF;
-//	out[4] = 0xFFFFFFFFFFFF;
-//	out[5] = 0xFFFFFFFFFFFF;
-//	out[6] = 0xFFFFFFFFFFFF;
-//	out[7] = 0xFFFFFFFFFFFF;
 }
 
 int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char bsr){
@@ -539,10 +531,11 @@ int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char 
 	
 	// doorbell
 	((unsigned long*)doorbel)[0] = 0;
+	sleep(100);
 	
 	// wait
 	while(1){
-		unsigned long r = ((unsigned long*)iman_addr)[0];
+		volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
 		if(r&1){
 			break;
 		}
@@ -550,6 +543,8 @@ int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char 
 			break;
 		}
 	}
+	
+	sleep(100);
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	
 	// RESULTS
@@ -808,8 +803,18 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	printf("[XHCI] hccparams2 %x \n",hciparam2);
 	unsigned long maxscratchpad = (hciparam2 & 0xFBE00000)>>21;
 	printf("[XHCI] Scratchpad %x \n",maxscratchpad);
+	unsigned char uses_bandwith_nego = 0;
+	unsigned char uses_context_64 = 0;
 	if(hccparams1&1){
 		printf("[XHCI] has 64-bit Addressing Capability\n");
+	}
+	if(hccparams1&2){
+		printf("[XHCI] has bandwith negociation Capability\n");
+		uses_bandwith_nego = 1;
+	}
+	if(hccparams1&4){
+		printf("[XHCI] has 64bit context size datastructures Capability\n");
+		uses_context_64 = 1;
 	}
 	if(hccparams1&0xFFFF0000){
 		unsigned long extcappoint = bar+((hccparams1&0xFFFF0000)>>14);
@@ -984,8 +989,9 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	
 	printf("[XHCI] Setting up scratchpad buffer \n");
 	unsigned long* bse = (unsigned long*)malloc_align(maxscratchpad*sizeof(unsigned long),0xFF);
+	unsigned long spbl = (unsigned long)malloc_align(1 << ((__builtin_ffs(xhci_pagesize) - 1) + 12),0xFFF);
 	for(unsigned int i = 0 ; i < maxscratchpad ; i++){
-		bse[i] = (unsigned long)malloc_align(1 << ((__builtin_ffs(xhci_pagesize) - 1) + 12),0xFFF);
+		bse[i] = spbl;
 	}
 	btc[0] 	= (unsigned long)bse;
 	btc[1] 	= 0;
@@ -1101,8 +1107,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			
 			TRB *local_ring_control = (TRB*)malloc_align(sizeof(TRB)*20,0xFF);//[20] __attribute__ ((aligned (0x100)));
 			printf("[XHCI] Port %x : local ring at %x \n",i,local_ring_control);
-			unsigned char offsetA = deviceid!=XHCI_DEVICE_BOCHS?32:64;
-			unsigned char offsetB = deviceid!=XHCI_DEVICE_BOCHS?64:128;
+			unsigned char offsetA = uses_context_64==0?32:64;
+			unsigned char offsetB = uses_context_64==0?64:128;
 	
 			printf("[XHCI] Port %x : Setting up DCBAAP for port \n",i);
 			unsigned long bse = (unsigned long)malloc_align(0x420,0xFF);//malloc(0x420);

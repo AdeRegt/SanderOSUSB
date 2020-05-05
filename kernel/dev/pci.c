@@ -99,6 +99,7 @@ void init_pci(){
 		for(int slot = 0 ; slot < 32 ; slot++){
 			for(int function = 0 ; function < 7 ; function++){
 				unsigned short vendor = pciConfigReadWord(bus,slot,function,0);
+				unsigned short device = pciConfigReadWord(bus,slot,function,2);
 				if(vendor != 0xFFFF){
 					printstring("PCI: device detected, ");
 					unsigned char classc = (pciConfigReadWord(bus,slot,function,0x0A)>>8)&0xFF;
@@ -137,7 +138,13 @@ void init_pci(){
 					}else if(classc==0x02){
 						printstring("network controller: ");
 						if(sublca==0x00){
-							printstring(" Ethernet controller");
+							printf(" Ethernet controller device:%x vendor:%x \n",device,vendor);
+							if(device==0x8168&&vendor==0x10ec){ 
+								// Sander his RTL8169 driver comes here
+								init_rtl(bus,slot,function);
+							}else{
+								// Johan his E1000 driver comes here
+							}
 						}else if(sublca==0x01){
 							printstring(" Token ring controller");
 						}else if(sublca==0x02){
