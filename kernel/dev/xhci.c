@@ -803,14 +803,14 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	printf("[XHCI] hccparams2 %x \n",hciparam2);
 	unsigned long maxscratchpad = (hciparam2 & 0xFBE00000)>>21;
 	printf("[XHCI] Scratchpad %x \n",maxscratchpad);
-	unsigned char uses_bandwith_nego = 0;
+	//unsigned char uses_bandwith_nego = 0;
 	unsigned char uses_context_64 = 0;
 	if(hccparams1&1){
 		printf("[XHCI] has 64-bit Addressing Capability\n");
 	}
 	if(hccparams1&2){
 		printf("[XHCI] has bandwith negociation Capability\n");
-		uses_bandwith_nego = 1;
+		//uses_bandwith_nego = 1;
 	}
 	if(hccparams1&4){
 		printf("[XHCI] has 64bit context size datastructures Capability\n");
@@ -989,8 +989,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	
 	printf("[XHCI] Setting up scratchpad buffer \n");
 	unsigned long* bse = (unsigned long*)malloc_align(maxscratchpad*sizeof(unsigned long),0xFF);
-	unsigned long spbl = (unsigned long)malloc_align(1 << ((__builtin_ffs(xhci_pagesize) - 1) + 12),0xFFF);
-	for(unsigned int i = 0 ; i < maxscratchpad ; i++){
+	for(unsigned int i = 0 ; i < 2 ; i++){
+		unsigned long spbl = (unsigned long)malloc_align(1 << ((__builtin_ffs(xhci_pagesize) - 1) + 12),0xFFF);
 		bse[i] = spbl;
 	}
 	btc[0] 	= (unsigned long)bse;
@@ -1177,6 +1177,17 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			device->localringoffset = 0;
 			device->sendMessage = (unsigned long)&xhci_send_message;
 			device->assignedSloth = assignedSloth;
+			
+			//
+			// check if the bit is set by default or not
+			TRB *checkbit = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
+			unsigned char checkbitset = checkbit->bar4&1;
+			if(checkbitset){
+				printf("[XHCI] Port %x : Transferring is cyclebit is set by default\n",device->portnumber);
+			}else{
+				printf("[XHCI] Port %x : Transferring is cyclebit is not set by default\n",device->portnumber);
+			}
+			
 			if(0){
 				printf("[XHCI] Port %x : NOOP ring control\n",device->portnumber);
 				((volatile unsigned long*)&interrupter_1)[0] = 0;
@@ -1184,8 +1195,36 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				trbx->bar1 = 0;
 				trbx->bar2 = 0;
 				trbx->bar3 = 0;
-				trbx->bar4 = (8<<10) | 0b01;
+				trbx->bar4 = (checkbitset==1?0:1) | (8<<10);
 				device->localringoffset += 0x10;
+				xhci_seek_end_event_queue();
+			
+				((unsigned long*)doorbel)[assignedSloth] = 1;
+				sleep(100);
+				
+				while(1){
+					volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
+					if(r&1){
+						break;
+					}
+					if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
+						break;
+					}
+				}
+				sleep(100);
+				((volatile unsigned long*)&interrupter_1)[0] = 0;
+				sleep(100);
+				
+				TRB *trbres = ((TRB*)((volatile unsigned long)(&event_ring_queue)+event_ring_offset));
+				//TRB *trbres = ((TRB*)((volatile unsigned long)(event_ring_queue)+event_ring_offset));
+				unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
+				if(completioncode!=1){
+					printf("[XHCI] Port %x : NOOP completioncode is not 1 but %x \n",device->portnumber,completioncode);
+					goto disabledevice;
+				}
+				event_ring_offset += 0x10;
+				
+				
 			}
 			
 			printf("[XHCI] Port %x : GET DEVICE DESCRIPTOR\n",device->portnumber);
@@ -1218,9 +1257,9 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			dc1->bar2 |= (8 << 16); // wlength=0 // 0x80000
 			dc1->bar3 |= 8; // trbtransferlength
 			dc1->bar3 |= (0 << 22); // interrupetertrager
-			dc1->bar4 |= 1; // cyclebit
+			dc1->bar4 |= (checkbitset==1?0:1); // cyclebit =1
 			dc1->bar4 |= (00<<5); // ioc=0
-			dc1->bar4 |= (1<<6); // idt=1
+			dc1->bar4 |= (0<<6); // idt=1
 			dc1->bar4 |= (2<<10); // trbtype
 			dc1->bar4 |= (3<<16); // trt = 3;
 			device->localringoffset += 0x10;
@@ -1238,21 +1277,22 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			dc2->bar1 = (unsigned long)&devicedescriptor;
 			dc2->bar2 = 0b00000000000000000000000000000000;
 			dc2->bar3 = 0b00000000000000000000000000001000;
-			dc2->bar4 = 0b00000000000000010000110000000001;
+			dc2->bar4 = (checkbitset==1?0:1) | 0b00000000000000010000110000000000; // 0b00000000000000010000110000000001
 			device->localringoffset+=0x10;
 			
 			TRB *dc3 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 			dc3->bar1 = 0;
 			dc3->bar2 = 0;
 			dc3->bar3 = 0;
-			dc3->bar4 = 1 | (4<<10) | 0x20 | (1 << 16);
+			dc3->bar4 = (checkbitset==1?0:1) | (4<<10) | 0x20 | (1 << 16); // 1 | (4<<10) | 0x20 | (1 << 16);
 			device->localringoffset+=0x10;
 			xhci_seek_end_event_queue();
 			
 			((unsigned long*)doorbel)[assignedSloth] = 1;
+			sleep(100);
 			
 			while(1){
-				unsigned long r = ((unsigned long*)iman_addr)[0];
+				volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
 				if(r&1){
 					break;
 				}
@@ -1260,8 +1300,10 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 					break;
 				}
 			}
+			sleep(100);
 			((volatile unsigned long*)&interrupter_1)[0] = 0;
-			TRB *trbres = ((TRB*)((unsigned long)(event_ring_queue)+event_ring_offset));
+			
+			TRB *trbres = ((TRB*)((unsigned long)(&event_ring_queue)+event_ring_offset));
 			unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
 			if(completioncode!=1){
 				printf("[XHCI] Port %x : completioncode is not 1 but %x \n",device->portnumber,completioncode);
@@ -1361,6 +1403,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				device->localringoffset+=0x10;
 			
 				((unsigned long*)doorbel)[assignedSloth] = 1;
+				sleep(100);
 				
 				while(1){
 					unsigned long r = ((unsigned long*)iman_addr)[0];
@@ -1371,6 +1414,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 						break;
 					}
 				}
+				
+				sleep(100);
 				((volatile unsigned long*)&interrupter_1)[0] = 0;
 				event_ring_offset += 0x10;
 				
@@ -1410,6 +1455,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				device->localringoffset+=0x10;
 			
 				((unsigned long*)doorbel)[assignedSloth] = 1;
+				sleep(100);
 				
 				while(1){
 					unsigned long r = ((unsigned long*)iman_addr)[0];
@@ -1420,6 +1466,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 						break;
 					}
 				}
+				sleep(100);
+				
 				((volatile unsigned long*)&interrupter_1)[0] = 0;
 				event_ring_offset += 0x10;
 				

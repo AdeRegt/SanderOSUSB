@@ -17,11 +17,23 @@ struct Descriptor *Tx_Descriptors = (struct Descriptor *)0x2000; /* 2MB Base Add
 
 unsigned long num_of_rx_descriptors = 1024;
 unsigned long num_of_tx_descriptors = 1024;
+unsigned long bar1;
 
 extern void rtl8169irq();
 
 void irq_rtl8169(){
 	printf("[RTL81] Interrupt detected\n");
+	unsigned short status = inportw(bar1 + 0x3E);
+	if(status&0x20){
+		printf("[RTL81] Link change detected!\n");
+		status |= 0x20;
+	}
+	outportw(bar1 + 0x3E,status);
+	
+	status = inportw(bar1 + 0x3E);
+	if(status!=0x00){
+		printf("[RTL81] Unresolved interrupt: %x \n",status);
+	}
 	
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
@@ -29,7 +41,7 @@ void irq_rtl8169(){
 
 void init_rtl(int bus,int slot,int function){
 	printf("[RTL81] Driver loaded\n");
-	unsigned long bar1 = getBARaddress(bus,slot,function,0x10) & 0xFFFFFFFE;
+	bar1 = getBARaddress(bus,slot,function,0x10) & 0xFFFFFFFE;
 	printf("[RTL81] BAR=%x \n",bar1);
 	
 	printf("[RTL81] Set interrupter\n");
@@ -68,7 +80,6 @@ void init_rtl(int bus,int slot,int function){
 		Rx_Descriptors[i].low_buf = (unsigned int)packet_buffer_address;
 		Rx_Descriptors[i].high_buf = 0;
 	}
-	printf("[RTL81] Stage1\n");
 	
 	outportb(bar1 + 0x50, 0xC0); /* Unlock config registers */
 	outportl(bar1 + 0x44, 0x0000E70F); /* RxConfig = RXFTH: unlimited, MXDMA: unlimited, AAP: set (promisc. mode set) */
@@ -78,6 +89,7 @@ void init_rtl(int bus,int slot,int function){
 	outportb(bar1 + 0xEC, 0x3B); /* max tx packet size */
 	outportl(bar1 + 0x20, (unsigned long)&Tx_Descriptors[0]); /* Tell the NIC where the first Tx descriptor is */
 	outportl(bar1 + 0xE4, (unsigned long)&Rx_Descriptors[0]); /* Tell the NIC where the first Rx descriptor is */
+	outportw(bar1 + 0x3C, 0xC1FF); /* Eigen initiatief: Interrupt mask */
 	outportb(bar1 + 0x37, 0x0C); /* Enable Rx/Tx in the Command register */
 	outportb(bar1 + 0x50, 0x00); /* Lock config registers */
 	
