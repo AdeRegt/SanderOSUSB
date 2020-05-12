@@ -188,4 +188,11 @@ unsigned long xhci_get_keyboard();
 unsigned char get_xhci_hid_keyboard_input(USB_DEVICE* device,unsigned char wait);
 
 void init_rtl(int bus,int slot,int function);
+
+typedef struct{
+	unsigned long buffersize;
+	unsigned long low_buf;
+	unsigned long high_buf;
+}PackageRecievedDescriptor;
+
 //void dirdev();
