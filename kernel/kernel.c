@@ -1,4 +1,5 @@
 #include "kernel.h"
+#include "exec/program.h"
 
 void browser(){
 	while(1){
@@ -59,7 +60,7 @@ void kernel_main(){
 	printf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
 	//320,200
-	if(init_graph_vga(320,200,1)==0){
+/*	if(init_graph_vga(320,200,1)==0){
 		printf("VGA: failed to set!\n");
 		for(;;);
 	}
@@ -67,13 +68,28 @@ void kernel_main(){
 		init_acpi();
 		poweroff();
 	}
-	if(getDeviceCount()){
-		browser();
-	}else{
-		message("Unable to discover usefull hardware");
+
+*/
+	if(!getDeviceCount())
+	{
+		printstring("Unable to discover usefull hardware");
 		init_acpi();
 		poweroff();
 	}
+	// Let's load command.com
+	if(fexists("A@PROGS/EXAMPLE") > 0)
+	{
+		printstring("Exists");
+	}
+	
+	#warning Consider changing this to return a struct of program that we can then pass to a run function, cleaner more efficient
+	int rc = kernel_program_load("A@PROGS/EXAMPLE.BIN");
+	if (rc < 0)
+	{
+		printstring("Unable to load command program");
+	}
+
+
 	for(;;);
 }
 
