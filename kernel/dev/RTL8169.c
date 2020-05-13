@@ -56,22 +56,20 @@ void irq_rtl8169(){
 }
 
 void rtl_sendPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last){
-	unsigned long ms1 = 0x80000000 | (first==1?0x20000000:0) | (last==1?0x10000000:0) | (desc.buffersize & 0x3FFF); // ownbit=yes | firstsegment | lastsegment | length
+	unsigned long ms1 = 0x80030000 | (first==1?0x20000000:0) | (last==1?0x10000000:0) | (desc.buffersize & 0x3FFF); // 0x80000000 | ownbit=yes | firstsegment | lastsegment | length
 	unsigned long ms2 = 0 ;
 	unsigned long ms3 = desc.low_buf;
 	unsigned long ms4 = desc.high_buf;
 	
 	struct Descriptor *desz = ((struct Descriptor*)(Tx_Descriptors+(sizeof(struct Descriptor)*tx_pointer)));
+	if(desz->command!=0x80000064){
+		printf("[RTL81] Unexpected default value: %x \n",desz->command);
+	}
 	desz->high_buf = ms4;
 	desz->low_buf = ms3;
 	desz->vlan = ms2;
 	desz->command = ms1;
 	
-	struct Descriptor *dese = ((struct Descriptor*)(Px_Descriptors+(sizeof(struct Descriptor)*tx_pointer)));
-	dese->high_buf = ms4;
-	dese->low_buf = ms3;
-	dese->vlan = ms2;
-	dese->command = ms1;
 	tx_pointer++;
 	
 	((unsigned volatile long*)((unsigned volatile long)&package_send_ack))[0] = 0;
@@ -80,6 +78,12 @@ void rtl_sendPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned
 	while(1){
 		unsigned volatile long x = ((unsigned volatile long*)((unsigned volatile long)&package_send_ack))[0];
 		if(x==1){
+			printf("SIG\n");
+			break;
+		}
+		unsigned volatile char poller = inportb(bar1 + 0x38);
+		if((poller&0x40)==0){
+			printf("KAP\n");
 			break;
 		}
 	}
@@ -151,7 +155,7 @@ void init_rtl(int bus,int slot,int function){
 	outportb(bar1 + 0x37, 0x04); /* Enable Tx in the Command register, required before setting TxConfig */
 	outportl(bar1 + 0x40, 0x03000700); /* TxConfig = IFG: normal, MXDMA: unlimited */
 	outportw(bar1 + 0xDA, 0x1FFF); /* Max rx packet size */
-	outportb(bar1 + 0xEC, 0x3B); /* max tx packet size */
+	outportb(bar1 + 0xEC, 0x3B); /* max tx packet size */ // 0x3B
 	outportl(bar1 + 0x20, (unsigned long)&Tx_Descriptors[0]); /* Tell the NIC where the first Tx descriptor is */
 	outportl(bar1 + 0x28, (unsigned long)&Px_Descriptors[0]); /* Tell the NIC where the first Tx descriptor is */
 	outportl(bar1 + 0xE4, (unsigned long)&Rx_Descriptors[0]); /* Tell the NIC where the first Rx descriptor is */
