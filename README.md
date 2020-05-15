@@ -14,6 +14,7 @@ Currently the following devices are supported:
 * PCI
 * ACPI
 * XHCI - HID - Keyboard
+* RTL8169
 
 The following devices are on the list to get implemented:
 * EHCI
