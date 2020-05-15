@@ -187,12 +187,21 @@ void init_xhci_hid(USB_DEVICE* device);
 unsigned long xhci_get_keyboard();
 unsigned char get_xhci_hid_keyboard_input(USB_DEVICE* device,unsigned char wait);
 
-void init_rtl(int bus,int slot,int function);
-
 typedef struct{
 	unsigned long buffersize;
 	unsigned long low_buf;
 	unsigned long high_buf;
 }PackageRecievedDescriptor;
+
+typedef struct{
+	unsigned long sendPackage;
+	unsigned long recievePackage;
+}EthernetDevice;
+
+void init_rtl(int bus,int slot,int function);
+void ethernet_detect(int bus,int slot,int function,int device,int vendor);
+void register_ethernet_device(unsigned long sendPackage,unsigned long recievePackage);
+EthernetDevice getDefaultEthernetDevice();
+PackageRecievedDescriptor getEthernetPackage();
 
 //void dirdev();

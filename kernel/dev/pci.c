@@ -139,12 +139,7 @@ void init_pci(){
 						printstring("network controller: ");
 						if(sublca==0x00){
 							printf(" Ethernet controller device:%x vendor:%x \n",device,vendor);
-							if(device==0x8168&&vendor==0x10ec){ 
-								// Sander his RTL8169 driver comes here
-								init_rtl(bus,slot,function);
-							}else{
-								// Johan his E1000 driver comes here
-							}
+							ethernet_detect(bus,slot,function,device,vendor);
 						}else if(sublca==0x01){
 							printstring(" Token ring controller");
 						}else if(sublca==0x02){
@@ -235,7 +230,7 @@ void init_pci(){
 							printstring(" USB controller, ");
 							if(subsub==0x00){
 								printstring("UHCI [USB 1]\n");
-								//uhci_init(bus,slot,function);
+								uhci_init(bus,slot,function);
 							}else if(subsub==0x10){
 								printstring("OHCI [USB 1]");
 							}else if(subsub==0x20){
