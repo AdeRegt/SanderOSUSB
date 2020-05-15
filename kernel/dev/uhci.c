@@ -17,11 +17,11 @@ void uhci_ring_doorbell(){
 	unsigned long tx = inportw(FRNUM);
 	printf("[UHCI] Set RUN bit [ %x ]\n",tx);
 	outportw(USBCMD,0x00);
-	sleep(500);
+	sleep(100);
 	outportw(FRNUM,0);
-	sleep(500);
+	sleep(100);
 	outportw(USBCMD,0x01);
-	sleep(1000);
+	sleep(100);
 	//sleep(50);
 	//outportw(USBCMD,0x00);
 }
@@ -74,7 +74,7 @@ int uhci_init_port(unsigned long port,int i){
 	portvalue |= 0b0000001000000000;
 	portvalue = (portvalue & 0x324E) + (1<<7);
 	outportw(port,portvalue);
-	sleep(500);
+	sleep(100);
 	outportw(port,(portvalue & 0b1111110111111111));
 	return 1;
 }
