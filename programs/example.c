@@ -1,6 +1,7 @@
 #include "../SanderOSUSB.h"
 
-int main(){
-	print("Hello world!!\n",1);
-	return 1;
+const char *messagestring = "This is an example program";
+void main(){
+	printf(messagestring);
+	for(;;);
 }

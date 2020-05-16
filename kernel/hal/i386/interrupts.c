@@ -65,11 +65,13 @@ void irq_handler(){
 
 //
 // EAX
+extern void stack_top();
 void special_handler(Register *r){
 	outportb(0x20,0x20);
 	outportb(0xA0,0x20);
 	if(r->eax==0x01){ // EXIT
-    		__asm__ __volatile__ ("jmp browser");
+    		printf("\nProgram finished!");
+			asm volatile ("jmp kernel_main");
 	}else if(r->eax==0x04){ // F-WRITE
 		if(r->ebx==1){ // TO STDOUT
 			for(unsigned int i = 0 ; i < r->edx ; i++){

@@ -91,3 +91,14 @@ int memcmp( char *str1,  char *str2, int n){
 	return 0;
 }
 
+int strlen(char *str){
+	int count = 0;
+	while(1){
+		if(str[count]==0x00){
+			break;
+		}
+		count++;
+	}
+	return count;
+}
+

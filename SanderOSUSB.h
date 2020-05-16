@@ -44,3 +44,19 @@ int open(const char *pathname, int flags, int mode){
     	);
     	return res;
 }
+
+void printf(const char* msg,...){
+    void* (*foo)(const char*,...) = (void*) 0x100012;
+	foo(msg);
+}
+
+unsigned char getch(){
+    const unsigned char (*foo)() = (void*) 0x100014;
+    const unsigned char to = foo();
+	return to;
+}
+
+void message(const char *message,...){
+    void (*foo)(const char*,...) = (void*) 0x100016;
+    foo(message);
+}
