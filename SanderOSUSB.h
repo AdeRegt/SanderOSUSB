@@ -1,3 +1,6 @@
+#define STDIO 1
+#define NULL 0
+
 void exit (void){
 	int mode = 1;
 	__asm__ __volatile__ (
@@ -9,7 +12,7 @@ void exit (void){
 void print(const char* message,int to){
 	int mode = 4;
 	int len = 0;
-	while(message[len++]!=0x00);
+	while(message[len++]!=NULL);
 	__asm__ __volatile__ (
         "int $0x80"
         : "+a" (mode)
@@ -48,15 +51,4 @@ int open(const char *pathname, int flags, int mode){
 void printf(const char* msg,...){
     void* (*foo)(const char*,...) = (void*) 0x100012;
 	foo(msg);
-}
-
-unsigned char getch(){
-    const unsigned char (*foo)() = (void*) 0x100014;
-    const unsigned char to = foo();
-	return to;
-}
-
-void message(const char *message,...){
-    void (*foo)(const char*,...) = (void*) 0x100016;
-    foo(message);
 }

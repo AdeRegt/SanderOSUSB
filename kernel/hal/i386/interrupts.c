@@ -65,20 +65,30 @@ void irq_handler(){
 
 //
 // EAX
-extern void stack_top();
+extern char keyword;
+
 void special_handler(Register *r){
-	outportb(0x20,0x20);
 	outportb(0xA0,0x20);
+	outportb(0x20,0x20);
 	if(r->eax==0x01){ // EXIT
     		printf("\nProgram finished!");
 			asm volatile ("jmp kernel_main");
+	}else if(r->eax==0x03){ // F-READ
+		if(r->ebx==1){ // FROM STDOUT
+			volatile unsigned char kt = ((volatile unsigned char*)&keyword)[0];
+			((unsigned char*)r->ecx)[0] = kt;
+			((volatile unsigned char*)&keyword)[0] = 0;
+		}else{ // TO FILE
+			printf("INT0x80: unknown read (%x)\n",r->ebx);
+		}
+		r->eax=r->edx;
 	}else if(r->eax==0x04){ // F-WRITE
 		if(r->ebx==1){ // TO STDOUT
 			for(unsigned int i = 0 ; i < r->edx ; i++){
 				printf("%c",((unsigned char*)r->ecx)[i]);
 			}
 		}else{ // TO FILE
-			printf("INT0x80: unknown read (%x)\n",r->ebx);
+			printf("INT0x80: unknown write (%x)\n",r->ebx);
 		}
 		r->eax=r->edx;
 	}else if(r->eax==0x05){ // OPEN FILE
