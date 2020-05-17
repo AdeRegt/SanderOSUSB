@@ -205,5 +205,5 @@ void ethernet_detect(int bus,int slot,int function,int device,int vendor);
 void register_ethernet_device(unsigned long sendPackage,unsigned long recievePackage);
 EthernetDevice getDefaultEthernetDevice();
 PackageRecievedDescriptor getEthernetPackage();
-
+void sendEthernetPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp);
 //void dirdev();
