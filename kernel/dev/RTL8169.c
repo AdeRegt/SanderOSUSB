@@ -55,8 +55,8 @@ void irq_rtl8169(){
 	outportb(0x20,0x20);
 }
 
-void rtl_sendPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last){
-	unsigned long ms1 = 0x80030000 | (first==1?0x20000000:0) | (last==1?0x10000000:0) | (desc.buffersize & 0x3FFF); // 0x80000000 | ownbit=yes | firstsegment | lastsegment | length
+void rtl_sendPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp){
+	unsigned long ms1 = 0x80000000 | (ip==1?0x40000:0) | (udp==1?0x20000:0) | (tcp==1?0x10000:0) | (first==1?0x20000000:0) | (last==1?0x10000000:0) | (desc.buffersize & 0x3FFF); // 0x80000000 | ownbit=yes | firstsegment | lastsegment | length
 	unsigned long ms2 = 0 ;
 	unsigned long ms3 = desc.low_buf;
 	unsigned long ms4 = desc.high_buf;
@@ -114,7 +114,7 @@ void rtl_test(){
 	resx.buffersize = res.buffersize;
 	resx.low_buf = res.low_buf;
 	resx.high_buf = 0;
-	rtl_sendPackage(resx,1,1);
+	rtl_sendPackage(resx,1,1,0,0,0);
 	printf("[RTL81] Package send\n");
 }
 

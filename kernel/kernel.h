@@ -20,6 +20,7 @@ void *malloc(unsigned long size);
 void *memset(void *str, int c, int n);
 int memcmp( char *str1, char *str2, int n);
 void *malloc_align(unsigned long size,unsigned long tag);
+int strlen(char *str);
 
 // BLOCKDEVICE
 //void init_blockdevice();
@@ -59,6 +60,7 @@ void draw();
 unsigned long show();
 void message(char *message);
 char confirm(char *message);
+char choose(char *message,int argcount,char **args);
 char *browseDIR(char *path);
 char *browse();
 void freeGui();
@@ -203,5 +205,5 @@ void ethernet_detect(int bus,int slot,int function,int device,int vendor);
 void register_ethernet_device(unsigned long sendPackage,unsigned long recievePackage);
 EthernetDevice getDefaultEthernetDevice();
 PackageRecievedDescriptor getEthernetPackage();
-
+void sendEthernetPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp);
 //void dirdev();

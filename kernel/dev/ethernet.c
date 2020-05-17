@@ -27,7 +27,7 @@ PackageRecievedDescriptor getEthernetPackage(){
     return getPackage();
 }
 
-void sendEthernetPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last){
-    void (*sendPackage)(PackageRecievedDescriptor desc,unsigned char first,unsigned char last) = (void*)defaultEthernetDevice.sendPackage;
-    sendPackage(desc,first,last);
+void sendEthernetPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp){
+    void (*sendPackage)(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp) = (void*)defaultEthernetDevice.sendPackage;
+    sendPackage(desc,first,last,ip,udp,tcp);
 }

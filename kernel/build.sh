@@ -37,21 +37,17 @@ ar rcs ../lib/libsos.a ../kernel.bin
 
 cd ..
 
-for i in programs/*.inc
-do
-	nasm -f elf32 -O0 -w+orphan-labels $i -o programs/`basename $i .inc`.o || exit
-done
 
 for i in programs/*.asm
 do
-	nasm -f elf32 -O0 -w+orphan-labels $i -o programs/`basename $i .asm`.o || exit
-	gcc -T programs/proglinker.ld -m32 -ffreestanding -O2 -nostdlib programs/base.o programs/`basename $i .asm`.o -o programs/`basename $i .asm`.bin || exit
+	nasm $i -o programs/`basename $i .asm`.bin || exit
 done
 
+nasm -felf32 programs/base.as -o programs/base.o || exit
 for i in programs/*.c
 do
-	gcc -c $i -o programs/`basename $i .c`.o  -m32  -std=gnu99 -ffreestanding -Wall -Wextra  || exit
-	gcc -L lib -l sos -T programs/proglinker.ld -m32 -ffreestanding -nostdlib programs/base.o programs/`basename $i .c`.o -o programs/`basename $i .c`.bin || exit
+	gcc -c $i -o programs/`basename $i .c`.o  -m32  -std=gnu99 -ffreestanding -Wall -Wextra || exit
+	gcc -T programs/proglinker.ld  -m32 -O2 -ffreestanding -nostdlib programs/base.o programs/`basename $i .c`.o -o programs/`basename $i .c`.bin || exit
 done
 
 rm programs/*.o
@@ -60,6 +56,7 @@ rm cdrom.iso
 mkdir mnt
 mkdir mnt/prgs
 cp programs/*.bin mnt/prgs
+cp programs/fasm mnt/prgs/fasm
 cp test.asm mnt/test.asm
 mkdir mnt/boot
 mkdir mnt/boot/grub

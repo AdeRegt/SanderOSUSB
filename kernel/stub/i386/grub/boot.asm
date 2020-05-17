@@ -37,8 +37,21 @@ stack_top:
 ; doesn't make sense to return from this function as the bootloader is gone.
 ; Declare _start as a function symbol with the given symbol size.
 section .text
-global _fstart:function (_fstart.end - _fstart)
+global _fstart:function (realstart.end - _fstart)
 _fstart:
+	jmp realstart
+
+	; This is a jump table, this means this code is always at the same location
+	; The current offset to this table is 0x12 per entry is het 2 size
+	extern printf
+	extern getch
+	extern message
+
+	jmp printf ; 0x12
+	jmp getch ; 0x14
+	jmp message ; 0x16
+
+	realstart:
 	; The bootloader has loaded us into 32-bit protected mode on a x86
 	; machine. Interrupts are disabled. Paging is disabled. The processor
 	; state is as defined in the multiboot standard. The kernel has full

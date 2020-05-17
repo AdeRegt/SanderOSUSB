@@ -230,6 +230,25 @@ void message(char *message){
 	show();
 }
 
+char choose(char *message,int argcount,char **args){
+	freeGui();
+	addController(1,(unsigned long)&drawRect,10,70,300,100,0,0,0,0);
+	addController(1,(unsigned long)&drawString,20,100,280,100,(unsigned long)message,0,0,0);
+	for(int i = 0 ; i < argcount ; i++){
+		char *msg = (char*)args[i];
+		addController(1,(unsigned long)&drawButton,50+(i*60),150,50,15,(unsigned long)msg,0,0,1);
+	}
+	char* res = (char*)show();
+	int tok = 0;
+	for(int i = 0 ; i < argcount ; i++){
+		char *msg = (char*)args[i];
+		if(memcmp((char*)res,(char*)msg,strlen(msg))==0){
+			tok = i;
+		}
+	}
+	return tok;
+}
+
 char confirm(char *message){
 	char *okmessage = "OK";
 	char *cancelmessage = "CANCEL";

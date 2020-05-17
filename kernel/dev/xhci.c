@@ -1188,6 +1188,18 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				printf("[XHCI] Port %x : Transferring is cyclebit is not set by default\n",device->portnumber);
 			}
 			
+			//
+			// and see if this is everywhere the case
+			for(int i = 0 ; i < 10 ; i++){
+				TRB *checkbit2 = ((TRB*)((unsigned long)(device->localring)+(i*0x10)));
+				if(checkbitset!=(checkbit2->bar4&1)){
+					printf("[XHCI] empty localring is not empty at all!\n");
+					goto disabledevice;
+				}
+			}
+
+			//
+			// and test
 			if(0){
 				printf("[XHCI] Port %x : NOOP ring control\n",device->portnumber);
 				((volatile unsigned long*)&interrupter_1)[0] = 0;

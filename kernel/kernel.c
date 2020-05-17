@@ -7,15 +7,18 @@ void browser(){
 				unsigned char* buffer = (unsigned char*)0x2000;
 				fread(pt,buffer);
 				cls();
-				printf("Open Execute or Cancel\n\n");
-				char x = getch();
-				if(x=='o'){
+				char *c[3];
+				c[0] = "view";
+				c[1] = "run";
+				c[2] = "cancel";
+				unsigned int t = choose("How can I help you",3,c);
+				if(t==0){
 					for(int i = 0 ; i < 512 ; i++){
 						printf("%c",buffer[i]);
 					}
 					printf("\n\nPress any key to continue\n");
 					getch();
-				}else if(x=='e'){
+				}else if(t==1){
 					if(iself(buffer)){
 						printf("ELF: program is ELF!\n");
 						unsigned long gamma = loadelf(buffer);
@@ -26,12 +29,13 @@ void browser(){
 							void* (*foo)() = (void*) gamma;
 							foo();
 						}
-						printf("ELF: Waiting\n");
-						getch();
 					}else{
 						cls();
-						asm volatile ("call 0x2000");
+						void* (*foo)() = (void*) 0x2000;
+						foo();
 					}
+					printf("\n - Program finished! Press any key to return - \n");
+					getch();
 				}
 			}
 		}
