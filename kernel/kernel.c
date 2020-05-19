@@ -68,7 +68,7 @@ void kernel_main(){
 		printf("VGA: failed to set!\n");
 		for(;;);
 	}
-	if(confirm("kernel created by sander de regt and shashwat shagun and johan gericke")==0){
+	if(confirm("kernel created by sander de regt and shashwat shagun and johan gericke and daniel mccarthy")==0){
 		init_acpi();
 		poweroff();
 	}
