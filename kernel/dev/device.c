@@ -41,12 +41,17 @@ char* dir(char* path){
 }
 
 char fexists(unsigned char* path){
+						printstring("Fexists\n");
+
 	for(int i = 0 ; i < 100 ; i++){
 		whoopsie[i] = 0x00;
 	}
+
 	if(path[1]=='@'){
 		int z = path[0] - 'A';
 		if(devices[z].existsFile==0){
+								printstring("I have no devices\n");
+
 			return 0;
 		}else{
 			char (*foo)(Device *,unsigned char*) = (void *)devices[z].existsFile;
@@ -58,18 +63,24 @@ char fexists(unsigned char* path){
 	}else{
 		//return 0;
 			if(getDeviceCount()>0){
+				printstring("I have a device\n");
 				if(devices[0].existsFile==0){
+									printstring("No device existsFile\n");
+
 					return 0;
 				}
 				char (*foo)(Device *,unsigned char*) = (void *)devices[0].existsFile;
 				return (char) foo((Device *)&devices[0],path);
 			}else{
+								printstring("No devices\n");
+
 				return 0;
 			}
 	}
 }
 
-void fread(char* path,unsigned char* buffer){
+int fread(char* path,unsigned char* buffer)
+{
 	for(int i = 0 ; i < 100 ; i++){
 		whoopsie[i] = 0x00;
 	}
@@ -84,10 +95,13 @@ void fread(char* path,unsigned char* buffer){
 	}else if(path[1]=='@'){
 		int z = path[0] - 'A';
 		if(devices[z].readFile==0){
-			
+			return 0;
 		}else{
 			void* (*foo)(Device *,unsigned char*,unsigned char *) = (void*)devices[z].readFile;
 			foo((Device *)&devices[z],(unsigned char*)&path[2],buffer);
+			return 1;
 		}
 	}
+
+	return 0;
 }

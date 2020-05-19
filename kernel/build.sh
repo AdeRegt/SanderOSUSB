@@ -1,3 +1,7 @@
+export PREFIX="$HOME/opt/cross"
+export TARGET=i686-elf
+export PATH="$PREFIX/bin:$PATH"
+
 nasm -felf32 stub/i386/grub/boot.asm -o boot.o || exit
 nasm -felf32 hal/i386/isr.asm -o isr.o || exit
 nasm -felf32 hal/i386/video.asm -o videoasm.o || exit
@@ -27,6 +31,7 @@ gcc -c dev/uhci.c -m32 -o uhci.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || 
 gcc -c dev/xhci_hid.c -m32 -o xhci_hid.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c dev/RTL8169.c -m32 -o RTL8169.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c dev/ethernet.c -m32 -o ethernet.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
+gcc -c exec/program.c -m32 -o program.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 
 gcc -T linker.ld -o myos.bin -m32 -ffreestanding -O2 -nostdlib boot.o kernel.o io_ports.o interrupts.o com_port.o ide.o pci.o memory.o timer.o video.o videoasm.o isr.o ps2.o device.o iso9660.o elf.o vbox.o xhci.o acpi.o ahci.o mbr.o ext.o fat.o math.o uhci.o xhci_hid.o RTL8169.o ethernet.o || exit
 
@@ -62,5 +67,5 @@ mkdir mnt/boot
 mkdir mnt/boot/grub
 cp kernel.bin mnt/kernel.bin
 cp boot/grub/grub.cfg mnt/boot/grub/grub.cfg
-grub-mkrescue -o cdrom.iso mnt --iso-level 3
+grub-mkrescue -o cdrom.iso mnt
 rm -rf mnt

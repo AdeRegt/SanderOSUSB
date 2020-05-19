@@ -1,4 +1,5 @@
 #include "kernel.h"
+#include "exec/program.h"
 
 void browser(){
 	while(1){
@@ -71,13 +72,17 @@ void kernel_main(){
 		init_acpi();
 		poweroff();
 	}
-	if(getDeviceCount()){
-		browser();
-	}else{
+
+
+	if(!getDeviceCount())
+	{
 		message("Unable to discover usefull hardware");
 		init_acpi();
 		poweroff();
 	}
+	
+	browser();
+
 	for(;;);
 }
 
