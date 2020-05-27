@@ -31,17 +31,6 @@ void irq_timer(){
 	outportb(0x20,0x20);
 	if(clock % 18 == 0){
 		ticks++;
-//		if(videomemory[0]=='-'){
-//			videomemory[0]='\\';
-//		}else if(videomemory[0]=='\\'){
-//			videomemory[0]='|';
-//		}else if(videomemory[0]=='|'){
-//			videomemory[0]='/';
-//		}else if(videomemory[0]=='/'){
-//			videomemory[0]='-';
-//		}else{
-//			videomemory[0]='-';
-//		}
 	}
 }
 

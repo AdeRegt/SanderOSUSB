@@ -5,10 +5,13 @@ export PATH="$PREFIX/bin:$PATH"
 nasm -felf32 stub/i386/grub/boot.asm -o boot.o || exit
 nasm -felf32 hal/i386/isr.asm -o isr.o || exit
 nasm -felf32 hal/i386/video.asm -o videoasm.o || exit
+as -c hal/i386/paging.asm --32 -o paging2.o  || exit
 
 gcc -c kernel.c -m32 -o kernel.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c hal/i386/io_ports.c -m32 -o io_ports.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c hal/i386/interrupts.c -m32 -o interrupts.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
+gcc -c hal/i386/paging.c -m32 -o paging.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
+gcc -c hal/i386/multitasking.c -m32 -o multitasking.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c dev/com_port.c -m32 -o com_port.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c dev/ide.c -m32 -o ide.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c dev/pci.c -m32 -o pci.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
@@ -33,7 +36,7 @@ gcc -c dev/RTL8169.c -m32 -o RTL8169.o -std=gnu99 -ffreestanding -O2 -Wall -Wext
 gcc -c dev/ethernet.c -m32 -o ethernet.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c exec/program.c -m32 -o program.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 
-gcc -T linker.ld -o myos.bin -m32 -ffreestanding -O2 -nostdlib boot.o kernel.o io_ports.o interrupts.o com_port.o ide.o pci.o memory.o timer.o video.o videoasm.o isr.o ps2.o device.o iso9660.o elf.o vbox.o xhci.o acpi.o ahci.o mbr.o ext.o fat.o math.o uhci.o xhci_hid.o RTL8169.o ethernet.o || exit
+gcc -T linker.ld -o myos.bin -m32 -ffreestanding -O2 -nostdlib boot.o kernel.o io_ports.o paging.o paging2.o multitasking.o interrupts.o com_port.o ide.o pci.o memory.o timer.o video.o videoasm.o isr.o ps2.o device.o iso9660.o elf.o vbox.o xhci.o acpi.o ahci.o mbr.o ext.o fat.o math.o uhci.o xhci_hid.o RTL8169.o ethernet.o || exit
 
 rm *.o
 

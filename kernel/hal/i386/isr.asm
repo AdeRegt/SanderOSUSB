@@ -143,27 +143,24 @@ xhciirq:
     
 
 global timerirq
-extern irq_timer
+extern irq_multitasking
 timerirq:
-	push byte 0
-	push byte 0
     pusha
-    push ds
-    push es
-    push fs
-    push gs
-    mov eax, esp
-    push eax
-    mov eax, irq_timer
-    call eax
-    pop eax
-    pop gs
-    pop fs
-    pop es
-    pop ds
-    popa
-    add esp, 8
-    iret
+	push ds
+	push es
+	push fs
+	push gs
+	mov eax, esp   ; Push us the stack
+	push eax
+	mov eax, irq_multitasking
+	call eax       ; A special call, preserves the 'eip' register
+	pop eax
+	pop gs
+	pop fs
+	pop es
+	pop ds
+	popa
+	iret
     
 
 global irq_common_stub

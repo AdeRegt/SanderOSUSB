@@ -53,6 +53,8 @@ void kernel_main(){
 	printstring("Loading utilities...\n");
 	printstring("=> Programmable Interrupt Timer...\n");
 	init_timer();
+	printstring("=> Multitasking...\n");
+	init_multitasking();
 	printstring("=> PS2...\n");
 	init_ps2();
 	printstring("=> PCI...\n");

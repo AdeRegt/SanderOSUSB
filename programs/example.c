@@ -12,5 +12,5 @@ void main(){
 		}
 	}
 	printf("\nacknowledge!");
-	for(;;);
+	exit();
 }
