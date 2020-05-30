@@ -97,7 +97,7 @@ void init_pci(){
 	printstring("PCI: detecting devices....\n");
 	for(int bus = 0 ; bus < 256 ; bus++){
 		for(int slot = 0 ; slot < 32 ; slot++){
-			for(int function = 0 ; function < 7 ; function++){
+			for(int function = 0 ; function <= 7 ; function++){
 				unsigned short vendor = pciConfigReadWord(bus,slot,function,0);
 				unsigned short device = pciConfigReadWord(bus,slot,function,2);
 				if(vendor != 0xFFFF){
@@ -105,8 +105,8 @@ void init_pci(){
 					unsigned char classc = (pciConfigReadWord(bus,slot,function,0x0A)>>8)&0xFF;
 					unsigned char sublca = (pciConfigReadWord(bus,slot,function,0x0A))&0xFF;
 					unsigned char subsub = (pciConfigReadWord(bus,slot,function,0x08)>>8)&0xFF;
-//					unsigned short subsystemvendor = pciConfigReadWord(bus,slot,function,0x2c) & 0xFFFF;
-//					unsigned short subsystemid = pciConfigReadWord(bus,slot,function,0x2e) & 0xFFFF;
+					//unsigned short subsystemvendor = pciConfigReadWord(bus,slot,function,0x2c) & 0xFFFF;
+					//unsigned short subsystemid = pciConfigReadWord(bus,slot,function,0x2e) & 0xFFFF;
 					if(classc==0x00){
 						printstring("unclassified: ");
 					}else if(classc==0x01){
@@ -234,7 +234,8 @@ void init_pci(){
 							}else if(subsub==0x10){
 								printstring("OHCI [USB 1]");
 							}else if(subsub==0x20){
-								printstring("EHCI [USB 2]");
+								printstring("EHCI [USB 2]\n");
+								init_ehci(bus,slot,function);
 							}else if(subsub==0x30){
 								printstring("XHCI [USB 3]\n");
 								init_xhci(bus,slot,function);

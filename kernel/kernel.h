@@ -200,6 +200,8 @@ void init_xhci_hid(USB_DEVICE* device);
 unsigned long xhci_get_keyboard();
 unsigned char get_xhci_hid_keyboard_input(USB_DEVICE* device,unsigned char wait);
 
+void init_ehci(unsigned long bus,unsigned long slot,unsigned long function);
+
 typedef struct{
 	unsigned long buffersize;
 	unsigned long low_buf;
