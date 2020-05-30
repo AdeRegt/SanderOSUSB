@@ -21,6 +21,7 @@ void *memset(void *str, int c, int n);
 int memcmp( char *str1, char *str2, int n);
 void *malloc_align(unsigned long size,unsigned long tag);
 int strlen(char *str);
+void memcpy( char *str1,  char *str2, int n);
 
 // BLOCKDEVICE
 //void init_blockdevice();
@@ -73,6 +74,16 @@ void init_idt();
 void idt_set_gate(unsigned char num, unsigned long base, unsigned short sel, unsigned char flags);
 void setErrorInt(unsigned char num,unsigned long base);
 void setNormalInt(unsigned char num,unsigned long base);
+
+// PAGING
+void init_paging();
+void set_paging_frame(unsigned long addr);
+
+// MULTITASKING
+void init_multitasking();
+int createTask(unsigned long entrypoint);
+void killTask(int pid);
+int activeTask();
 
 // TIMER MOD
 void init_timer();
@@ -157,10 +168,10 @@ void initialiseFAT(Device* device);
 
 int pow(int base,int exp);
 
+void irq_timer();
 typedef struct{
     unsigned int gs, fs, es, ds;      /* pushed the segs last */
     unsigned int edi, esi, ebp, esp, ebx, edx, ecx, eax;  /* pushed by 'pusha' */
-    unsigned int int_no, err_code;    /* our 'push byte #' and ecodes do this */
     unsigned int eip, cs, eflags, useresp, ss;   /* pushed by the processor automatically */ 
 }Register;
 

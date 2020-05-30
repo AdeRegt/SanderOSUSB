@@ -66,13 +66,14 @@ void irq_handler(){
 //
 // EAX
 extern char keyword;
+extern void browser();
 
 void special_handler(Register *r){
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
 	if(r->eax==0x01){ // EXIT
     		printf("\nProgram finished!");
-			asm volatile ("jmp kernel_main");
+			r->eip = (unsigned long)browser;
 	}else if(r->eax==0x03){ // F-READ
 		if(r->ebx==1){ // FROM STDOUT
 			volatile unsigned char kt = ((volatile unsigned char*)&keyword)[0];

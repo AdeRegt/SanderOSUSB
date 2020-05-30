@@ -91,6 +91,12 @@ int memcmp( char *str1,  char *str2, int n){
 	return 0;
 }
 
+void memcpy( char *from,  char *to, int n){
+	for(int i = 0 ; i < n ; i++){
+		to[i] = from[i];
+	}
+}
+
 int strlen(char *str){
 	int count = 0;
 	while(1){
