@@ -77,6 +77,7 @@ void setNormalInt(unsigned char num,unsigned long base);
 
 // PAGING
 void init_paging();
+void set_paging_frame(unsigned long addr);
 
 // MULTITASKING
 void init_multitasking();
