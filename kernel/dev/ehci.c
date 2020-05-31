@@ -1,8 +1,12 @@
 #include "../kernel.h"
+// cd ../kernel
+// bash build.sh 
+// ../../qemu/x86_64-softmmu/qemu-system-x86_64 --cdrom ../cdrom.iso  -trace enable=usb*  -device usb-ehci,id=ehci -drive if=none,id=usbstick,file=../../myos.iso -device usb-storage,bus=ehci.0,drive=usbstick
 
 #define EHCI_PERIODIC_FRAME_SIZE 1024
 
 unsigned long periodic_list[EHCI_PERIODIC_FRAME_SIZE] __attribute__ ((aligned (0x1000)));
+unsigned long portbaseaddress;
 unsigned long usbcmd_addr;
 unsigned long usbsts_addr;
 unsigned long usbint_addr;
@@ -11,6 +15,7 @@ unsigned long usbctr_addr;
 unsigned long usbper_addr;
 unsigned long usbasc_addr;
 unsigned long usbcon_addr;
+unsigned char available_ports;
 
 extern void ehciirq();
 void irq_ehci(){
@@ -41,15 +46,66 @@ void irq_ehci(){
     ((unsigned long*)usbsts_addr)[0] = status;
 }
 
-void init_ehci_port(int portnumber){
+void ehci_add_command(unsigned long instructioncommand){
 
+    //
+    // add value to first available point
+    int index = 0;
+    for(int i = 0 ; i < EHCI_PERIODIC_FRAME_SIZE ; i++){
+        if(periodic_list[i]&1){
+            index = i;
+        }
+    }
+    printf("[EHCI] At index %x \n",index);
+
+    //
+    // setup basic token
+    unsigned long message = (instructioncommand & 0xFFFFFFE0);
+    periodic_list[index] = message;
+}
+
+void init_ehci_port(int portnumber){
+        unsigned long avail_port_addr = portbaseaddress + 0x44 + (portnumber*4);
+        unsigned long portinfo = ((unsigned long*)avail_port_addr)[0];
+
+        // reset the port
+        ((unsigned long*)avail_port_addr)[0] |=  0b100000000;
+        sleep(20);
+        ((unsigned long*)avail_port_addr)[0] &= ~0b100000000;
+        sleep(20);
+        portinfo = ((volatile unsigned long*)avail_port_addr)[0];
+        printf("[EHCI] Port %x : End of port reset with %x \n",portnumber,portinfo);
+
+        // check if port is enabled
+        if(portinfo&0b100){
+            printf("[EHCI] Port %x : Port is enabled\n",portnumber);
+        }else{
+            printf("[EHCI] Port %x : Port is not enabled but connected\n",portnumber);
+            return;
+        }
+
+        // activating
+        
+}
+
+void ehci_probe(){
+    // checking all ports
+    for(int i = 0 ; i < available_ports ; i++){
+        unsigned long avail_port_addr = portbaseaddress + 0x44 + (i*4);
+        unsigned long portinfo = ((unsigned long*)avail_port_addr)[0];
+        printf("[EHCI] Port %x info : %x \n",i,portinfo);
+        if(portinfo&2){
+            printf("[EHCI] Port %x : connection detected!\n",i);
+            init_ehci_port(i);
+        }
+    }
 }
 
 void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
     printf("[EHCI] Entering EHCI module\n");
     unsigned long baseaddress = getBARaddress(bus,slot,function,0x10);
     printf("[EHCI] The base address of EHCI is %x \n",baseaddress);
-    unsigned long portbaseaddress = baseaddress + ((unsigned char*)baseaddress)[0];
+    portbaseaddress = baseaddress + ((unsigned char*)baseaddress)[0];
     printf("[EHCI] The address to the first EHCI registers is %x \n",portbaseaddress);
     unsigned long hci_version_addr = baseaddress+0x02;
     unsigned short hci_version = ((unsigned short*)hci_version_addr)[0];
@@ -61,7 +117,7 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
     unsigned long hcsparams_addr = baseaddress+0x04;
     unsigned long hcsparams = ((unsigned long*)hcsparams_addr)[0];
     printf("[EHCI] HCSParams are %x \n",hcsparams);
-    unsigned char available_ports = hcsparams & 0b1111;
+    available_ports = hcsparams & 0b1111;
     printf("[EHCI] We have %x ports available\n",available_ports);
     unsigned long hccparams_addr = baseaddress+0x08;
     unsigned long hccparams = ((unsigned long*)hccparams_addr)[0];
@@ -72,13 +128,16 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
     }
     unsigned char capabilitypointer = (hccparams & 0b1111111100000000) >> 8;
     if(capabilitypointer){
-        unsigned long capabilitypointer_addr = baseaddress + capabilitypointer;
+        unsigned long capabilitypointer_addr =  capabilitypointer;
         printf("[EHCI] We have capabilitypointers at %x \n",capabilitypointer_addr);
         while(1){
-            unsigned long cap = ((unsigned long*)capabilitypointer_addr)[0];
+            unsigned long cap = getBARaddress(bus,slot,function,capabilitypointer_addr);
             unsigned char cid = cap & 0xFF;
             if(cid==0x01){
                 printf("[EHCI] Legacy support available\n");
+                if(cap&(1<<16)){
+                    printf("[EHCI] BIOS owns controller\n");
+                }
             }else{
                 printf("[EHCI] Unknown extended cappoint %x : %x \n",cid,cap);
             } 
@@ -153,16 +212,7 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
     // set routing
     ((unsigned long*)usbcon_addr)[0] |= 1;
 
-    // checking all ports
-    for(int i = 0 ; i < available_ports ; i++){
-        unsigned long avail_port_addr = portbaseaddress + 0x44 + (i*4);
-        unsigned long portinfo = ((unsigned long*)avail_port_addr)[0];
-        printf("[EHCI] Port %x info : %x \n",i,portinfo);
-        if(portinfo&1){
-            printf("[EHCI] Port %x : connection detected!\n",i);
-            init_ehci_port(i);
-        }
-    }
+    ehci_probe();
 
     for(;;);
 }
