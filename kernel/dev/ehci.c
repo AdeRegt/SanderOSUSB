@@ -2,8 +2,63 @@
 // cd ../kernel
 // bash build.sh 
 // ../../qemu/x86_64-softmmu/qemu-system-x86_64 --cdrom ../cdrom.iso  -trace enable=usb*  -device usb-ehci,id=ehci -drive if=none,id=usbstick,file=../../myos.iso -device usb-storage,bus=ehci.0,drive=usbstick
+// much thanks to https://github.com/dgibson/SLOF and https://github.com/pdoane/osdev
 
-#define EHCI_PERIODIC_FRAME_SIZE 1024
+#define EHCI_PERIODIC_FRAME_SIZE    1024
+#define RT_DEV_TO_HOST              0x80
+#define RT_STANDARD                 0x00
+#define RT_DEV                      0x00
+#define REQ_GET_DESC                0x06
+#define USB_DESC_DEVICE             0x01
+#define USB_PACKET_OUT              0x00
+#define USB_PACKET_IN               0x01
+#define USB_PACKET_SETUP            0x02
+#define TD_TOK_D_SHIFT              31
+#define TD_TOK_LEN_SHIFT            16
+#define TD_TOK_CERR_SHIFT           10
+#define TD_TOK_PID_SHIFT            8
+#define TD_TOK_ACTIVE               (1 << 7)
+#define USB_HIGH_SPEED              0x02
+#define QH_CH_MPL_SHIFT             16
+#define QH_CH_DTC                   0x4000
+#define QH_CH_EPS_SHIFT             12
+#define QH_CH_ENDP_SHIFT            8
+#define QH_CAP_MULT_SHIFT           30
+#define QH_CAP_INT_SCHED_SHIFT      0
+#define QH_CH_NAK_RL_SHIFT          28
+#define TD_TOK_HALTED               (1 << 6)
+#define PTR_TERMINATE               (1 << 0)
+
+typedef struct {
+    volatile unsigned long nextlink;
+    volatile unsigned long altlink;
+    volatile unsigned long token;
+    volatile unsigned long buffer[5];
+    volatile unsigned long extbuffer[5];
+}EhciTD;
+
+typedef struct {
+    volatile unsigned long horizontal_link_pointer;
+    volatile unsigned long characteristics;
+    volatile unsigned long capabilities;
+    volatile unsigned long curlink;
+
+    volatile unsigned long nextlink;
+    volatile unsigned long altlink;
+    volatile unsigned long token;
+    volatile unsigned long buffer[5];
+    volatile unsigned long extbuffer[5];
+    
+}EhciQH;
+
+typedef struct 
+{
+    volatile unsigned char type;
+    volatile unsigned char req;
+    volatile unsigned short value;
+    volatile unsigned short index;
+    volatile unsigned short len;
+} UsbDevReq;
 
 unsigned long periodic_list[EHCI_PERIODIC_FRAME_SIZE] __attribute__ ((aligned (0x1000)));
 unsigned long portbaseaddress;
@@ -27,65 +82,76 @@ void irq_ehci(){
     unsigned long status = ((unsigned long*)usbsts_addr)[0];
     if(status&0b000001){
         printf("[EHCI] Interrupt: transaction completed\n");
-    }
-    if(status&0b000010){
+    }else if(status&0b000010){
         printf("[EHCI] Interrupt: error interrupt\n");
-    }
-    if(status&0b000100){
+    }else if(status&0b000100){
         printf("[EHCI] Interrupt: portchange\n");
-    }
-    if(status&0b001000){
+    }else if(status&0b001000){
         printf("[EHCI] Interrupt: frame list rollover\n");
-    }
-    if(status&0b010000){
+    }else if(status&0b010000){
         printf("[EHCI] Interrupt: host system error\n");
-    }
-    if(status&0b100000){
+    }else if(status&0b100000){
         printf("[EHCI] Interrupt: interrupt on advance\n");
+    }else{
+        printf("[EHCI] Interrupt: unknown\n");
     }
     ((unsigned long*)usbsts_addr)[0] = status;
 }
 
-void ehci_add_command(unsigned long instructioncommand){
-
-    //
-    // add value to first available point
-    int index = 0;
-    for(int i = 0 ; i < EHCI_PERIODIC_FRAME_SIZE ; i++){
-        if(periodic_list[i]&1){
-            index = i;
-        }
-    }
-    printf("[EHCI] At index %x \n",index);
-
-    //
-    // setup basic token
-    unsigned long message = (instructioncommand & 0xFFFFFFE0);
-    periodic_list[index] = message;
-}
-
 void init_ehci_port(int portnumber){
-        unsigned long avail_port_addr = portbaseaddress + 0x44 + (portnumber*4);
-        unsigned long portinfo = ((unsigned long*)avail_port_addr)[0];
+    unsigned long avail_port_addr = portbaseaddress + 0x44 + (portnumber*4);
+    unsigned long portinfo = ((unsigned long*)avail_port_addr)[0];
 
-        // reset the port
-        ((unsigned long*)avail_port_addr)[0] |=  0b100000000;
-        sleep(20);
-        ((unsigned long*)avail_port_addr)[0] &= ~0b100000000;
-        sleep(20);
-        portinfo = ((volatile unsigned long*)avail_port_addr)[0];
-        printf("[EHCI] Port %x : End of port reset with %x \n",portnumber,portinfo);
+    // reset the port
+    ((unsigned long*)avail_port_addr)[0] |=  0b100000000;
+    sleep(20);
+    sleep(20);
+    sleep(20);
+    ((unsigned long*)avail_port_addr)[0] &= ~0b100000000;
+    sleep(20);
+    portinfo = ((volatile unsigned long*)avail_port_addr)[0];
+    printf("[EHCI] Port %x : End of port reset with %x \n",portnumber,portinfo);
 
-        // check if port is enabled
-        if(portinfo&0b100){
-            printf("[EHCI] Port %x : Port is enabled\n",portnumber);
-        }else{
-            printf("[EHCI] Port %x : Port is not enabled but connected\n",portnumber);
-            return;
-        }
+    // check if port is enabled
+    if((portinfo&0b100)==0){
+        printf("[EHCI] Port %x : Port is not enabled but connected\n",portnumber);
+        return;
+    }
 
-        // activating
-        
+    printf("[EHCI] Port %x : Getting devicedescriptor...\n",portnumber);
+    EhciQH* qh = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
+    EhciQH* qh2 = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
+    EhciQH* qh3 = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
+    EhciTD* td = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+
+    //
+    // Tweede commando
+    qh2->altlink = 1;
+    qh2->nextlink = td; // qdts2
+    qh2->horizontal_link_pointer = ((unsigned long)qh) | 2;
+    qh2->curlink = qh3; // qdts1
+    qh2->characteristics |= 1 << 14; // dtc
+    qh2->characteristics |= 64 << 16; // mplen
+    qh2->characteristics |= 2 << 12; // eps
+    qh2->characteristics |= 1; // device
+    qh2->capabilities = 0x40000000;
+    //qh2->token = 0x40;
+    printf("> %x \n",qh2->characteristics);
+
+    //
+    // Eerste commando
+    qh->altlink = 1;
+    qh->nextlink = 1;
+    qh->horizontal_link_pointer = ((unsigned long)qh2) | 2;
+    qh->curlink = 0;
+    qh->characteristics = 1 << 15; // T
+    qh->token = 0x40;
+
+    ((unsigned long*) usbasc_addr)[0] = ((unsigned long)qh) ;
+    ((unsigned long*)usbcmd_addr)[0] |= 0b100000;
+    sleep(10);
+    ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
+
 }
 
 void ehci_probe(){
@@ -94,7 +160,7 @@ void ehci_probe(){
         unsigned long avail_port_addr = portbaseaddress + 0x44 + (i*4);
         unsigned long portinfo = ((unsigned long*)avail_port_addr)[0];
         printf("[EHCI] Port %x info : %x \n",i,portinfo);
-        if(portinfo&2){
+        if(portinfo&3){
             printf("[EHCI] Port %x : connection detected!\n",i);
             init_ehci_port(i);
         }
