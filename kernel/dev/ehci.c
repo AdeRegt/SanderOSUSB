@@ -98,6 +98,64 @@ void irq_ehci(){
     ((unsigned long*)usbsts_addr)[0] = status;
 }
 
+unsigned char* ehci_get_device_descriptor(){
+    EhciQH* qh = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
+    EhciQH* qh2 = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
+    EhciQH* qh3 = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
+    volatile EhciTD* td = (volatile EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+
+    unsigned char buffer[8];
+
+    //
+    // Derde commando
+    td->token |= 2 << 8; // PID=2
+    td->token |= 3 << 10; // CERR=3
+    td->token |= 8 << 16; // TBYTE=8
+    td->token |= 1 << 7; // ACTIVE=1
+    td->nextlink = qh3;
+    td->altlink = 1;
+    td->buffer[0] = buffer;
+
+
+    //
+    // Tweede commando
+    qh2->altlink = 1;
+    qh2->nextlink = td; // qdts2
+    qh2->horizontal_link_pointer = ((unsigned long)qh) | 2;
+    qh2->curlink = qh3; // qdts1
+    qh2->characteristics |= 1 << 14; // dtc
+    qh2->characteristics |= 64 << 16; // mplen
+    qh2->characteristics |= 2 << 12; // eps
+    qh2->characteristics |= 1; // device
+    qh2->capabilities = 0x40000000;
+
+    //
+    // Eerste commando
+    qh->altlink = 1;
+    qh->nextlink = 1;
+    qh->horizontal_link_pointer = ((unsigned long)qh2) | 2;
+    qh->curlink = 0;
+    qh->characteristics = 1 << 15; // T
+    qh->token = 0x40;
+
+    ((unsigned long*) usbasc_addr)[0] = ((unsigned long)qh) ;
+    ((unsigned long*)usbcmd_addr)[0] |= 0b100000;
+    while(1){
+        if(0==(td->token & (1 << 7))){
+            break;
+        }
+    }
+    
+    ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
+    ((unsigned long*) usbasc_addr)[0] = 1 ;
+
+    if(td->token & (1 << 6)){
+        return 0;
+    }
+
+    return buffer;
+}
+
 void init_ehci_port(int portnumber){
     unsigned long avail_port_addr = portbaseaddress + 0x44 + (portnumber*4);
     unsigned long portinfo = ((unsigned long*)avail_port_addr)[0];
@@ -119,39 +177,11 @@ void init_ehci_port(int portnumber){
     }
 
     printf("[EHCI] Port %x : Getting devicedescriptor...\n",portnumber);
-    EhciQH* qh = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
-    EhciQH* qh2 = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
-    EhciQH* qh3 = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
-    EhciTD* td = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
-
-    //
-    // Tweede commando
-    qh2->altlink = 1;
-    qh2->nextlink = td; // qdts2
-    qh2->horizontal_link_pointer = ((unsigned long)qh) | 2;
-    qh2->curlink = qh3; // qdts1
-    qh2->characteristics |= 1 << 14; // dtc
-    qh2->characteristics |= 64 << 16; // mplen
-    qh2->characteristics |= 2 << 12; // eps
-    qh2->characteristics |= 1; // device
-    qh2->capabilities = 0x40000000;
-    //qh2->token = 0x40;
-    printf("> %x \n",qh2->characteristics);
-
-    //
-    // Eerste commando
-    qh->altlink = 1;
-    qh->nextlink = 1;
-    qh->horizontal_link_pointer = ((unsigned long)qh2) | 2;
-    qh->curlink = 0;
-    qh->characteristics = 1 << 15; // T
-    qh->token = 0x40;
-
-    ((unsigned long*) usbasc_addr)[0] = ((unsigned long)qh) ;
-    ((unsigned long*)usbcmd_addr)[0] |= 0b100000;
-    sleep(10);
-    ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
-
+    unsigned char* desc = ehci_get_device_descriptor();
+    if(desc==0){
+        printf("[EHCI] Port %x : Unable to get devicedescriptor...\n",portnumber);
+        return;
+    }
 }
 
 void ehci_probe(){
