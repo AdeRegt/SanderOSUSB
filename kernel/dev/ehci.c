@@ -51,15 +51,6 @@ typedef struct {
     
 }EhciQH;
 
-typedef struct 
-{
-    volatile unsigned char type;
-    volatile unsigned char req;
-    volatile unsigned short value;
-    volatile unsigned short index;
-    volatile unsigned short len;
-} UsbDevReq;
-
 unsigned long periodic_list[EHCI_PERIODIC_FRAME_SIZE] __attribute__ ((aligned (0x1000)));
 unsigned long portbaseaddress;
 unsigned long usbcmd_addr;
@@ -96,6 +87,97 @@ void irq_ehci(){
         printf("[EHCI] Interrupt: unknown\n");
     }
     ((unsigned long*)usbsts_addr)[0] = status;
+}
+
+typedef struct  {
+    unsigned char bRequestType;
+    unsigned char bRequest;
+    unsigned short wValue;
+    unsigned short wIndex;
+    unsigned short wLength;
+} EhciCMD;
+
+unsigned char ehci_set_device_address(unsigned char addr){
+
+    //
+    // ok, to set a address to a device, we need 4 components:
+    // 1) QH: a queuehead to connect to us
+    // 2) QTD: a command descriptor
+    // 3) QTD: a status descriptor
+    // 4) CMD: a command
+
+    // first make the command
+    EhciCMD *cmd = (EhciCMD*) malloc_align(sizeof(EhciCMD),0xFFF);
+    cmd->bRequest = 0x05; // USB-REQUEST type SET-ADDR is 0x05
+    cmd->bRequestType |= 0; // direction is out
+    cmd->bRequestType |= 0 << 5; // type is standard
+    cmd->bRequestType |= 0; // recieve
+    cmd->wIndex = 0; // ok
+    cmd->wLength = 0; // ok
+    cmd->wValue = addr;
+
+    EhciTD *command = (EhciTD*) malloc_align(sizeof(EhciTD),0xFF);
+    EhciTD *status = (EhciTD*) malloc_align(sizeof(EhciTD),0xFF);
+    EhciQH *head1 = (EhciQH*) malloc_align(sizeof(EhciQH),0xFF);
+    EhciQH *head2 = (EhciQH*) malloc_align(sizeof(EhciQH),0xFF);
+
+    command->nextlink = (unsigned long)status;
+    command->altlink = 1;
+    command->token |= (8 << 16); // setup size
+    command->token |= (1 << 7); // actief
+    command->token |= (0x2 << 8); // type is setup
+    command->token |= (0x3 << 10); // maxerror
+    command->buffer[0] = (unsigned long)cmd;
+
+    status->nextlink = 1;
+    status->altlink = 1;
+    status->token |= (1 << 8); // PID instellen
+    status->token |= (1 << 31); // toggle
+    status->token |= (1 << 7); // actief
+    status->token |= (0x3 << 10); // maxerror
+
+    //
+    // Tweede commando
+
+
+    head2->altlink = 1;
+    head2->nextlink = (unsigned long)command; // qdts2
+    head2->horizontal_link_pointer = ((unsigned long)head1) | 2;
+    head2->curlink = 0; // qdts1
+    head2->characteristics |= 1 << 14; // dtc
+    head2->characteristics |= 64 << 16; // mplen
+    head2->characteristics |= 2 << 12; // eps
+    head2->capabilities = 0x40000000;
+
+    //
+    // Eerste commando
+    head1->altlink = 1;
+    head1->nextlink = 1;
+    head1->horizontal_link_pointer = ((unsigned long)head2) | 2;
+    head1->curlink = 0;
+    head1->characteristics = 1 << 15; // T
+    head1->token = 0x40;
+
+    ((unsigned long*) usbasc_addr)[0] = ((unsigned long)head1) ;
+    ((unsigned long*)usbcmd_addr)[0] |= 0b100000;
+
+    unsigned char lstatus = 1;
+    while(1){
+        unsigned long tstatus = status->token;
+        if(tstatus & (1 << 6)){
+            // not anymore active and failed miserably
+            lstatus = 0;
+            break;
+        }
+        if(!(tstatus & (1 << 7))){
+            // not anymore active and succesfull ended
+            lstatus = 1;
+            break;
+        }
+    }
+    ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
+    ((unsigned long*) usbasc_addr)[0] = 1 ;
+    return lstatus;
 }
 
 unsigned char* ehci_get_device_descriptor(){
@@ -176,10 +258,20 @@ void init_ehci_port(int portnumber){
         return;
     }
 
+    unsigned char deviceaddress = 1;
+    printf("[EHCI] Port %x : Setting device address to %x \n",portnumber,deviceaddress);
+    unsigned char deviceaddressok = ehci_set_device_address(deviceaddress);
+    if(deviceaddressok==0){
+        printf("[EHCI] Port %x : Unable to set device address...\n",portnumber);
+        for(;;);
+        return;
+    }
+
     printf("[EHCI] Port %x : Getting devicedescriptor...\n",portnumber);
     unsigned char* desc = ehci_get_device_descriptor();
     if(desc==0){
         printf("[EHCI] Port %x : Unable to get devicedescriptor...\n",portnumber);
+        for(;;);
         return;
     }
 }
@@ -310,5 +402,4 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
 
     ehci_probe();
 
-    for(;;);
 }

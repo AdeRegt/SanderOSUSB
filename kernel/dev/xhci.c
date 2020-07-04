@@ -1197,6 +1197,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 					goto disabledevice;
 				}
 			}
+			sleep(100);
 
 			//
 			// and test
@@ -1256,7 +1257,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			
 			unsigned char devicedescriptor[12];
 			((volatile unsigned long*)&interrupter_1)[0] = 0;
-			TRB *dc1 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
+			volatile TRB *dc1 = ((volatile TRB*)((volatile unsigned long)(device->localring)+device->localringoffset));
 			dc1->bar1 = 0;
 			dc1->bar2 = 0;
 			dc1->bar3 = 0;
@@ -1285,14 +1286,14 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			// X Immediate Data (IDT) = 0.
 			// X Data Buffer Pointer = The address of the Device Descriptor receive buffer.
 			// X Cycle bit = Current Producer Cycle State.
-			TRB *dc2 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
+			volatile TRB *dc2 = ((volatile TRB*)((volatile unsigned long)(device->localring)+device->localringoffset));
 			dc2->bar1 = (unsigned long)&devicedescriptor;
 			dc2->bar2 = 0b00000000000000000000000000000000;
 			dc2->bar3 = 0b00000000000000000000000000001000;
 			dc2->bar4 = (checkbitset==1?0:1) | 0b00000000000000010000110000000000; // 0b00000000000000010000110000000001
 			device->localringoffset+=0x10;
 			
-			TRB *dc3 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
+			volatile TRB *dc3 = ((volatile TRB*)((volatile unsigned long)(device->localring)+device->localringoffset));
 			dc3->bar1 = 0;
 			dc3->bar2 = 0;
 			dc3->bar3 = 0;
@@ -1300,7 +1301,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			device->localringoffset+=0x10;
 			xhci_seek_end_event_queue();
 			
-			((unsigned long*)doorbel)[assignedSloth] = 1;
+			((volatile unsigned long*)doorbel)[assignedSloth] = 1;
 			sleep(100);
 			
 			while(1){
@@ -1318,7 +1319,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			TRB *trbres = ((TRB*)((unsigned long)(&event_ring_queue)+event_ring_offset));
 			unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
 			if(completioncode!=1){
-				printf("[XHCI] Port %x : completioncode is not 1 but %x \n",device->portnumber,completioncode);
+				printf("[XHCI] Port %x : completioncode is not 1 but %x\n",device->portnumber,completioncode);
 				goto disabledevice;
 			}
 			event_ring_offset += 0x10;
