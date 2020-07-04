@@ -2,7 +2,7 @@
 // cd ../kernel
 // bash build.sh 
 // ../../qemu/x86_64-softmmu/qemu-system-x86_64 --cdrom ../cdrom.iso  -trace enable=usb*  -device usb-ehci,id=ehci -drive if=none,id=usbstick,file=../../myos.iso -device usb-storage,bus=ehci.0,drive=usbstick
-// much thanks to https://github.com/dgibson/SLOF and https://github.com/pdoane/osdev
+// much thanks to https://github.com/dgibson/SLOF and https://github.com/pdoane/osdev and https://github.com/coreboot/seabios
 
 #define EHCI_PERIODIC_FRAME_SIZE    1024
 #define RT_DEV_TO_HOST              0x80
@@ -103,16 +103,19 @@ unsigned char ehci_wait_for_completion(EhciTD *status){
         unsigned long tstatus = status->token;
         if(tstatus & (1 << 6)){
             // not anymore active and failed miserably
+            printf("EHCI FAIL A\n");
             lstatus = 0;
             break;
         }
         if(tstatus & (1 << 5)){
             // not anymore active and failed miserably
+            printf("EHCI FAIL B\n");
             lstatus = 0;
             break;
         }
         if(tstatus & (1 << 3)){
             // not anymore active and failed miserably
+            printf("EHCI FAIL C\n");
             lstatus = 0;
             break;
         }
@@ -196,35 +199,60 @@ unsigned char ehci_set_device_address(unsigned char addr){
     return lstatus;
 }
 
-unsigned char* ehci_get_device_descriptor(){
+unsigned char* ehci_get_device_descriptor(unsigned char addr,unsigned char size){
     EhciQH* qh = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
     EhciQH* qh2 = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
     EhciQH* qh3 = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
-    volatile EhciTD* td = (volatile EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+    EhciTD* td = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+    EhciTD* trans = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+    EhciTD* status = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+    EhciCMD* commando = (EhciCMD*) malloc_align(sizeof(EhciCMD),0x1FF);
 
-    unsigned char buffer[8];
+    unsigned char *buffer = malloc(size);
+
+    commando->bRequest = 0x06; // get_descriptor
+    commando->bRequestType |= 0x80; // dir=IN
+    commando->wIndex = 0; // windex=0
+    commando->wLength = size; // getlength=8
+    commando->wValue = 1 << 8; // 
 
     //
     // Derde commando
     td->token |= 2 << 8; // PID=2
     td->token |= 3 << 10; // CERR=3
-    td->token |= 8 << 16; // TBYTE=8
+    td->token |= size << 16; // TBYTE=8
     td->token |= 1 << 7; // ACTIVE=1
-    td->nextlink = qh3;
+    td->nextlink = (unsigned long)trans;
     td->altlink = 1;
-    td->buffer[0] = buffer;
+    td->buffer[0] = (unsigned long)commando;
+
+    trans->nextlink = (unsigned long)status;
+    trans->altlink = 1;
+    trans->token |= (size << 16); // verwachte lengte
+    trans->token |= (1 << 31); // toggle
+    trans->token |= (1 << 7); // actief
+    trans->token |= (1 << 8); // IN token
+    trans->token |= (0x3 << 10); // maxerror
+    trans->buffer[0] = (unsigned long)buffer;
+
+    status->nextlink = 1;
+    status->altlink = 1;
+    status->token |= (0 << 8); // PID instellen
+    status->token |= (1 << 31); // toggle
+    status->token |= (1 << 7); // actief
+    status->token |= (0x3 << 10); // maxerror
 
 
     //
     // Tweede commando
     qh2->altlink = 1;
-    qh2->nextlink = td; // qdts2
+    qh2->nextlink = (unsigned long)td; // qdts2
     qh2->horizontal_link_pointer = ((unsigned long)qh) | 2;
-    qh2->curlink = qh3; // qdts1
+    qh2->curlink = (unsigned long)qh3; // qdts1
     qh2->characteristics |= 1 << 14; // dtc
     qh2->characteristics |= 64 << 16; // mplen
     qh2->characteristics |= 2 << 12; // eps
-    qh2->characteristics |= 1; // device
+    qh2->characteristics |= addr; // device
     qh2->capabilities = 0x40000000;
 
     //
@@ -238,16 +266,12 @@ unsigned char* ehci_get_device_descriptor(){
 
     ((unsigned long*) usbasc_addr)[0] = ((unsigned long)qh) ;
     ((unsigned long*)usbcmd_addr)[0] |= 0b100000;
-    while(1){
-        if(0==(td->token & (1 << 7))){
-            break;
-        }
-    }
+
+    unsigned char result = ehci_wait_for_completion(status);
     
     ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
     ((unsigned long*) usbasc_addr)[0] = 1 ;
-
-    if(td->token & (1 << 6)){
+    if(result==0){
         return 0;
     }
 
@@ -284,9 +308,15 @@ void init_ehci_port(int portnumber){
     }
 
     printf("[EHCI] Port %x : Getting devicedescriptor...\n",portnumber);
-    unsigned char* desc = ehci_get_device_descriptor();
+    unsigned char* desc = ehci_get_device_descriptor(deviceaddress,8);
     if(desc==0){
         printf("[EHCI] Port %x : Unable to get devicedescriptor...\n",portnumber);
+        for(;;);
+        return;
+    }
+    printf("[EHCI] Port %x : %x %x %x %x %x %x %x %x \n",portnumber,desc[0],desc[1],desc[2],desc[3],desc[4],desc[5],desc[6],desc[7]);
+    if(!(desc[0]==0x12&&desc[1]==0x1)){
+        printf("[EHCI] Port %x : Invalid magic number at descriptor (%x %x)...\n",portnumber,desc[0],desc[1]);
         for(;;);
         return;
     }
