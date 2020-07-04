@@ -97,6 +97,34 @@ typedef struct  {
     unsigned short wLength;
 } EhciCMD;
 
+unsigned char ehci_wait_for_completion(EhciTD *status){
+    unsigned char lstatus = 1;
+    while(1){
+        unsigned long tstatus = status->token;
+        if(tstatus & (1 << 6)){
+            // not anymore active and failed miserably
+            lstatus = 0;
+            break;
+        }
+        if(tstatus & (1 << 5)){
+            // not anymore active and failed miserably
+            lstatus = 0;
+            break;
+        }
+        if(tstatus & (1 << 3)){
+            // not anymore active and failed miserably
+            lstatus = 0;
+            break;
+        }
+        if(!(tstatus & (1 << 7))){
+            // not anymore active and succesfull ended
+            lstatus = 1;
+            break;
+        }
+    }
+    return lstatus;
+}
+
 unsigned char ehci_set_device_address(unsigned char addr){
 
     //
@@ -161,20 +189,8 @@ unsigned char ehci_set_device_address(unsigned char addr){
     ((unsigned long*) usbasc_addr)[0] = ((unsigned long)head1) ;
     ((unsigned long*)usbcmd_addr)[0] |= 0b100000;
 
-    unsigned char lstatus = 1;
-    while(1){
-        unsigned long tstatus = status->token;
-        if(tstatus & (1 << 6)){
-            // not anymore active and failed miserably
-            lstatus = 0;
-            break;
-        }
-        if(!(tstatus & (1 << 7))){
-            // not anymore active and succesfull ended
-            lstatus = 1;
-            break;
-        }
-    }
+    unsigned char lstatus = ehci_wait_for_completion(status);
+    
     ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
     ((unsigned long*) usbasc_addr)[0] = 1 ;
     return lstatus;
