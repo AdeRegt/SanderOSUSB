@@ -5,29 +5,6 @@
 // much thanks to https://github.com/dgibson/SLOF and https://github.com/pdoane/osdev and https://github.com/coreboot/seabios
 
 #define EHCI_PERIODIC_FRAME_SIZE    1024
-#define RT_DEV_TO_HOST              0x80
-#define RT_STANDARD                 0x00
-#define RT_DEV                      0x00
-#define REQ_GET_DESC                0x06
-#define USB_DESC_DEVICE             0x01
-#define USB_PACKET_OUT              0x00
-#define USB_PACKET_IN               0x01
-#define USB_PACKET_SETUP            0x02
-#define TD_TOK_D_SHIFT              31
-#define TD_TOK_LEN_SHIFT            16
-#define TD_TOK_CERR_SHIFT           10
-#define TD_TOK_PID_SHIFT            8
-#define TD_TOK_ACTIVE               (1 << 7)
-#define USB_HIGH_SPEED              0x02
-#define QH_CH_MPL_SHIFT             16
-#define QH_CH_DTC                   0x4000
-#define QH_CH_EPS_SHIFT             12
-#define QH_CH_ENDP_SHIFT            8
-#define QH_CAP_MULT_SHIFT           30
-#define QH_CAP_INT_SCHED_SHIFT      0
-#define QH_CH_NAK_RL_SHIFT          28
-#define TD_TOK_HALTED               (1 << 6)
-#define PTR_TERMINATE               (1 << 0)
 
 typedef struct {
     volatile unsigned long nextlink;
@@ -50,6 +27,32 @@ typedef struct {
     volatile unsigned long extbuffer[5];
     
 }EhciQH;
+
+struct usb_config_descriptor {
+    unsigned char  bLength;
+    unsigned char  bDescriptorType;
+
+    unsigned short wTotalLength;
+    unsigned char  bNumInterfaces;
+    unsigned char  bConfigurationValue;
+    unsigned char  iConfiguration;
+    unsigned char  bmAttributes;
+    unsigned char  bMaxPower;
+} __attribute__ ((packed));
+
+struct usb_interface_descriptor {
+    unsigned char  bLength;
+    unsigned char  bDescriptorType;
+
+    unsigned char  bInterfaceNumber;
+    unsigned char  bAlternateSetting;
+    unsigned char  bNumEndpoints;
+    unsigned char  bInterfaceClass;
+    unsigned char  bInterfaceSubClass;
+    unsigned char  bInterfaceProtocol;
+    unsigned char  iInterface;
+} __attribute__ ((packed));
+
 
 unsigned long periodic_list[EHCI_PERIODIC_FRAME_SIZE] __attribute__ ((aligned (0x1000)));
 unsigned long portbaseaddress;
@@ -214,7 +217,7 @@ unsigned char* ehci_get_device_descriptor(unsigned char addr,unsigned char size)
     commando->bRequestType |= 0x80; // dir=IN
     commando->wIndex = 0; // windex=0
     commando->wLength = size; // getlength=8
-    commando->wValue = 1 << 8; // 
+    commando->wValue = 1 << 8; // get device info
 
     //
     // Derde commando
@@ -234,6 +237,95 @@ unsigned char* ehci_get_device_descriptor(unsigned char addr,unsigned char size)
     trans->token |= (1 << 8); // IN token
     trans->token |= (0x3 << 10); // maxerror
     trans->buffer[0] = (unsigned long)buffer;
+
+    status->nextlink = 1;
+    status->altlink = 1;
+    status->token |= (0 << 8); // PID instellen
+    status->token |= (1 << 31); // toggle
+    status->token |= (1 << 7); // actief
+    status->token |= (0x3 << 10); // maxerror
+
+
+    //
+    // Tweede commando
+    qh2->altlink = 1;
+    qh2->nextlink = (unsigned long)td; // qdts2
+    qh2->horizontal_link_pointer = ((unsigned long)qh) | 2;
+    qh2->curlink = (unsigned long)qh3; // qdts1
+    qh2->characteristics |= 1 << 14; // dtc
+    qh2->characteristics |= 64 << 16; // mplen
+    qh2->characteristics |= 2 << 12; // eps
+    qh2->characteristics |= addr; // device
+    qh2->capabilities = 0x40000000;
+
+    //
+    // Eerste commando
+    qh->altlink = 1;
+    qh->nextlink = 1;
+    qh->horizontal_link_pointer = ((unsigned long)qh2) | 2;
+    qh->curlink = 0;
+    qh->characteristics = 1 << 15; // T
+    qh->token = 0x40;
+
+    ((unsigned long*) usbasc_addr)[0] = ((unsigned long)qh) ;
+    ((unsigned long*)usbcmd_addr)[0] |= 0b100000;
+
+    unsigned char result = ehci_wait_for_completion(status);
+    
+    ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
+    ((unsigned long*) usbasc_addr)[0] = 1 ;
+    if(result==0){
+        return 0;
+    }
+
+    return buffer;
+}
+
+unsigned char* ehci_get_device_configuration(unsigned char addr,unsigned char size){
+    EhciQH* qh = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
+    EhciQH* qh2 = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
+    EhciQH* qh3 = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
+    EhciTD* td = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+    EhciTD* trans1 = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+    EhciTD* trans2 = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+    EhciTD* status = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+    EhciCMD* commando = (EhciCMD*) malloc_align(sizeof(EhciCMD),0x1FF);
+
+    unsigned char *buffer = malloc(size);
+
+    commando->bRequest = 0x06; // get_descriptor
+    commando->bRequestType |= 0x80; // dir=IN
+    commando->wIndex = 0; // windex=0
+    commando->wLength = size; // getlength=8
+    commando->wValue = 2 << 8; // get config info
+
+    //
+    // Derde commando
+    td->token |= 2 << 8; // PID=2
+    td->token |= 3 << 10; // CERR=3
+    td->token |= 8 << 16; // TBYTE=8
+    td->token |= 1 << 7; // ACTIVE=1
+    td->nextlink = (unsigned long)trans1;
+    td->altlink = 1;
+    td->buffer[0] = (unsigned long)commando;
+
+    trans1->nextlink = (unsigned long)trans2;
+    trans1->altlink = 1;
+    trans1->token |= (8 << 16); // verwachte lengte
+    trans1->token |= (1 << 31); // toggle
+    trans1->token |= (1 << 7); // actief
+    trans1->token |= (1 << 8); // IN token
+    trans1->token |= (0x3 << 10); // maxerror
+    trans1->buffer[0] = (unsigned long)buffer;
+
+    trans2->nextlink = (unsigned long)status;
+    trans2->altlink = 1;
+    trans2->token |= (8 << 16); // verwachte lengte
+    trans2->token |= (1 << 31); // toggle
+    trans2->token |= (1 << 7); // actief
+    trans2->token |= (1 << 8); // IN token
+    trans2->token |= (0x3 << 10); // maxerror
+    trans2->buffer[0] = ((unsigned long)buffer)+8;
 
     status->nextlink = 1;
     status->altlink = 1;
@@ -298,28 +390,56 @@ void init_ehci_port(int portnumber){
         return;
     }
 
+    // set device address to device
     unsigned char deviceaddress = 1;
     printf("[EHCI] Port %x : Setting device address to %x \n",portnumber,deviceaddress);
     unsigned char deviceaddressok = ehci_set_device_address(deviceaddress);
     if(deviceaddressok==0){
         printf("[EHCI] Port %x : Unable to set device address...\n",portnumber);
-        for(;;);
         return;
     }
 
+    // get device descriptor
     printf("[EHCI] Port %x : Getting devicedescriptor...\n",portnumber);
-    unsigned char* desc = ehci_get_device_descriptor(deviceaddress,8);
+    unsigned char* desc = ehci_get_device_descriptor(deviceaddress,8);//8
     if(desc==0){
         printf("[EHCI] Port %x : Unable to get devicedescriptor...\n",portnumber);
-        for(;;);
         return;
     }
-    printf("[EHCI] Port %x : %x %x %x %x %x %x %x %x \n",portnumber,desc[0],desc[1],desc[2],desc[3],desc[4],desc[5],desc[6],desc[7]);
+
+    // check result
     if(!(desc[0]==0x12&&desc[1]==0x1)){
         printf("[EHCI] Port %x : Invalid magic number at descriptor (%x %x)...\n",portnumber,desc[0],desc[1]);
-        for(;;);
         return;
     }
+    unsigned char maxpacketsize = desc[7];
+    printf("[EHCI] Port %x : Max Packet Size %x \n",portnumber,maxpacketsize);
+
+    unsigned char deviceclass = desc[4];
+    if(deviceclass==0x00){
+        printf("[ECHI] Port %x : No class found! Asking descriptors...\n",portnumber);
+        struct usb_config_descriptor* sec = (struct usb_config_descriptor*)ehci_get_device_configuration(deviceaddress,16);
+        if(sec==0){
+            printf("[ECHI] Port %x : Failed to read descriptors...\n",portnumber);
+            return;
+        }
+        struct usb_interface_descriptor* desc = (struct usb_interface_descriptor*)(((unsigned long)sec)+9);
+        deviceclass = desc->bInterfaceClass;
+    }
+
+    if(deviceclass==0x00){
+        printf("[EHCI] Port %x : Still unable to get device class\n",portnumber);
+        return;
+    }
+    printf("[EHCI] Port %x : We have a deviceclass. Device class is %x \n",portnumber,deviceclass);
+    if(deviceclass==8){
+        printf("[EHCI] Port %x : Mass Storage Device detected!\n",portnumber);
+    }else if(deviceclass==3){
+        printf("[EHCI] Port %x : Human Interface Device detected!\n",portnumber);
+    }else{
+        printf("[EHCI] Port %x : Unable to understand deviceclass!\n",portnumber);
+    }
+    for(;;);
 }
 
 void ehci_probe(){
