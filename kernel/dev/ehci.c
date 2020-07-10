@@ -100,10 +100,11 @@ typedef struct  {
     unsigned short wLength;
 } EhciCMD;
 
-unsigned char ehci_wait_for_completion(EhciTD *status){
+unsigned char ehci_wait_for_completion(volatile EhciTD *status){
     unsigned char lstatus = 1;
+    resetTicks();
     while(1){
-        unsigned long tstatus = status->token;
+        volatile unsigned long tstatus = (volatile unsigned long)status->token;
         if(tstatus & (1 << 6)){
             // not anymore active and failed miserably
             printf("EHCI FAIL A\n");
@@ -125,6 +126,11 @@ unsigned char ehci_wait_for_completion(EhciTD *status){
         if(!(tstatus & (1 << 7))){
             // not anymore active and succesfull ended
             lstatus = 1;
+            break;
+        }
+        if(getTicks()>50){
+            printf("EHCI FAIL Timeout\n");
+            lstatus = 0;
             break;
         }
     }
@@ -151,7 +157,7 @@ unsigned char ehci_set_device_address(unsigned char addr){
     cmd->wValue = addr;
 
     EhciTD *command = (EhciTD*) malloc_align(sizeof(EhciTD),0xFF);
-    EhciTD *status = (EhciTD*) malloc_align(sizeof(EhciTD),0xFF);
+    volatile EhciTD *status = (volatile EhciTD*) malloc_align(sizeof(EhciTD),0xFF);
     EhciQH *head1 = (EhciQH*) malloc_align(sizeof(EhciQH),0xFF);
     EhciQH *head2 = (EhciQH*) malloc_align(sizeof(EhciQH),0xFF);
 
@@ -208,7 +214,7 @@ unsigned char* ehci_get_device_descriptor(unsigned char addr,unsigned char size)
     EhciQH* qh3 = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
     EhciTD* td = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
     EhciTD* trans = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
-    EhciTD* status = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+    volatile EhciTD* status = (volatile EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
     EhciCMD* commando = (EhciCMD*) malloc_align(sizeof(EhciCMD),0x1FF);
 
     unsigned char *buffer = malloc(size);
@@ -288,7 +294,7 @@ unsigned char* ehci_get_device_configuration(unsigned char addr,unsigned char si
     EhciTD* td = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
     EhciTD* trans1 = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
     EhciTD* trans2 = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
-    EhciTD* status = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+    volatile EhciTD* status = (volatile EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
     EhciCMD* commando = (EhciCMD*) malloc_align(sizeof(EhciCMD),0x1FF);
 
     unsigned char *buffer = malloc(size);
@@ -308,20 +314,24 @@ unsigned char* ehci_get_device_configuration(unsigned char addr,unsigned char si
     td->nextlink = (unsigned long)trans1;
     td->altlink = 1;
     td->buffer[0] = (unsigned long)commando;
+    unsigned char toggle = 0;
+    toggle ^= 1;
 
-    trans1->nextlink = (unsigned long)trans2;
+    trans1->nextlink = (unsigned long)status;//trans2;
     trans1->altlink = 1;
-    trans1->token |= (8 << 16); // verwachte lengte
-    trans1->token |= (1 << 31); // toggle
+    trans1->token |= (size << 16); // verwachte lengte
+    trans1->token |= (toggle << 31); // toggle
     trans1->token |= (1 << 7); // actief
     trans1->token |= (1 << 8); // IN token
     trans1->token |= (0x3 << 10); // maxerror
     trans1->buffer[0] = (unsigned long)buffer;
 
+    toggle ^= 1;
+
     trans2->nextlink = (unsigned long)status;
     trans2->altlink = 1;
-    trans2->token |= (8 << 16); // verwachte lengte
-    trans2->token |= (1 << 31); // toggle
+    trans2->token |= (size << 16); // verwachte lengte
+    trans2->token |= (toggle << 31); // toggle
     trans2->token |= (1 << 7); // actief
     trans2->token |= (1 << 8); // IN token
     trans2->token |= (0x3 << 10); // maxerror
@@ -437,9 +447,8 @@ void init_ehci_port(int portnumber){
     }else if(deviceclass==3){
         printf("[EHCI] Port %x : Human Interface Device detected!\n",portnumber);
     }else{
-        printf("[EHCI] Port %x : Unable to understand deviceclass!\n",portnumber);
+        printf("[EHCI] Port %x : Unable to understand deviceclass: %x \n",portnumber,deviceclass);
     }
-    for(;;);
 }
 
 void ehci_probe(){

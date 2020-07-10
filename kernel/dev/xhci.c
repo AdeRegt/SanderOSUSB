@@ -1390,7 +1390,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				dc4->bar1 |= (0x06<<8); // req=6
 				dc4->bar1 |= (0x200 << 16); // wValue = 0100
 				dc4->bar2 |= 0; // windex=0
-				dc4->bar2 |= (0x15 << 16); // 8 wlength=0 // 0x80000
+				dc4->bar2 |= (0x15 << 16); // 8 0x15 wlength=0 // 0x80000
 				dc4->bar3 |= 8; // trbtransferlength
 				dc4->bar3 |= (0 << 22); // interrupetertrager
 				dc4->bar4 |= 1; // cyclebit
