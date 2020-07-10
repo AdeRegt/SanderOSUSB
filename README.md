@@ -14,10 +14,11 @@ Currently the following devices are supported:
 * PCI
 * ACPI
 * XHCI - HID - Keyboard
+* EHCI - Basic support
 * RTL8169
 
 The following devices are on the list to get implemented:
-* EHCI
+* EHCI - USBSTICK
 
 The following filesystems are supported:
 * ISO 9660
