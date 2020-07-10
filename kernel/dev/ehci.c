@@ -380,6 +380,78 @@ unsigned char* ehci_get_device_configuration(unsigned char addr,unsigned char si
     return buffer;
 }
 
+unsigned char ehci_set_device_configuration(unsigned char addr,unsigned char config){
+
+    //
+    // ok, to set a address to a device, we need 4 components:
+    // 1) QH: a queuehead to connect to us
+    // 2) QTD: a command descriptor
+    // 3) QTD: a status descriptor
+    // 4) CMD: a command
+
+    // first make the command
+    EhciCMD *cmd = (EhciCMD*) malloc_align(sizeof(EhciCMD),0xFFF);
+    cmd->bRequest = 0x09; // USB-REQUEST type SET-CONFIGURATION is 0x09
+    cmd->bRequestType |= 0; // direction is out
+    cmd->bRequestType |= 0 << 5; // type is standard
+    cmd->bRequestType |= 0; // recieve
+    cmd->wIndex = 0; // ok
+    cmd->wLength = 0; // ok
+    cmd->wValue = config;
+
+    EhciTD *command = (EhciTD*) malloc_align(sizeof(EhciTD),0xFF);
+    volatile EhciTD *status = (volatile EhciTD*) malloc_align(sizeof(EhciTD),0xFF);
+    EhciQH *head1 = (EhciQH*) malloc_align(sizeof(EhciQH),0xFF);
+    EhciQH *head2 = (EhciQH*) malloc_align(sizeof(EhciQH),0xFF);
+
+    command->nextlink = (unsigned long)status;
+    command->altlink = 1;
+    command->token |= (8 << 16); // setup size
+    command->token |= (1 << 7); // actief
+    command->token |= (0x2 << 8); // type is setup
+    command->token |= (0x3 << 10); // maxerror
+    command->buffer[0] = (unsigned long)cmd;
+
+    status->nextlink = 1;
+    status->altlink = 1;
+    status->token |= (1 << 8); // PID instellen
+    status->token |= (1 << 31); // toggle
+    status->token |= (1 << 7); // actief
+    status->token |= (0x3 << 10); // maxerror
+
+    //
+    // Tweede commando
+
+
+    head2->altlink = 1;
+    head2->nextlink = (unsigned long)command; // qdts2
+    head2->horizontal_link_pointer = ((unsigned long)head1) | 2;
+    head2->curlink = 0; // qdts1
+    head2->characteristics |= 1 << 14; // dtc
+    head2->characteristics |= 64 << 16; // mplen
+    head2->characteristics |= 2 << 12; // eps
+    head2->characteristics |= addr; // device
+    head2->capabilities = 0x40000000;
+
+    //
+    // Eerste commando
+    head1->altlink = 1;
+    head1->nextlink = 1;
+    head1->horizontal_link_pointer = ((unsigned long)head2) | 2;
+    head1->curlink = 0;
+    head1->characteristics = 1 << 15; // T
+    head1->token = 0x40;
+
+    ((unsigned long*) usbasc_addr)[0] = ((unsigned long)head1) ;
+    ((unsigned long*)usbcmd_addr)[0] |= 0b100000;
+
+    unsigned char lstatus = ehci_wait_for_completion(status);
+    
+    ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
+    ((unsigned long*) usbasc_addr)[0] = 1 ;
+    return lstatus;
+}
+
 void init_ehci_port(int portnumber){
     unsigned long avail_port_addr = portbaseaddress + 0x44 + (portnumber*4);
     unsigned long portinfo = ((unsigned long*)avail_port_addr)[0];
@@ -428,7 +500,7 @@ void init_ehci_port(int portnumber){
     unsigned char deviceclass = desc[4];
     if(deviceclass==0x00){
         printf("[ECHI] Port %x : No class found! Asking descriptors...\n",portnumber);
-        struct usb_config_descriptor* sec = (struct usb_config_descriptor*)ehci_get_device_configuration(deviceaddress,16);
+        struct usb_config_descriptor* sec = (struct usb_config_descriptor*)ehci_get_device_configuration(deviceaddress,sizeof(struct usb_interface_descriptor) + sizeof(struct usb_config_descriptor));
         if(sec==0){
             printf("[ECHI] Port %x : Failed to read descriptors...\n",portnumber);
             return;
@@ -442,6 +514,13 @@ void init_ehci_port(int portnumber){
         return;
     }
     printf("[EHCI] Port %x : We have a deviceclass. Device class is %x \n",portnumber,deviceclass);
+
+    printf("[EHCI] Port %x : Set default configuration for device\n",portnumber);
+    unsigned char setdevconfigresult = ehci_set_device_configuration(deviceaddress,1);
+    if(setdevconfigresult==0){
+        printf("[EHCI] Port %x : Unable to set configuration\n",portnumber);
+        return;
+    }
     if(deviceclass==8){
         printf("[EHCI] Port %x : Mass Storage Device detected!\n",portnumber);
     }else if(deviceclass==3){
