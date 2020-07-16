@@ -40,3 +40,9 @@ the following executable formats are on the list to get implemented:
 * Mike-BASIC
 
 To build the kernel, go to the kernel folder and run build.sh
+
+## Directories
+* boot: Grub bin folder
+* kernel: Kernel source code
+* lib: kernel static library to which programs attach to
+* programs: example programs
