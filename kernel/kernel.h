@@ -220,3 +220,15 @@ EthernetDevice getDefaultEthernetDevice();
 PackageRecievedDescriptor getEthernetPackage();
 void sendEthernetPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp);
 //void dirdev();
+
+typedef struct  {
+    unsigned char bRequestType;
+    unsigned char bRequest;
+    unsigned short wValue;
+    unsigned short wIndex;
+    unsigned short wLength;
+} EhciCMD;
+
+void ehci_stick_init(unsigned char addr,unsigned char subclass,unsigned char protocol);
+#define EHCI_ERROR 0xCAFEBABE
+unsigned char* ehci_send_and_recieve_command(unsigned char addr,EhciCMD* commando);
