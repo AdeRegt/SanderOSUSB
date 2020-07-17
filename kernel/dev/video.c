@@ -215,7 +215,11 @@ void drawButton(GUIControlObject o){
 			i2 = 0;
 		}
 		if(deze!=' '){
-			drawcharraw(deze,o.x+2+(i2*8),o.y+2,0x06,o.isSelected?0x50:0x10);//4
+			drawcharraw(deze,
+			o.x + 2 + (i2 * 8),
+			o.y + (o.h - 6) * 0.5,
+			0x06,
+			o.isSelected ? 0x50 : 0x10);//4
 		}
 		i2++;
 	}
