@@ -5,7 +5,7 @@ export PATH="$PREFIX/bin:$PATH"
 nasm -felf32 stub/i386/grub/boot.asm -o boot.o || exit
 nasm -felf32 hal/i386/isr.asm -o isr.o || exit
 nasm -felf32 hal/i386/video.asm -o videoasm.o || exit
-as -c hal/i386/paging.asm --32 -o paging2.o || exit
+as -c hal/i386/paging.asm --32 -o paging2.o  || exit
 
 gcc -c kernel.c -m32 -o kernel.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c hal/i386/io_ports.c -m32 -o io_ports.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
@@ -36,21 +36,23 @@ gcc -c dev/xhci_hid.c -m32 -o xhci_hid.o -std=gnu99 -ffreestanding -O2 -Wall -We
 gcc -c dev/RTL8169.c -m32 -o RTL8169.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c dev/ethernet.c -m32 -o ethernet.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c exec/program.c -m32 -o program.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
+
 gcc -T linker.ld -o myos.bin -m32 -ffreestanding -O2 -nostdlib boot.o kernel.o io_ports.o ehci.o paging.o paging2.o multitasking.o interrupts.o com_port.o ide.o pci.o memory.o timer.o video.o videoasm.o isr.o ps2.o device.o iso9660.o elf.o vbox.o xhci.o acpi.o ahci.o mbr.o ext.o fat.o math.o uhci.o xhci_hid.o RTL8169.o ethernet.o || exit
 
 rm *.o
 
 cp myos.bin ../kernel.bin
-ar rcs ../lib/libsos.a ../kernel.bin  || exit
+ar rcs ../lib/libsos.a ../kernel.bin
 
 cd ..
 
+
 for i in programs/*.asm
 do
-	nasm $i -o programs/`basename $i .asm`.bin  || exit
+	nasm $i -o programs/`basename $i .asm`.bin || exit
 done
 
-nasm -felf32 programs/base.as -o programs/base.o
+nasm -felf32 programs/base.as -o programs/base.o || exit
 for i in programs/*.c
 do
 	gcc -c $i -o programs/`basename $i .c`.o  -m32  -std=gnu99 -ffreestanding -Wall -Wextra || exit
@@ -63,12 +65,11 @@ rm cdrom.iso
 mkdir mnt
 mkdir mnt/prgs
 cp programs/*.bin mnt/prgs
-cp programs/fasm.bin mnt/prgs/fasm
+cp programs/fasm mnt/prgs/fasm
 cp test.asm mnt/test.asm
 mkdir mnt/boot
 mkdir mnt/boot/grub
 cp kernel.bin mnt/kernel.bin
 cp boot/grub/grub.cfg mnt/boot/grub/grub.cfg
-grub-mkrescue -o cdrom.iso mnt  || exit
+grub-mkrescue -o cdrom.iso mnt
 rm -rf mnt
-
