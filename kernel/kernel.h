@@ -53,7 +53,7 @@ InputStatus getInputStatus();
 // VIDEO
 int init_graph_vga(int width, int height,int chain4);
 void cls();
-void putpixel(int x,int y, int color);
+void putpixel(int x,int y, unsigned char color);
 char getpixel(int x,int y);
 int isGraphicsMode();
 void addController(unsigned char drawable,unsigned long drawablefunc,unsigned short x,unsigned short y,unsigned short w,unsigned short h,unsigned long value,unsigned long onSelected,unsigned long onFocus,unsigned char controller);

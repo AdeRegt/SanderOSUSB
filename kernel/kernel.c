@@ -69,7 +69,7 @@ void kernel_main(){
 	printstring("\nEnd of loading system!\n");
 	
 	//320,200
-	if(init_graph_vga(320, 200, 1)==0) {
+	if(init_graph_vga(256, 256, 1)==0) {
 		printf("VGA: failed to set!\n");
 		for(;;);
 		// should wait for user to press a key and then poweroff
