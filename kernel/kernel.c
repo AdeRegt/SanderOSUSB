@@ -78,6 +78,12 @@ void kernel_main(){
 	if(confirm("kernel created by sander de regt, shashwat shagun, johan gericke, daniel mccarthy and pablo narvaja") == 0) {
 		poweroff();
 	};
+	
+	// Buffer size 256KB
+	unsigned char* img_file = malloc(256 * 1000);
+	fread("image.bmp", img_file);
+	draw_bmp(img_file, 0, 0);
+	show();
 
 	if(!getDeviceCount()) {
 		message("Unable to discover usefull hardware");
@@ -85,10 +91,6 @@ void kernel_main(){
 	}
 	
 	browser();
-
-	unsigned char* img_file;
-	int img_file = fread("image.bmp", img_file);
-	draw_bmp(img_file, 0, 0);
 
 	for(;;);
 }

@@ -256,12 +256,12 @@ enum BMPCompressionMethod {
  */
 unsigned char* getImageFromBMP(unsigned char* file_buffer, unsigned int* width, unsigned int* height) {
 	BMP_HEADER header = *(BMP_HEADER*)file_buffer;
-	*width = file_buffer + 0x12;
-	*height = file_buffer + 0x16;
+	*width = *(unsigned short*)(file_buffer + 0x12);
+	*height = *(unsigned short*)(file_buffer + 0x16);
 
 	if (header.bmptype[0] == 'B' && header.bmptype[0] == 'M') {
-		unsigned short bits_per_pixel = file_buffer + 0x1C;
-		unsigned int compression_method = file_buffer + 0x1E;
+		unsigned short bits_per_pixel = *(file_buffer + 0x1C);
+		unsigned int compression_method = *(file_buffer + 0x1E);
 		if (compression_method != BI_RGB && compression_method != BI_RLE4) {
 			return NULL;
 		}
@@ -1134,47 +1134,46 @@ unsigned char font[4000] = {
 0b01111111,
 };
 
-void drawcharraw(unsigned char c, int offsetX, int offsetY, int fgcolor, int bgcolor)
-{
-	
+void drawcharraw(unsigned char c, int offsetX, int offsetY, int fgcolor, int bgcolor) {
 	int selector = (c-'0')*6;
 	for(int i = 0 ; i < 6 ; i++){
-		if(font[selector+i] & 0b10000000){
+		unsigned char font_sector = font[selector+i];
+		if(font_sector  & 0b10000000){
 			putpixel(offsetX+0,offsetY+i,fgcolor);
 		}else{
 			putpixel(offsetX+0,offsetY+i,bgcolor);
 		}
-		if(font[selector+i] & 0b01000000){
+		if(font_sector & 0b01000000){
 			putpixel(offsetX+1,offsetY+i,fgcolor);
 		}else{
 			putpixel(offsetX+1,offsetY+i,bgcolor);
 		}
-		if(font[selector+i] & 0b00100000){
+		if(font_sector & 0b00100000){
 			putpixel(offsetX+2,offsetY+i,fgcolor);
 		}else{
 			putpixel(offsetX+2,offsetY+i,bgcolor);
 		}
-		if(font[selector+i] & 0b00010000){
+		if(font_sector & 0b00010000){
 			putpixel(offsetX+3,offsetY+i,fgcolor);
 		}else{
 			putpixel(offsetX+3,offsetY+i,bgcolor);
 		}
-		if(font[selector+i] & 0b00001000){
+		if(font_sector & 0b00001000){
 			putpixel(offsetX+4,offsetY+i,fgcolor);
 		}else{
 			putpixel(offsetX+4,offsetY+i,bgcolor);
 		}
-		if(font[selector+i] & 0b00000100){
+		if(font_sector & 0b00000100){
 			putpixel(offsetX+5,offsetY+i,fgcolor);
 		}else{
 			putpixel(offsetX+5,offsetY+i,bgcolor);
 		}
-		if(font[selector+i] & 0b00000010){
+		if(font_sector & 0b00000010){
 			putpixel(offsetX+6,offsetY+i,fgcolor);
 		}else{
 			putpixel(offsetX+6,offsetY+i,bgcolor);
 		}
-		if(font[selector+i] & 0b00000001){
+		if(font_sector & 0b00000001){
 			putpixel(offsetX+7,offsetY+i,fgcolor);
 		}else{
 			putpixel(offsetX+7,offsetY+i,bgcolor);

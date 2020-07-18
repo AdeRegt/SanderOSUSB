@@ -1,3 +1,7 @@
+// I always thought that I need to include headers where I defined the functions
+// in the header but this made me realize that is not necesary.
+// Is it better for compilation time tho?
+
 
 unsigned long inportl (unsigned short _port){
     unsigned long rv;
