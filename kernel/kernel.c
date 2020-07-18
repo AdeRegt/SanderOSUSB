@@ -69,12 +69,12 @@ void kernel_main(){
 	printstring("\nEnd of loading system!\n");
 	
 	//320,200
-	if(init_graph_vga(256, 256, 1)==0) {
+	if(init_graph_vga(320, 200, 1)==0) {
 		printf("VGA: failed to set!\n");
 		for(;;);
 		// should wait for user to press a key and then poweroff
 	}
-	
+
 	if(confirm("kernel created by sander de regt, shashwat shagun, johan gericke, daniel mccarthy and pablo narvaja") == 0) {
 		poweroff();
 	};
@@ -85,6 +85,10 @@ void kernel_main(){
 	}
 	
 	browser();
+
+	unsigned char* img_file;
+	int img_file = fread("image.bmp", img_file);
+	draw_bmp(img_file, 0, 0);
 
 	for(;;);
 }
