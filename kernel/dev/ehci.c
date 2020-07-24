@@ -98,21 +98,27 @@ unsigned char ehci_wait_for_completion(volatile EhciTD *status){
     resetTicks();
     while(1){
         volatile unsigned long tstatus = (volatile unsigned long)status->token;
-        if(tstatus & (1 << 6)){
+        if(tstatus & (1 << 4)){
             // not anymore active and failed miserably
-            printf("EHCI FAIL A\n");
-            lstatus = 0;
-            break;
-        }
-        if(tstatus & (1 << 5)){
-            // not anymore active and failed miserably
-            printf("EHCI FAIL B\n");
+            printf("[EHCI] Transmission failed due babble error\n");
             lstatus = 0;
             break;
         }
         if(tstatus & (1 << 3)){
             // not anymore active and failed miserably
-            printf("EHCI FAIL C\n");
+            printf("[EHCI] Transmission failed due transaction error\n");
+            lstatus = 0;
+            break;
+        }
+        if(tstatus & (1 << 6)){
+            // not anymore active and failed miserably
+            printf("[EHCI] Transmission failed due serious error\n");
+            lstatus = 0;
+            break;
+        }
+        if(tstatus & (1 << 5)){
+            // not anymore active and failed miserably
+            printf("[EHCI] Transmission failed due data buffer error\n");
             lstatus = 0;
             break;
         }
@@ -126,6 +132,19 @@ unsigned char ehci_wait_for_completion(volatile EhciTD *status){
             lstatus = 0;
             break;
         }
+    }
+    if(lstatus==0){
+        //
+        // Something is wrong... can we discover what is wrong?
+        unsigned char errorcount = (status->token >> 10) & 0b111; // maxerror
+        // According to the specification of ehci, for CRC, Timeout,Bad PID the result is 0
+        // For Babble and buffererror , result is not 0
+        if(errorcount==0){
+            printf("[ECHI] Possible errors: CRC,Timeout,Bad PID\n");
+        }else{
+            printf("[EHCI] Possible errors: Babble , Buffer Error\n");
+        }
+        printf("[EHCI] Errorcount is %x \n",errorcount);
     }
     return lstatus;
 }
@@ -511,7 +530,147 @@ unsigned char* ehci_send_and_recieve_command(unsigned char addr,EhciCMD* command
     ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
     ((unsigned long*) usbasc_addr)[0] = 1 ;
     if(result==0){
-        return EHCI_ERROR;
+        return (unsigned char*)EHCI_ERROR;
+    }
+
+    return buffer;
+}
+
+unsigned char* ehci_send_and_recieve_bulk(unsigned char addr,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut,unsigned char in1){
+
+
+    //
+    // Send bulk
+    EhciTD *command = (EhciTD*) malloc_align(sizeof(EhciTD),0xFF);
+    EhciQH *head1 = (EhciQH*) malloc_align(sizeof(EhciQH),0xFF);
+    EhciQH *head2 = (EhciQH*) malloc_align(sizeof(EhciQH),0xFF);
+
+    command->nextlink = 1;
+    command->altlink = 1;
+    command->token |= (expectedOut << 16); // setup size
+    command->token |= (1 << 7); // actief
+    command->token |= (0 << 8); // type is out
+    command->token |= (0x3 << 10); // maxerror
+    command->buffer[0] = (unsigned long)out;
+
+    //
+    // Tweede commando
+
+
+    head2->altlink = 1;
+    head2->nextlink = (unsigned long)command; // qdts2
+    head2->horizontal_link_pointer = ((unsigned long)head1) | 2;
+    head2->curlink = 0; // qdts1
+    head2->characteristics |= 512 << 16; // mplen
+    head2->characteristics |= 2 << 12; // eps
+    head2->characteristics |= addr; // device
+    head2->characteristics |= (in1?2:1) << 8; // endpoint 2
+    head2->capabilities = 0x40000000;
+    //printf("[EHCI] BULK: Sending %x \n",head2->characteristics); //  heeft = 0x2006201 moet = 0x2002201
+
+    //
+    // Eerste commando
+    head1->altlink = 1;
+    head1->nextlink = 1;
+    head1->horizontal_link_pointer = ((unsigned long)head2) | 2;
+    head1->curlink = 0;
+    head1->characteristics = 1 << 15; // T
+    head1->token = 0x40;
+
+    ((unsigned long*) usbasc_addr)[0] = ((unsigned long)head1) ;
+    ((unsigned long*)usbcmd_addr)[0] |= 0b100000;
+
+    unsigned char lstatus = ehci_wait_for_completion(command);
+    
+    ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
+    ((unsigned long*) usbasc_addr)[0] = 1 ;
+    if(lstatus==0){
+        return (unsigned char*)EHCI_ERROR;
+    }
+
+    //
+    // Recieve bulk
+    //printf("[EHCI] BULK: Recieving\n");
+    EhciQH* qh = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
+    EhciQH* qh2 = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
+    EhciTD* trans = 0;
+    EhciTD* trans1 = 0;
+
+    unsigned char *buffer = malloc(expectedIN);
+
+    // wacht totdat alle bytes zijn ingeladen, dit zijn er 144 per keer.
+    unsigned long wachtend = 0;
+    unsigned long bytesperkeer = in1?144:512; //144
+    unsigned char reject = 0;
+    unsigned char tx = 0;
+    while(1){
+        if(trans==0){
+            trans = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+            trans1 = trans;
+        }else{
+            unsigned long yo = (unsigned long)malloc_align(sizeof(EhciTD),0x1FF);
+            trans->nextlink = yo;
+            trans = (EhciTD*) yo;
+        }
+        //printf("pre :: wachtend=%x bytesperkeer=%x expectedin=%x \n",wachtend,bytesperkeer,expectedIN);
+        trans->altlink = 1;
+        if((wachtend+bytesperkeer)>expectedIN){
+            reject = 1;
+            unsigned long twt = expectedIN-wachtend;
+            trans->token |= (twt << 16);
+            // over = 40 | wachtend = 1b0 | optel = 1f0 | max = 200
+            //printf("over=%x wachtend=%x optel=%x max=%x\n",twt,wachtend,wachtend+twt,expectedIN);
+        }else{
+            trans->token |= (bytesperkeer << 16); // verwachte lengte | expectedIN
+            //printf("RB2=%x \n",bytesperkeer);
+        }
+        trans->token |= (1 << 31); // toggle
+        trans->token |= (1 << 7); // actief
+        trans->token |= (1 << 8); // IN token
+        trans->token |= (0x3 << 10); // maxerror
+        trans->buffer[0] = (unsigned long)buffer + (tx*bytesperkeer);
+        wachtend += bytesperkeer;
+        tx++;
+        //printf("post :: wachtend=%x bytesperkeer=%x expectedin=%x \n",wachtend,bytesperkeer,expectedIN);
+        if(wachtend>expectedIN&&reject){
+            break;
+        }else if(wachtend==expectedIN){
+            break;
+        }
+    }
+    trans->nextlink = 1;
+
+    //
+    // Tweede commando
+    qh2->altlink = 1;
+    qh2->nextlink = (unsigned long)trans1; // qdts2
+    qh2->horizontal_link_pointer = ((unsigned long)qh) | 2;
+    qh2->curlink = 1; // qdts1
+    qh2->characteristics |= 1 << 14; // dtc
+    qh2->characteristics |= 512 << 16; // mplen
+    qh2->characteristics |= 2 << 12; // eps
+    qh2->characteristics |= 1 << 8; // endpoint 1
+    qh2->characteristics |= addr; // device
+    qh2->capabilities = 0x40000000;
+
+    //
+    // Eerste commando
+    qh->altlink = 1;
+    qh->nextlink = 1;
+    qh->horizontal_link_pointer = ((unsigned long)qh2) | 2;
+    qh->curlink = 0;
+    qh->characteristics = 1 << 15; // T
+    qh->token = 0x40;
+
+    ((unsigned long*) usbasc_addr)[0] = ((unsigned long)qh) ;
+    ((unsigned long*)usbcmd_addr)[0] |= 0b100000;
+
+    unsigned char result = ehci_wait_for_completion(trans);
+    
+    ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
+    ((unsigned long*) usbasc_addr)[0] = 1 ;
+    if(result==0){
+        return (unsigned char *)EHCI_ERROR;
     }
 
     return buffer;
@@ -523,9 +682,7 @@ void init_ehci_port(int portnumber){
 
     // reset the port
     ((unsigned long*)avail_port_addr)[0] |=  0b100000000;
-    sleep(20);
-    sleep(20);
-    sleep(20);
+    sleep(60);
     ((unsigned long*)avail_port_addr)[0] &= ~0b100000000;
     sleep(20);
     portinfo = ((volatile unsigned long*)avail_port_addr)[0];

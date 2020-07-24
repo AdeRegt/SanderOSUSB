@@ -232,3 +232,4 @@ typedef struct  {
 void ehci_stick_init(unsigned char addr,unsigned char subclass,unsigned char protocol);
 #define EHCI_ERROR 0xCAFEBABE
 unsigned char* ehci_send_and_recieve_command(unsigned char addr,EhciCMD* commando);
+unsigned char* ehci_send_and_recieve_bulk(unsigned char addr,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut,unsigned char in1);
