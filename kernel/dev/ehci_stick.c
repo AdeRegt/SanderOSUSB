@@ -90,7 +90,7 @@ unsigned char* ehci_stick_get_capacity(unsigned char addr,unsigned char in1){
 
 unsigned char* ehci_stick_read_sector(unsigned char addr,unsigned char in1, unsigned char lba){
 	unsigned long bufoutsize = 31;
-	unsigned long bufinsize = 36;//USB_STORAGE_SECTOR_SIZE; // 200 120 100 90 80 70 60 50 40 | 36
+	unsigned long bufinsize = USB_STORAGE_SECTOR_SIZE; // 200 120 100 90 80 70 60 50 40 | 36
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	bufout->lun = 0;
 	bufout->tag = 1;

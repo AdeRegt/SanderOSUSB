@@ -536,9 +536,7 @@ unsigned char* ehci_send_and_recieve_command(unsigned char addr,EhciCMD* command
     return buffer;
 }
 
-unsigned char* ehci_send_and_recieve_bulk(unsigned char addr,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut,unsigned char in1){
-
-
+unsigned long ehci_send_bulk(unsigned char addr,unsigned char* out,unsigned long expectedOut,unsigned char in1){
     //
     // Send bulk
     EhciTD *command = (EhciTD*) malloc_align(sizeof(EhciTD),0xFF);
@@ -585,9 +583,12 @@ unsigned char* ehci_send_and_recieve_bulk(unsigned char addr,unsigned char* out,
     ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
     ((unsigned long*) usbasc_addr)[0] = 1 ;
     if(lstatus==0){
-        return (unsigned char*)EHCI_ERROR;
+        return (unsigned long)EHCI_ERROR;
     }
+    return 0;
+}
 
+unsigned char* ehci_recieve_bulk(unsigned char addr,unsigned long expectedIN,unsigned char in1){
     //
     // Recieve bulk
     //printf("[EHCI] BULK: Recieving\n");
@@ -670,6 +671,27 @@ unsigned char* ehci_send_and_recieve_bulk(unsigned char addr,unsigned char* out,
     ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
     ((unsigned long*) usbasc_addr)[0] = 1 ;
     if(result==0){
+        return (unsigned char *)EHCI_ERROR;
+    }
+
+    return buffer;
+}
+
+unsigned char* ehci_send_and_recieve_bulk(unsigned char addr,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut,unsigned char in1){
+
+
+    unsigned long lstatus = ehci_send_bulk(addr,out,expectedOut,in1);
+    if(lstatus==EHCI_ERROR){
+        return (unsigned char*)EHCI_ERROR;
+    }
+
+    unsigned char* buffer = ehci_recieve_bulk(addr,expectedIN,in1);
+    if((unsigned long)buffer==EHCI_ERROR){
+        return (unsigned char *)EHCI_ERROR;
+    }
+
+    unsigned char* cuv = ehci_recieve_bulk(addr,13,in1);
+    if((unsigned long)cuv==EHCI_ERROR){
         return (unsigned char *)EHCI_ERROR;
     }
 
