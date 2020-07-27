@@ -139,12 +139,6 @@ unsigned char ehci_wait_for_completion(volatile EhciTD *status){
         unsigned char errorcount = (status->token >> 10) & 0b111; // maxerror
         // According to the specification of ehci, for CRC, Timeout,Bad PID the result is 0
         // For Babble and buffererror , result is not 0
-        if(errorcount==0){
-            printf("[ECHI] Possible errors: CRC,Timeout,Bad PID\n");
-        }else{
-            printf("[EHCI] Possible errors: Babble , Buffer Error\n");
-        }
-        printf("[EHCI] Errorcount is %x \n",errorcount);
     }
     return lstatus;
 }
@@ -600,10 +594,22 @@ unsigned char* ehci_recieve_bulk(unsigned char addr,unsigned long expectedIN,uns
     unsigned char *buffer = malloc(expectedIN);
 
     // wacht totdat alle bytes zijn ingeladen, dit zijn er 144 per keer.
+    if(in1==0){
+        trans = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+        trans1 = trans;
+        trans->token |= (expectedIN << 16);
+        trans->altlink = 1;
+        trans->token |= (1 << 31); // toggle
+        trans->token |= (1 << 7); // actief
+        trans->token |= (1 << 8); // IN token
+        trans->token |= (0x3 << 10); // maxerror
+        trans->buffer[0] = (unsigned long)buffer;
+    }else{
     unsigned long wachtend = 0;
     unsigned long bytesperkeer = in1?144:512; //144
     unsigned char reject = 0;
     unsigned char tx = 0;
+    unsigned char forcestop = 0;
     while(1){
         if(trans==0){
             trans = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
@@ -615,7 +621,10 @@ unsigned char* ehci_recieve_bulk(unsigned char addr,unsigned long expectedIN,uns
         }
         //printf("pre :: wachtend=%x bytesperkeer=%x expectedin=%x \n",wachtend,bytesperkeer,expectedIN);
         trans->altlink = 1;
-        if((wachtend+bytesperkeer)>expectedIN){
+        if(bytesperkeer>expectedIN){
+            trans->token |= (expectedIN << 16);
+            forcestop = 1;
+        }else if((wachtend+bytesperkeer)>expectedIN){
             reject = 1;
             unsigned long twt = expectedIN-wachtend;
             trans->token |= (twt << 16);
@@ -637,8 +646,10 @@ unsigned char* ehci_recieve_bulk(unsigned char addr,unsigned long expectedIN,uns
             break;
         }else if(wachtend==expectedIN){
             break;
+        }else if(forcestop){
+            break;
         }
-    }
+    }}
     trans->nextlink = 1;
 
     //

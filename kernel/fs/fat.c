@@ -86,7 +86,7 @@ void fat_read(Device *device,char* path,char *buffer){
 	if(total_clusters < 4085){
 		
 	}else if(total_clusters < 65525){
-		
+		first_sector_of_cluster = fat_boot->reserved_sector_count + (fat_boot->table_count * fat_boot->table_size_16);
 	}else if (total_clusters < 268435445){
 		unsigned long root_cluster_32 = fat_boot_ext_32->root_cluster;
 		first_sector_of_cluster = ((root_cluster_32 - 2) * fat_boot->sectors_per_cluster) + first_data_sector;
@@ -185,7 +185,7 @@ void fat_dir(Device *device,char* path,char *buffer){
 	if(total_clusters < 4085){
 		
 	}else if(total_clusters < 65525){
-		
+		first_sector_of_cluster = fat_boot->reserved_sector_count + (fat_boot->table_count * fat_boot->table_size_16);
 	}else if (total_clusters < 268435445){
 		unsigned long root_cluster_32 = fat_boot_ext_32->root_cluster;
 		first_sector_of_cluster = ((root_cluster_32 - 2) * fat_boot->sectors_per_cluster) + first_data_sector;
@@ -316,7 +316,8 @@ void initialiseFAT(Device* device){
 	if(total_clusters < 4085){
 		printf("[FAT] FAT-type is FAT12\n");
 	}else if(total_clusters < 65525){
-		printf("[FAT] FAT-type is FAT16\n");
+		first_sector_of_cluster = fat_boot->reserved_sector_count + (fat_boot->table_count * fat_boot->table_size_16);
+		printf("[FAT] FAT-type is FAT16 at cluster %x \n",first_sector_of_cluster);
 	}else if (total_clusters < 268435445){
 		printf("[FAT] FAT-type is FAT32\n");
 		unsigned long root_cluster_32 = fat_boot_ext_32->root_cluster;
@@ -327,6 +328,7 @@ void initialiseFAT(Device* device){
 	}
 	if(first_sector_of_cluster==0){
 		printf("[FAT] FAT-dir is 0. No FAT supported!\n");
+		return;
 	}
 	unsigned short* fatbuffer = (unsigned short*) malloc(512);
 	readraw(device,first_sector_of_cluster,1,fatbuffer); 
@@ -342,7 +344,7 @@ void initialiseFAT(Device* device){
 			continue;
 		}
 		printf("[FAT] found file: ");
-		for(unsigned int i = 0 ; i < 8 ; i++){
+		for(unsigned int i = 0 ; i < 11 ; i++){
 			printf("%c",currentdir->name[i]);
 		}
 		printf("\n");
