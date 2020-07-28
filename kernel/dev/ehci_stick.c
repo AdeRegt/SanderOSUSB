@@ -20,7 +20,6 @@ unsigned char ehci_stick_get_max_lun(unsigned char addr){
 	return res[0];
 }
 
-
 struct cdbres_inquiry {
     unsigned char pdt;
     unsigned char removable;
@@ -52,6 +51,17 @@ struct rdcap_10_response_t {
 	unsigned long blk_size;
 } __attribute__ ((packed));
 
+unsigned char* ehci_stick_send_and_recieve_scsi_command(unsigned char addr,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut,unsigned char in1){
+	unsigned char* bufin = ehci_send_and_recieve_bulk(addr,out,expectedIN,expectedOut,in1);
+	if(((unsigned long)bufin)!=EHCI_ERROR){
+		unsigned char* cuv = ehci_recieve_bulk(addr,13,in1);
+		if((unsigned long)cuv==EHCI_ERROR){
+			return (unsigned char *)EHCI_ERROR;
+		}
+	}
+	return bufin;
+}
+
 unsigned char* ehci_stick_get_inquiry(unsigned char addr,unsigned char in1){
 	unsigned char bufoutsize = 31;
 	unsigned char bufinsize = sizeof(struct cdbres_inquiry);
@@ -69,7 +79,7 @@ unsigned char* ehci_stick_get_inquiry(unsigned char addr,unsigned char in1){
 	bufout->cmd[3] = 0;
 	bufout->cmd[4] = bufinsize;
 	bufout->cmd[5] = 0;
-	unsigned char* bufin = ehci_send_and_recieve_bulk(addr,(unsigned char*)bufout,bufinsize,bufoutsize,in1);
+	unsigned char* bufin = ehci_stick_send_and_recieve_scsi_command(addr,(unsigned char*)bufout,bufinsize,bufoutsize,in1);
 	return bufin;
 }
 
@@ -89,7 +99,7 @@ unsigned char* ehci_stick_get_capacity(unsigned char addr,unsigned char in1){
 	bufout->cmd[3] = 0;
 	bufout->cmd[4] = bufinsize;
 	bufout->cmd[5] = 0;
-	unsigned char* bufin = ehci_send_and_recieve_bulk(addr,(unsigned char*)bufout,bufinsize,bufoutsize,in1);
+	unsigned char* bufin = ehci_stick_send_and_recieve_scsi_command(addr,(unsigned char*)bufout,bufinsize,bufoutsize,in1);
 	return bufin;
 }
 
@@ -108,12 +118,9 @@ unsigned char* ehci_stick_read_sector(unsigned char addr,unsigned char in1, unsi
 	bufout->cmd[2] = (lba >> 8) & 0xFF;
 	bufout->cmd[3] = (lba) & 0xFF;
 	bufout->cmd[4] = 1;
-	unsigned char* bufin = ehci_send_and_recieve_bulk(addr,(unsigned char*)bufout,bufinsize,bufoutsize,in1);
+	unsigned char* bufin = ehci_stick_send_and_recieve_scsi_command(addr,(unsigned char*)bufout,bufinsize,bufoutsize,in1);
 	return bufin;
 }
-
-
-
 
 void ehci_stick_read_raw_sector(Device *dxv,unsigned long LBA,unsigned char count,unsigned short *l0cation){
 	EHCI_USBSTICK *stick = (EHCI_USBSTICK*) ((unsigned long)dxv->arg1);
@@ -196,14 +203,6 @@ void ehci_stick_init(unsigned char addr,unsigned char subclass,unsigned char pro
 			return;
 		}
 	}
-	
-	// does it has a bootrecord?
-	unsigned char bootsignatureA = t[510];
-	unsigned char bootsignatureB = t[511];
-	if(!(bootsignatureA==0x55&&bootsignatureB==0xAA)){
-		printf("[SMSD] No bootsignature. No need to read unbootable disks\n");
-		//return;
-	}
 
 	// setup bootdevice
 	EHCI_USBSTICK *device = (EHCI_USBSTICK*) malloc(sizeof(EHCI_USBSTICK));
@@ -216,5 +215,4 @@ void ehci_stick_init(unsigned char addr,unsigned char subclass,unsigned char pro
 	regdev->arg5 = 512;
 
 	detectFilesystemsOnMBR(regdev);
-	for(;;);
 }

@@ -701,11 +701,6 @@ unsigned char* ehci_send_and_recieve_bulk(unsigned char addr,unsigned char* out,
         return (unsigned char *)EHCI_ERROR;
     }
 
-    unsigned char* cuv = ehci_recieve_bulk(addr,13,in1);
-    if((unsigned long)cuv==EHCI_ERROR){
-        return (unsigned char *)EHCI_ERROR;
-    }
-
     return buffer;
 }
 
