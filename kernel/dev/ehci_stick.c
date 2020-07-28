@@ -52,14 +52,34 @@ struct rdcap_10_response_t {
 } __attribute__ ((packed));
 
 unsigned char* ehci_stick_send_and_recieve_scsi_command(unsigned char addr,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut,unsigned char in1){
-	unsigned char* bufin = ehci_send_and_recieve_bulk(addr,out,expectedIN,expectedOut,in1);
-	if(((unsigned long)bufin)!=EHCI_ERROR){
+//	unsigned char* bufin = ehci_send_and_recieve_bulk(addr,out,expectedIN,expectedOut,in1);
+//	if(((unsigned long)bufin)!=EHCI_ERROR){
+//		if(in1){
+//			unsigned char* cuv = ehci_recieve_bulk(addr,13,in1);
+//			if((unsigned long)cuv==EHCI_ERROR){
+//				return (unsigned char *)EHCI_ERROR;
+//			}
+//		}
+//	}
+
+	unsigned long lstatus = ehci_send_bulk(addr,out,expectedOut,in1);
+    if(lstatus==EHCI_ERROR){
+        return (unsigned char*)EHCI_ERROR;
+    }
+
+    unsigned char* buffer = ehci_recieve_bulk(addr,expectedIN,in1);
+    if((unsigned long)buffer==EHCI_ERROR){
+        return (unsigned char *)EHCI_ERROR;
+    }
+
+	if(in1){
 		unsigned char* cuv = ehci_recieve_bulk(addr,13,in1);
 		if((unsigned long)cuv==EHCI_ERROR){
 			return (unsigned char *)EHCI_ERROR;
 		}
 	}
-	return bufin;
+	
+	return buffer;
 }
 
 unsigned char* ehci_stick_get_inquiry(unsigned char addr,unsigned char in1){
@@ -105,12 +125,12 @@ unsigned char* ehci_stick_get_capacity(unsigned char addr,unsigned char in1){
 
 unsigned char* ehci_stick_read_sector(unsigned char addr,unsigned char in1, unsigned long lba){
 	unsigned long bufoutsize = 31;
-	unsigned long bufinsize = USB_STORAGE_SECTOR_SIZE; // 200 120 100 90 80 70 60 50 40 | 36
+	unsigned long bufinsize = USB_STORAGE_SECTOR_SIZE; 
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	bufout->lun = 0;
 	bufout->tag = 1;
 	bufout->sig = 0x43425355;
-	bufout->wcb_len = 6; // 0xA -> 12
+	bufout->wcb_len = 6; // 0xA -> 12 6
 	bufout->flags = 0x80;
 	bufout->xfer_len = 512;
 	bufout->cmd[0] = 0x08;// type is 0x12
@@ -203,6 +223,7 @@ void ehci_stick_init(unsigned char addr,unsigned char subclass,unsigned char pro
 			return;
 		}
 	}
+	printf("[SMSD] Reading testsector succeed\n");
 
 	// setup bootdevice
 	EHCI_USBSTICK *device = (EHCI_USBSTICK*) malloc(sizeof(EHCI_USBSTICK));

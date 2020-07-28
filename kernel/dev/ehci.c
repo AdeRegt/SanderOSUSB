@@ -594,17 +594,6 @@ unsigned char* ehci_recieve_bulk(unsigned char addr,unsigned long expectedIN,uns
     unsigned char *buffer = malloc(expectedIN);
 
     // wacht totdat alle bytes zijn ingeladen, dit zijn er 144 per keer.
-    if(in1==0){
-        trans = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
-        trans1 = trans;
-        trans->token |= (expectedIN << 16);
-        trans->altlink = 1;
-        trans->token |= (1 << 31); // toggle
-        trans->token |= (1 << 7); // actief
-        trans->token |= (1 << 8); // IN token
-        trans->token |= (0x3 << 10); // maxerror
-        trans->buffer[0] = (unsigned long)buffer;
-    }else{
     unsigned long wachtend = 0;
     unsigned long bytesperkeer = in1?144:512; //144
     unsigned char reject = 0;
@@ -646,10 +635,11 @@ unsigned char* ehci_recieve_bulk(unsigned char addr,unsigned long expectedIN,uns
             break;
         }else if(wachtend==expectedIN){
             break;
-        }else if(forcestop){
+        }else if(forcestop==1){
+            //printf("reached forcestop\n");
             break;
         }
-    }}
+    }
     trans->nextlink = 1;
 
     //
@@ -682,6 +672,7 @@ unsigned char* ehci_recieve_bulk(unsigned char addr,unsigned long expectedIN,uns
     ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
     ((unsigned long*) usbasc_addr)[0] = 1 ;
     if(result==0){
+        for(;;);
         return (unsigned char *)EHCI_ERROR;
     }
 
