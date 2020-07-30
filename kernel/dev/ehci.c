@@ -4,55 +4,6 @@
 // ../../qemu/x86_64-softmmu/qemu-system-x86_64 --cdrom ../cdrom.iso  -trace enable=usb*  -device usb-ehci,id=ehci -drive if=none,id=usbstick,file=../../myos.iso -device usb-storage,bus=ehci.0,drive=usbstick
 // much thanks to https://github.com/dgibson/SLOF and https://github.com/pdoane/osdev and https://github.com/coreboot/seabios
 
-#define EHCI_PERIODIC_FRAME_SIZE    1024
-
-typedef struct {
-    volatile unsigned long nextlink;
-    volatile unsigned long altlink;
-    volatile unsigned long token;
-    volatile unsigned long buffer[5];
-    volatile unsigned long extbuffer[5];
-}EhciTD;
-
-typedef struct {
-    volatile unsigned long horizontal_link_pointer;
-    volatile unsigned long characteristics;
-    volatile unsigned long capabilities;
-    volatile unsigned long curlink;
-
-    volatile unsigned long nextlink;
-    volatile unsigned long altlink;
-    volatile unsigned long token;
-    volatile unsigned long buffer[5];
-    volatile unsigned long extbuffer[5];
-    
-}EhciQH;
-
-struct usb_config_descriptor {
-    unsigned char  bLength;
-    unsigned char  bDescriptorType;
-
-    unsigned short wTotalLength;
-    unsigned char  bNumInterfaces;
-    unsigned char  bConfigurationValue;
-    unsigned char  iConfiguration;
-    unsigned char  bmAttributes;
-    unsigned char  bMaxPower;
-} __attribute__ ((packed));
-
-struct usb_interface_descriptor {
-    unsigned char  bLength;
-    unsigned char  bDescriptorType;
-
-    unsigned char  bInterfaceNumber;
-    unsigned char  bAlternateSetting;
-    unsigned char  bNumEndpoints;
-    unsigned char  bInterfaceClass;
-    unsigned char  bInterfaceSubClass;
-    unsigned char  bInterfaceProtocol;
-    unsigned char  iInterface;
-} __attribute__ ((packed));
-
 
 unsigned long periodic_list[EHCI_PERIODIC_FRAME_SIZE] __attribute__ ((aligned (0x1000)));
 unsigned long portbaseaddress;
@@ -78,6 +29,8 @@ void irq_ehci(){
         printf("[EHCI] Interrupt: transaction completed\n");
     }else if(status&0b000010){
         printf("[EHCI] Interrupt: error interrupt\n");
+        ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
+        ((unsigned long*)usbasc_addr)[0] = 1 ;
     }else if(status&0b000100){
         printf("[EHCI] Interrupt: portchange\n");
     }else if(status&0b001000){
@@ -672,7 +625,6 @@ unsigned char* ehci_recieve_bulk(unsigned char addr,unsigned long expectedIN,uns
     ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
     ((unsigned long*) usbasc_addr)[0] = 1 ;
     if(result==0){
-        for(;;);
         return (unsigned char *)EHCI_ERROR;
     }
 
@@ -696,6 +648,8 @@ unsigned char* ehci_send_and_recieve_bulk(unsigned char addr,unsigned char* out,
 }
 
 void init_ehci_port(int portnumber){
+    USB_DEVICE *device = (USB_DEVICE*) malloc(sizeof(USB_DEVICE));
+    device->drivertype = 2;
     unsigned long avail_port_addr = portbaseaddress + 0x44 + (portnumber*4);
     unsigned long portinfo = ((unsigned long*)avail_port_addr)[0];
 
@@ -721,6 +675,8 @@ void init_ehci_port(int portnumber){
         printf("[EHCI] Port %x : Unable to set device address...\n",portnumber);
         return;
     }
+    device->assignedSloth = deviceaddress;
+    device->portnumber = deviceaddress;
 
     // get device descriptor
     printf("[EHCI] Port %x : Getting devicedescriptor...\n",portnumber);
@@ -743,16 +699,25 @@ void init_ehci_port(int portnumber){
     unsigned char deviceProtocol = 0;
     if(deviceclass==0x00){
         printf("[ECHI] Port %x : No class found! Asking descriptors...\n",portnumber);
-        struct usb_config_descriptor* sec = (struct usb_config_descriptor*)ehci_get_device_configuration(deviceaddress,sizeof(struct usb_interface_descriptor) + sizeof(struct usb_config_descriptor));
+        usb_config_descriptor* sec = (usb_config_descriptor*)ehci_get_device_configuration(deviceaddress,sizeof(usb_interface_descriptor) + sizeof(usb_config_descriptor)+(sizeof(EHCI_DEVICE_ENDPOINT)*2));
         if(sec==0){
             printf("[ECHI] Port %x : Failed to read descriptors...\n",portnumber);
             return;
         }
-        struct usb_interface_descriptor* desc = (struct usb_interface_descriptor*)(((unsigned long)sec)+9);
+        usb_interface_descriptor* desc = (usb_interface_descriptor*)(((unsigned long)sec)+sizeof(usb_config_descriptor));
         deviceclass = desc->bInterfaceClass;
         deviceSubClass = desc->bInterfaceSubClass;
         deviceProtocol = desc->bInterfaceProtocol;
         printf("[EHCI] Port %x : There are %x endpoints available\n",portnumber,desc->bNumEndpoints);
+        EHCI_DEVICE_ENDPOINT *ep1 = (EHCI_DEVICE_ENDPOINT*)(((unsigned long)sec)+sizeof(usb_config_descriptor)+sizeof(usb_interface_descriptor));
+        EHCI_DEVICE_ENDPOINT *ep2 = (EHCI_DEVICE_ENDPOINT*)(((unsigned long)sec)+sizeof(usb_config_descriptor)+sizeof(usb_interface_descriptor)+7);
+        printf("[EHCI] EP1 size=%x type=%x dir=%c num=%x epsize=%x \n",ep1->bLength,ep1->bDescriptorType,ep1->bEndpointAddress&0x80?'I':'O',ep1->bEndpointAddress&0xF,ep1->wMaxPacketSize&0x7FF);
+        printf("[EHCI] EP2 size=%x type=%x dir=%c num=%x epsize=%x \n",ep2->bLength,ep2->bDescriptorType,ep2->bEndpointAddress&0x80?'I':'O',ep2->bEndpointAddress&0xF,ep2->wMaxPacketSize&0x7FF);
+        device->class = deviceclass;
+        device->subclass = deviceSubClass;
+        device->protocol = deviceProtocol;
+        device->endpointBulkIN = ep1->bEndpointAddress&0x80?ep1->bEndpointAddress&0xF:ep2->bEndpointAddress&0xF;
+        device->endpointBulkOUT = (ep1->bEndpointAddress&0x80)==0?ep1->bEndpointAddress&0xF:ep2->bEndpointAddress&0xF;
     }
 
     if(deviceclass==0x00){

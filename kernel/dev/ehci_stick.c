@@ -1,7 +1,8 @@
 #include "../kernel.h"
 
-#define USB_STORAGE_ENABLE_ENQ 1
+#define USB_STORAGE_ENABLE_ENQ 0
 #define USB_STORAGE_ENABLE_CAP 0
+#define USB_STORAGE_ENABLE_SEC 1
 #define USB_STORAGE_SECTOR_SIZE 512
 
 unsigned char ehci_stick_get_max_lun(unsigned char addr){
@@ -41,6 +42,13 @@ struct cbw_t {
 	unsigned char cmd[16];
 }  __attribute__ ((packed));
 
+typedef struct __attribute__ ((packed)) {
+	unsigned long signature;
+	unsigned long tag;
+	unsigned long dataResidue;
+	unsigned char status;
+}CommandStatusWrapper;
+
 typedef struct{
 	unsigned char deviceaddr;
 	unsigned char endpoint;
@@ -63,18 +71,34 @@ unsigned char* ehci_stick_send_and_recieve_scsi_command(unsigned char addr,unsig
 //	}
 
 	unsigned long lstatus = ehci_send_bulk(addr,out,expectedOut,in1);
-    if(lstatus==EHCI_ERROR){
+    if(lstatus==EHCI_ERROR){printf("A");
         return (unsigned char*)EHCI_ERROR;
     }
 
-    unsigned char* buffer = ehci_recieve_bulk(addr,expectedIN,in1);
-    if((unsigned long)buffer==EHCI_ERROR){
-        return (unsigned char *)EHCI_ERROR;
-    }
+	unsigned char* buffer = ehci_recieve_bulk(addr,expectedIN,in1);
+	if((unsigned long)buffer==EHCI_ERROR){printf("B");
+		return (unsigned char *)EHCI_ERROR;
+	}
 
+	CommandStatusWrapper* csw = (CommandStatusWrapper*)0;
 	if(in1){
 		unsigned char* cuv = ehci_recieve_bulk(addr,13,in1);
-		if((unsigned long)cuv==EHCI_ERROR){
+		if((unsigned long)cuv==EHCI_ERROR){printf("C");
+			return (unsigned char *)EHCI_ERROR;
+		}
+		csw = (CommandStatusWrapper*) cuv;
+	}else{
+		csw = (CommandStatusWrapper*) buffer;
+	}
+	if(csw->signature!=0x53425355){
+		printf("[SMSD] Command Status Wrapper has a invalid signature\n");
+		for(;;);
+	}
+	if(csw->dataResidue){
+		printf("[SMSD] Data residu %x \n",csw->dataResidue);
+		printf("[SMSD] Asking for a re-read\n");
+		buffer = ehci_recieve_bulk(addr,csw->dataResidue,in1);
+		if((unsigned long)buffer==EHCI_ERROR){printf("D");
 			return (unsigned char *)EHCI_ERROR;
 		}
 	}
@@ -132,7 +156,7 @@ unsigned char* ehci_stick_read_sector(unsigned char addr,unsigned char in1, unsi
 	bufout->sig = 0x43425355;
 	bufout->wcb_len = 6; // 0xA -> 12 6
 	bufout->flags = 0x80;
-	bufout->xfer_len = 512;
+	bufout->xfer_len = bufinsize;
 	bufout->cmd[0] = 0x08;// type is 0x12
 	bufout->cmd[1] = (lba >> 16) & 0xFF;
 	bufout->cmd[2] = (lba >> 8) & 0xFF;
@@ -176,6 +200,7 @@ void ehci_stick_init(unsigned char addr,unsigned char subclass,unsigned char pro
 		printf("[SMSD] An error occured while getting max lun \n");	
 		return;
 	}
+
 	printf("[SMSD] Maxlun is %x \n",maxlun);
 
 	// inquiry
@@ -214,16 +239,19 @@ void ehci_stick_init(unsigned char addr,unsigned char subclass,unsigned char pro
 	}
 
 	unsigned char endpoint = 1;
-	unsigned char* t = ehci_stick_read_sector(addr,endpoint,0);
-	if((unsigned long)t==(unsigned long)EHCI_ERROR){
-		endpoint = 0;
-		t = ehci_stick_read_sector(addr,endpoint,0);
+	if(USB_STORAGE_ENABLE_SEC){
+		unsigned char* t = ehci_stick_read_sector(addr,endpoint,0);
 		if((unsigned long)t==(unsigned long)EHCI_ERROR){
-			printf("[SMSD] An error occured while reading a sector \n");
-			return;
+			endpoint = 0;
+			t = ehci_stick_read_sector(addr,endpoint,0);
+			if((unsigned long)t==(unsigned long)EHCI_ERROR){
+				printf("[SMSD] An error occured while reading a sector \n");
+				return;
+			}
 		}
+		for(int i = 0 ; i < 512 ; i++){printf("%x ",t[i]);}
+		printf("[SMSD] Reading testsector succeed\n");
 	}
-	printf("[SMSD] Reading testsector succeed\n");
 
 	// setup bootdevice
 	EHCI_USBSTICK *device = (EHCI_USBSTICK*) malloc(sizeof(EHCI_USBSTICK));

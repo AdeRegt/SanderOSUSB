@@ -195,6 +195,11 @@ typedef struct{
 	unsigned char protocol;
 	
 	unsigned long sendMessage;
+	unsigned long sendBulk;
+	unsigned long recieveBulk;
+	unsigned char endpointControl;
+	unsigned char endpointBulkIN;
+	unsigned char endpointBulkOUT;
 }USB_DEVICE;
 void init_xhci_hid(USB_DEVICE* device);
 unsigned long xhci_get_keyboard();
@@ -229,9 +234,69 @@ typedef struct  {
     unsigned short wLength;
 } EhciCMD;
 
+typedef struct {
+	unsigned char bLength;
+	unsigned char bDescriptorType;
+	unsigned char bEndpointAddress;
+	unsigned char bmAttributes;
+	unsigned short wMaxPacketSize;
+	unsigned char bInterval;
+}EHCI_DEVICE_ENDPOINT;
+
+
+#define EHCI_PERIODIC_FRAME_SIZE    1024
+
+typedef struct {
+    volatile unsigned long nextlink;
+    volatile unsigned long altlink;
+    volatile unsigned long token;
+    volatile unsigned long buffer[5];
+    volatile unsigned long extbuffer[5];
+}EhciTD;
+
+typedef struct {
+    volatile unsigned long horizontal_link_pointer;
+    volatile unsigned long characteristics;
+    volatile unsigned long capabilities;
+    volatile unsigned long curlink;
+
+    volatile unsigned long nextlink;
+    volatile unsigned long altlink;
+    volatile unsigned long token;
+    volatile unsigned long buffer[5];
+    volatile unsigned long extbuffer[5];
+    
+}EhciQH;
+
+typedef struct __attribute__ ((packed)){
+    unsigned char  bLength;
+    unsigned char  bDescriptorType;
+
+    unsigned short wTotalLength;
+    unsigned char  bNumInterfaces;
+    unsigned char  bConfigurationValue;
+    unsigned char  iConfiguration;
+    unsigned char  bmAttributes;
+    unsigned char  bMaxPower;
+}usb_config_descriptor ;
+
+typedef struct __attribute__ ((packed)) {
+    unsigned char  bLength;
+    unsigned char  bDescriptorType;
+
+    unsigned char  bInterfaceNumber;
+    unsigned char  bAlternateSetting;
+    unsigned char  bNumEndpoints;
+    unsigned char  bInterfaceClass;
+    unsigned char  bInterfaceSubClass;
+    unsigned char  bInterfaceProtocol;
+    unsigned char  iInterface;
+}usb_interface_descriptor;
+
 void ehci_stick_init(unsigned char addr,unsigned char subclass,unsigned char protocol);
 #define EHCI_ERROR 0xCAFEBABE
 unsigned char* ehci_send_and_recieve_command(unsigned char addr,EhciCMD* commando);
 unsigned char* ehci_send_and_recieve_bulk(unsigned char addr,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut,unsigned char in1);
 unsigned char* ehci_recieve_bulk(unsigned char addr,unsigned long expectedIN,unsigned char in1);
 unsigned long ehci_send_bulk(unsigned char addr,unsigned char* out,unsigned long expectedOut,unsigned char in1);
+unsigned char* ehci_get_device_configuration(unsigned char addr,unsigned char size);
