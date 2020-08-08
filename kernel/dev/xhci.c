@@ -1447,7 +1447,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			if(device->class==0x00){
 				printf("[XHCI] Port %x : Failed to detect deviceclass\n",device->portnumber);
 				goto disabledevice;
-			}else if(device->class==0x03||device->class==0x08){ 
+			}else{ 
 				
 				//
 				// Set config
@@ -1484,14 +1484,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				((volatile unsigned long*)&interrupter_1)[0] = 0;
 				event_ring_offset += 0x10;
 				
-				if(device->class==0x03){
-					init_xhci_hid(device);
-				}else if(device->class==0x08){
-					printf("[XHCI] Port %x : Is a Storage Device\n",device->portnumber);
-				}
-			}else{
-				printf("[XHCI] Port %x : Unknown device type\n",device->portnumber);
-				goto disabledevice;
+				usb_device_install(device);
 			}
 			
 			printf("[XHCI] Port %x : Finished installing port\n",i);

@@ -20,6 +20,7 @@ void *malloc(unsigned long size);
 void *memset(void *str, int c, int n);
 int memcmp( char *str1, char *str2, int n);
 void *malloc_align(unsigned long size,unsigned long tag);
+void free(void *loc);
 int strlen(char *str);
 void memcpy( char *str1,  char *str2, int n);
 
@@ -201,9 +202,9 @@ typedef struct{
 	unsigned char endpointBulkIN;
 	unsigned char endpointBulkOUT;
 }USB_DEVICE;
-void init_xhci_hid(USB_DEVICE* device);
-unsigned long xhci_get_keyboard();
-unsigned char get_xhci_hid_keyboard_input(USB_DEVICE* device,unsigned char wait);
+void init_usb_hid(USB_DEVICE* device);
+unsigned long usb_get_keyboard();
+unsigned char get_usb_hid_keyboard_input(USB_DEVICE* device,unsigned char wait);
 
 void init_ehci(unsigned long bus,unsigned long slot,unsigned long function);
 
@@ -293,10 +294,15 @@ typedef struct __attribute__ ((packed)) {
     unsigned char  iInterface;
 }usb_interface_descriptor;
 
-void ehci_stick_init(unsigned char addr,unsigned char subclass,unsigned char protocol);
+void usb_stick_init(USB_DEVICE *device);//unsigned char addr,unsigned char subclass,unsigned char protocol);
 #define EHCI_ERROR 0xCAFEBABE
-unsigned char* ehci_send_and_recieve_command(unsigned char addr,EhciCMD* commando);
-unsigned char* ehci_send_and_recieve_bulk(unsigned char addr,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut,unsigned char in1);
-unsigned char* ehci_recieve_bulk(unsigned char addr,unsigned long expectedIN,unsigned char in1);
-unsigned long ehci_send_bulk(unsigned char addr,unsigned char* out,unsigned long expectedOut,unsigned char in1);
+unsigned char* ehci_send_and_recieve_command(unsigned char addr,EhciCMD* commando, void *buffer);
+unsigned char* ehci_send_and_recieve_bulk(unsigned char addr,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut);
+unsigned char* ehci_recieve_bulk(USB_DEVICE *device,unsigned long expectedIN,void *buffer);
+unsigned long ehci_send_bulk(USB_DEVICE *device,unsigned char* out,unsigned long expectedOut);
 unsigned char* ehci_get_device_configuration(unsigned char addr,unsigned char size);
+
+unsigned long usb_send_bulk(USB_DEVICE *device,unsigned long count,void *buffer);
+unsigned long usb_recieve_bulk(USB_DEVICE *device,unsigned long count,void *commando);
+void *usb_send_and_recieve_control(USB_DEVICE *device,void *commando,void *buffer);
+void usb_device_install(USB_DEVICE *device);
