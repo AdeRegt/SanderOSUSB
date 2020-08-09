@@ -4,55 +4,6 @@
 // ../../qemu/x86_64-softmmu/qemu-system-x86_64 --cdrom ../cdrom.iso  -trace enable=usb*  -device usb-ehci,id=ehci -drive if=none,id=usbstick,file=../../myos.iso -device usb-storage,bus=ehci.0,drive=usbstick
 // much thanks to https://github.com/dgibson/SLOF and https://github.com/pdoane/osdev and https://github.com/coreboot/seabios
 
-#define EHCI_PERIODIC_FRAME_SIZE    1024
-
-typedef struct {
-    volatile unsigned long nextlink;
-    volatile unsigned long altlink;
-    volatile unsigned long token;
-    volatile unsigned long buffer[5];
-    volatile unsigned long extbuffer[5];
-}EhciTD;
-
-typedef struct {
-    volatile unsigned long horizontal_link_pointer;
-    volatile unsigned long characteristics;
-    volatile unsigned long capabilities;
-    volatile unsigned long curlink;
-
-    volatile unsigned long nextlink;
-    volatile unsigned long altlink;
-    volatile unsigned long token;
-    volatile unsigned long buffer[5];
-    volatile unsigned long extbuffer[5];
-    
-}EhciQH;
-
-struct usb_config_descriptor {
-    unsigned char  bLength;
-    unsigned char  bDescriptorType;
-
-    unsigned short wTotalLength;
-    unsigned char  bNumInterfaces;
-    unsigned char  bConfigurationValue;
-    unsigned char  iConfiguration;
-    unsigned char  bmAttributes;
-    unsigned char  bMaxPower;
-} __attribute__ ((packed));
-
-struct usb_interface_descriptor {
-    unsigned char  bLength;
-    unsigned char  bDescriptorType;
-
-    unsigned char  bInterfaceNumber;
-    unsigned char  bAlternateSetting;
-    unsigned char  bNumEndpoints;
-    unsigned char  bInterfaceClass;
-    unsigned char  bInterfaceSubClass;
-    unsigned char  bInterfaceProtocol;
-    unsigned char  iInterface;
-} __attribute__ ((packed));
-
 
 unsigned long periodic_list[EHCI_PERIODIC_FRAME_SIZE] __attribute__ ((aligned (0x1000)));
 unsigned long portbaseaddress;
@@ -65,6 +16,7 @@ unsigned long usbper_addr;
 unsigned long usbasc_addr;
 unsigned long usbcon_addr;
 unsigned char available_ports;
+unsigned char deviceaddress;
 
 extern void ehciirq();
 void irq_ehci(){
@@ -78,6 +30,8 @@ void irq_ehci(){
         printf("[EHCI] Interrupt: transaction completed\n");
     }else if(status&0b000010){
         printf("[EHCI] Interrupt: error interrupt\n");
+        ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
+        ((unsigned long*)usbasc_addr)[0] = 1 ;
     }else if(status&0b000100){
         printf("[EHCI] Interrupt: portchange\n");
     }else if(status&0b001000){
@@ -92,34 +46,33 @@ void irq_ehci(){
     ((unsigned long*)usbsts_addr)[0] = status;
 }
 
-typedef struct  {
-    unsigned char bRequestType;
-    unsigned char bRequest;
-    unsigned short wValue;
-    unsigned short wIndex;
-    unsigned short wLength;
-} EhciCMD;
 
 unsigned char ehci_wait_for_completion(volatile EhciTD *status){
     unsigned char lstatus = 1;
     resetTicks();
     while(1){
         volatile unsigned long tstatus = (volatile unsigned long)status->token;
-        if(tstatus & (1 << 6)){
+        if(tstatus & (1 << 4)){
             // not anymore active and failed miserably
-            printf("EHCI FAIL A\n");
-            lstatus = 0;
-            break;
-        }
-        if(tstatus & (1 << 5)){
-            // not anymore active and failed miserably
-            printf("EHCI FAIL B\n");
+            printf("[EHCI] Transmission failed due babble error\n");
             lstatus = 0;
             break;
         }
         if(tstatus & (1 << 3)){
             // not anymore active and failed miserably
-            printf("EHCI FAIL C\n");
+            printf("[EHCI] Transmission failed due transaction error\n");
+            lstatus = 0;
+            break;
+        }
+        if(tstatus & (1 << 6)){
+            // not anymore active and failed miserably
+            printf("[EHCI] Transmission failed due serious error\n");
+            lstatus = 0;
+            break;
+        }
+        if(tstatus & (1 << 5)){
+            // not anymore active and failed miserably
+            printf("[EHCI] Transmission failed due data buffer error\n");
             lstatus = 0;
             break;
         }
@@ -133,6 +86,13 @@ unsigned char ehci_wait_for_completion(volatile EhciTD *status){
             lstatus = 0;
             break;
         }
+    }
+    if(lstatus==0){
+        //
+        // Something is wrong... can we discover what is wrong?
+        unsigned char errorcount = (status->token >> 10) & 0b111; // maxerror
+        // According to the specification of ehci, for CRC, Timeout,Bad PID the result is 0
+        // For Babble and buffererror , result is not 0
     }
     return lstatus;
 }
@@ -452,15 +412,268 @@ unsigned char ehci_set_device_configuration(unsigned char addr,unsigned char con
     return lstatus;
 }
 
+unsigned char* ehci_send_and_recieve_command(unsigned char addr,EhciCMD* commando,void *buffer){
+    EhciQH* qh = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
+    EhciQH* qh2 = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
+    EhciQH* qh3 = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
+    EhciTD* td = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+    EhciTD* trans = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+    volatile EhciTD* status = (volatile EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+
+    //
+    // Derde commando
+    td->token |= 2 << 8; // PID=2
+    td->token |= 3 << 10; // CERR=3
+    td->token |= 8 << 16; // TBYTE=8
+    td->token |= 1 << 7; // ACTIVE=1
+    td->nextlink = (unsigned long)commando->wLength?trans:status;
+    td->altlink = 1;
+    td->buffer[0] = (unsigned long)commando;
+
+    if(commando->wLength){
+        trans->nextlink = (unsigned long)status;
+        trans->altlink = 1;
+        trans->token |= (commando->wLength << 16); // verwachte lengte
+        trans->token |= (1 << 31); // toggle
+        trans->token |= (1 << 7); // actief
+        trans->token |= (1 << 8); // IN token
+        trans->token |= (0x3 << 10); // maxerror
+        trans->buffer[0] = (unsigned long)buffer;
+    }
+
+    status->nextlink = 1;
+    status->altlink = 1;
+    status->token |= (0 << 8); // PID instellen
+    status->token |= (1 << 31); // toggle
+    status->token |= (1 << 7); // actief
+    status->token |= (0x3 << 10); // maxerror
+
+
+    //
+    // Tweede commando
+    qh2->altlink = 1;
+    qh2->nextlink = (unsigned long)td; // qdts2
+    qh2->horizontal_link_pointer = ((unsigned long)qh) | 2;
+    qh2->curlink = (unsigned long)qh3; // qdts1
+    qh2->characteristics |= 1 << 14; // dtc
+    qh2->characteristics |= 64 << 16; // mplen
+    qh2->characteristics |= 2 << 12; // eps
+    qh2->characteristics |= addr; // device
+    qh2->capabilities = 0x40000000;
+
+    //
+    // Eerste commando
+    qh->altlink = 1;
+    qh->nextlink = 1;
+    qh->horizontal_link_pointer = ((unsigned long)qh2) | 2;
+    qh->curlink = 0;
+    qh->characteristics = 1 << 15; // T
+    qh->token = 0x40;
+
+    ((unsigned long*) usbasc_addr)[0] = ((unsigned long)qh) ;
+    ((unsigned long*)usbcmd_addr)[0] |= 0b100000;
+
+    unsigned char result = ehci_wait_for_completion(status);
+    
+    ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
+    ((unsigned long*) usbasc_addr)[0] = 1 ;
+
+    free(qh);
+    free(qh2);
+    free(qh3);
+    free(td);
+    free(trans);
+    free(status);
+
+    if(result==0){
+        return (unsigned char*)EHCI_ERROR;
+    }
+
+    return buffer;
+}
+
+unsigned long ehci_send_bulk(USB_DEVICE *device,unsigned char* out,unsigned long expectedOut){
+    //
+    // Send bulk
+    EhciTD *command = (EhciTD*) malloc_align(sizeof(EhciTD),0xFF);
+    EhciQH *head1 = (EhciQH*) malloc_align(sizeof(EhciQH),0xFF);
+    EhciQH *head2 = (EhciQH*) malloc_align(sizeof(EhciQH),0xFF);
+
+    command->nextlink = 1;
+    command->altlink = 1;
+    command->token |= (expectedOut << 16); // setup size
+    command->token |= (1 << 7); // actief
+    command->token |= (0 << 8); // type is out
+    command->token |= (0x3 << 10); // maxerror
+    command->buffer[0] = (unsigned long)out;
+
+    //
+    // Tweede commando
+
+
+    head2->altlink = 1;
+    head2->nextlink = (unsigned long)command; // qdts2
+    head2->horizontal_link_pointer = ((unsigned long)head1) | 2;
+    head2->curlink = 0; // qdts1
+    head2->characteristics |= 512 << 16; // mplen
+    head2->characteristics |= 2 << 12; // eps
+    head2->characteristics |= device->portnumber; // addr
+    head2->characteristics |= device->endpointBulkOUT << 8; // endpoint 2
+    head2->capabilities = 0x40000000;
+    //printf("[EHCI] BULK: Sending %x \n",head2->characteristics); //  heeft = 0x2006201 moet = 0x2002201
+
+    //
+    // Eerste commando
+    head1->altlink = 1;
+    head1->nextlink = 1;
+    head1->horizontal_link_pointer = ((unsigned long)head2) | 2;
+    head1->curlink = 0;
+    head1->characteristics = 1 << 15; // T
+    head1->token = 0x40;
+
+    ((unsigned long*) usbasc_addr)[0] = ((unsigned long)head1) ;
+    ((unsigned long*)usbcmd_addr)[0] |= 0b100000;
+
+    unsigned char lstatus = ehci_wait_for_completion(command);
+    
+    ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
+    ((unsigned long*) usbasc_addr)[0] = 1 ;
+
+    free(command);
+    free(head1);
+    free(head2);
+
+    if(lstatus==0){
+        return (unsigned long)EHCI_ERROR;
+    }
+    return 0;
+}
+
+unsigned char* ehci_recieve_bulk(USB_DEVICE *device,unsigned long expectedIN,void *buffer){
+    //
+    // Recieve bulk
+    //printf("[EHCI] BULK: Recieving\n");
+    EhciQH* qh = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
+    EhciQH* qh2 = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
+    EhciTD* trans = 0;
+    EhciTD* trans1 = 0;
+
+    // wacht totdat alle bytes zijn ingeladen, dit zijn er 144 per keer.
+    unsigned long wachtend = 0;
+    unsigned long bytesperkeer = 512; //144
+    unsigned char reject = 0;
+    unsigned char tx = 0;
+    unsigned char forcestop = 0;
+    while(1){
+        if(trans==0){
+            trans = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+            trans1 = trans;
+        }else{
+            unsigned long yo = (unsigned long)malloc_align(sizeof(EhciTD),0x1FF);
+            trans->nextlink = yo;
+            trans = (EhciTD*) yo;
+        }
+        //printf("pre :: wachtend=%x bytesperkeer=%x expectedin=%x \n",wachtend,bytesperkeer,expectedIN);
+        trans->altlink = 1;
+        if(bytesperkeer>expectedIN){
+            trans->token |= (expectedIN << 16);
+            forcestop = 1;
+        }else if((wachtend+bytesperkeer)>expectedIN){
+            reject = 1;
+            unsigned long twt = expectedIN-wachtend;
+            trans->token |= (twt << 16);
+            // over = 40 | wachtend = 1b0 | optel = 1f0 | max = 200
+            //printf("over=%x wachtend=%x optel=%x max=%x\n",twt,wachtend,wachtend+twt,expectedIN);
+        }else{
+            trans->token |= (bytesperkeer << 16); // verwachte lengte | expectedIN
+            //printf("RB2=%x \n",bytesperkeer);
+        }
+        trans->token |= (1 << 31); // toggle
+        trans->token |= (1 << 7); // actief
+        trans->token |= (1 << 8); // IN token
+        trans->token |= (0x3 << 10); // maxerror
+        trans->buffer[0] = (unsigned long)buffer + (tx*bytesperkeer);
+        wachtend += bytesperkeer;
+        tx++;
+        //printf("post :: wachtend=%x bytesperkeer=%x expectedin=%x \n",wachtend,bytesperkeer,expectedIN);
+        if(wachtend>expectedIN&&reject){
+            break;
+        }else if(wachtend==expectedIN){
+            break;
+        }else if(forcestop==1){
+            //printf("reached forcestop\n");
+            break;
+        }
+    }
+    trans->nextlink = 1;
+
+    //
+    // Tweede commando
+    qh2->altlink = 1;
+    qh2->nextlink = (unsigned long)trans1; // qdts2
+    qh2->horizontal_link_pointer = ((unsigned long)qh) | 2;
+    qh2->curlink = 1; // qdts1
+    qh2->characteristics |= 1 << 14; // dtc
+    qh2->characteristics |= 512 << 16; // mplen
+    qh2->characteristics |= 2 << 12; // eps
+    qh2->characteristics |= 1 << 8; // endpoint 1
+    qh2->characteristics |= device->portnumber; // device
+    qh2->capabilities = 0x40000000;
+
+    //
+    // Eerste commando
+    qh->altlink = 1;
+    qh->nextlink = 1;
+    qh->horizontal_link_pointer = ((unsigned long)qh2) | 2;
+    qh->curlink = 0;
+    qh->characteristics = 1 << 15; // T
+    qh->token = 0x40;
+
+    ((unsigned long*) usbasc_addr)[0] = ((unsigned long)qh) ;
+    ((unsigned long*)usbcmd_addr)[0] |= 0b100000;
+
+    unsigned char result = ehci_wait_for_completion(trans);
+    
+    ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
+    ((unsigned long*) usbasc_addr)[0] = 1 ;
+
+    free(qh);
+    free(qh2);
+    free(trans);
+    free(trans1);
+
+    if(result==0){
+        return (unsigned char *)EHCI_ERROR;
+    }
+
+    return buffer;
+}
+
+unsigned char* ehci_send_and_recieve_bulk(unsigned char addr,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut){
+
+
+    unsigned long lstatus = ehci_send_bulk(addr,out,expectedOut);
+    if(lstatus==EHCI_ERROR){
+        return (unsigned char*)EHCI_ERROR;
+    }
+
+    unsigned char* buffer = ehci_recieve_bulk(addr,expectedIN,malloc(expectedIN));
+    if((unsigned long)buffer==EHCI_ERROR){
+        return (unsigned char *)EHCI_ERROR;
+    }
+
+    return buffer;
+}
+
 void init_ehci_port(int portnumber){
+    USB_DEVICE *device = (USB_DEVICE*) malloc(sizeof(USB_DEVICE));
+    device->drivertype = 2;
     unsigned long avail_port_addr = portbaseaddress + 0x44 + (portnumber*4);
     unsigned long portinfo = ((unsigned long*)avail_port_addr)[0];
 
     // reset the port
     ((unsigned long*)avail_port_addr)[0] |=  0b100000000;
-    sleep(20);
-    sleep(20);
-    sleep(20);
+    sleep(60);
     ((unsigned long*)avail_port_addr)[0] &= ~0b100000000;
     sleep(20);
     portinfo = ((volatile unsigned long*)avail_port_addr)[0];
@@ -473,13 +686,14 @@ void init_ehci_port(int portnumber){
     }
 
     // set device address to device
-    unsigned char deviceaddress = 1;
     printf("[EHCI] Port %x : Setting device address to %x \n",portnumber,deviceaddress);
     unsigned char deviceaddressok = ehci_set_device_address(deviceaddress);
     if(deviceaddressok==0){
         printf("[EHCI] Port %x : Unable to set device address...\n",portnumber);
         return;
     }
+    device->assignedSloth = deviceaddress;
+    device->portnumber = deviceaddress;
 
     // get device descriptor
     printf("[EHCI] Port %x : Getting devicedescriptor...\n",portnumber);
@@ -498,15 +712,36 @@ void init_ehci_port(int portnumber){
     printf("[EHCI] Port %x : Max Packet Size %x \n",portnumber,maxpacketsize);
 
     unsigned char deviceclass = desc[4];
+    unsigned char deviceSubClass = 0;
+    unsigned char deviceProtocol = 0;
     if(deviceclass==0x00){
         printf("[ECHI] Port %x : No class found! Asking descriptors...\n",portnumber);
-        struct usb_config_descriptor* sec = (struct usb_config_descriptor*)ehci_get_device_configuration(deviceaddress,sizeof(struct usb_interface_descriptor) + sizeof(struct usb_config_descriptor));
+        usb_config_descriptor* sec = (usb_config_descriptor*)ehci_get_device_configuration(deviceaddress,sizeof(usb_interface_descriptor) + sizeof(usb_config_descriptor)+(sizeof(EHCI_DEVICE_ENDPOINT)*2));
         if(sec==0){
             printf("[ECHI] Port %x : Failed to read descriptors...\n",portnumber);
             return;
         }
-        struct usb_interface_descriptor* desc = (struct usb_interface_descriptor*)(((unsigned long)sec)+9);
+        usb_interface_descriptor* desc = (usb_interface_descriptor*)(((unsigned long)sec)+sizeof(usb_config_descriptor));
         deviceclass = desc->bInterfaceClass;
+        deviceSubClass = desc->bInterfaceSubClass;
+        deviceProtocol = desc->bInterfaceProtocol;
+        device->class = deviceclass;
+        device->subclass = deviceSubClass;
+        device->protocol = deviceProtocol;
+
+        printf("[EHCI] Port %x : There are %x endpoints available\n",portnumber,desc->bNumEndpoints);
+        if(desc->bNumEndpoints==2){
+            EHCI_DEVICE_ENDPOINT *ep1 = (EHCI_DEVICE_ENDPOINT*)(((unsigned long)sec)+sizeof(usb_config_descriptor)+sizeof(usb_interface_descriptor));
+            EHCI_DEVICE_ENDPOINT *ep2 = (EHCI_DEVICE_ENDPOINT*)(((unsigned long)sec)+sizeof(usb_config_descriptor)+sizeof(usb_interface_descriptor)+7);
+            printf("[EHCI] EP1 size=%x type=%x dir=%c num=%x epsize=%x \n",ep1->bLength,ep1->bDescriptorType,ep1->bEndpointAddress&0x80?'I':'O',ep1->bEndpointAddress&0xF,ep1->wMaxPacketSize&0x7FF);
+            printf("[EHCI] EP2 size=%x type=%x dir=%c num=%x epsize=%x \n",ep2->bLength,ep2->bDescriptorType,ep2->bEndpointAddress&0x80?'I':'O',ep2->bEndpointAddress&0xF,ep2->wMaxPacketSize&0x7FF);
+            device->endpointBulkIN = ep1->bEndpointAddress&0x80?ep1->bEndpointAddress&0xF:ep2->bEndpointAddress&0xF;
+            device->endpointBulkOUT = (ep1->bEndpointAddress&0x80)==0?ep1->bEndpointAddress&0xF:ep2->bEndpointAddress&0xF;
+        }else if(desc->bNumEndpoints==1){
+            EHCI_DEVICE_ENDPOINT *ep1 = (EHCI_DEVICE_ENDPOINT*)(((unsigned long)sec)+sizeof(usb_config_descriptor)+sizeof(usb_interface_descriptor));
+            printf("[EHCI] EP1 size=%x type=%x dir=%c num=%x epsize=%x \n",ep1->bLength,ep1->bDescriptorType,ep1->bEndpointAddress&0x80?'I':'O',ep1->bEndpointAddress&0xF,ep1->wMaxPacketSize&0x7FF);
+            device->endpointBulkIN = ep1->bEndpointAddress&0xF;
+        }
     }
 
     if(deviceclass==0x00){
@@ -521,13 +756,10 @@ void init_ehci_port(int portnumber){
         printf("[EHCI] Port %x : Unable to set configuration\n",portnumber);
         return;
     }
-    if(deviceclass==8){
-        printf("[EHCI] Port %x : Mass Storage Device detected!\n",portnumber);
-    }else if(deviceclass==3){
-        printf("[EHCI] Port %x : Human Interface Device detected!\n",portnumber);
-    }else{
-        printf("[EHCI] Port %x : Unable to understand deviceclass: %x \n",portnumber,deviceclass);
-    }
+
+    deviceaddress++; 
+    
+    usb_device_install(device);
 }
 
 void ehci_probe(){
@@ -654,6 +886,7 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
     // set routing
     ((unsigned long*)usbcon_addr)[0] |= 1;
 
+    deviceaddress = 1;
     ehci_probe();
 
 }

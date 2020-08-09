@@ -288,23 +288,24 @@ void init_ide_device(IDEDevice device){
                 printf("[IDE] maybe ata\n");
                 // ATA device detected!
         	unsigned short* buffer = (unsigned short*) 0x1000;
-		ata_read_sector(device, 0, 1, buffer);
-		if(buffer[510]==0x55&&buffer[511]==0xAA){
-			printf("[ATA] hdd is bootable!\n");
-		}else{
-			printf("[ATA] hdd is not bootable!\n");
-		}
+			ata_read_sector(device, 0, 1, buffer);
+			if(buffer[510]==0x55&&buffer[511]==0xAA){
+				printf("[ATA] hdd is bootable!\n");
+			}else{
+				printf("[ATA] hdd is not bootable!\n");
+				return;
+			}
 
-		Device *regdev = (Device*)malloc(sizeof(Device));
-				
-		regdev->readRawSector 	= (unsigned long)&ata_read_raw;
-		
-		regdev->arg1 = (unsigned long)&device;
-		regdev->arg2 = 0;
-		regdev->arg3 = 0;
-		regdev->arg4 = 0;
-		regdev->arg5 = 512;
-		detectFilesystemsOnMBR(regdev);
+			Device *regdev = (Device*)malloc(sizeof(Device));
+					
+			regdev->readRawSector 	= (unsigned long)&ata_read_raw;
+			
+			regdev->arg1 = (unsigned long)&device;
+			regdev->arg2 = 0;
+			regdev->arg3 = 0;
+			regdev->arg4 = 0;
+			regdev->arg5 = 512;
+			detectFilesystemsOnMBR(regdev);
         }else{
 		// is cdrom
 		printf("[IDE] maybe atapi\n");
@@ -337,6 +338,7 @@ void init_ide_device(IDEDevice device){
 				printf("ATAPI: cdrom is bootable!\n");
 			}else{
 				printf("ATAPI: cdrom is not bootable!\n");
+				return;
 			}
 			int choice = -1;
 			for(int i = 0 ; i < 10 ; i++){

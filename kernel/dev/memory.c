@@ -5,6 +5,14 @@
 //
 //
 
+#define MEMORY_BLOCK_LIMIT 500
+typedef struct {
+	unsigned long from;
+	unsigned long to;
+}MemoryBlock;
+
+MemoryBlock memreg[MEMORY_BLOCK_LIMIT];
+
 unsigned char *memman = (unsigned char*) 0x30000;
 int mempoint = 0;
 
@@ -50,29 +58,106 @@ void memdump(unsigned long location){
 	}
 }
 
+unsigned char getMemoryBlockUsedCount(){
+	unsigned char count = 0;
+	for(int i = 0 ; i < MEMORY_BLOCK_LIMIT ; i++){
+		MemoryBlock *mb = (MemoryBlock*) (&memreg)+(sizeof(MemoryBlock)*i);
+		if(!(mb->from==0&&mb->to==0)){
+			count++;
+		}
+	}
+	return count;
+}
+
+MemoryBlock *nextMemoryBlockAvailable(){
+	for(int i = 0 ; i < MEMORY_BLOCK_LIMIT ; i++){
+		MemoryBlock *mb = (MemoryBlock*) (&memreg)+(sizeof(MemoryBlock)*i);
+		if(mb->from==0&&mb->to==0){
+			return mb;
+		}
+	}
+	return 0;
+}
+
 void *malloc_align(unsigned long size,unsigned long tag){
+	MemoryBlock *memblck = nextMemoryBlockAvailable();
+	if(((unsigned long)memblck)==0){
+		printf("[PANIC] Out of memory!!!\n");
+		for(;;);
+	}
+
+	unsigned long teller = 0;
+	if(tag==0&&getMemoryBlockUsedCount()!=0){
+		unsigned long tw = 0;
+		for(int i = 0 ; i < MEMORY_BLOCK_LIMIT ; i++){
+			MemoryBlock bl = memreg[i];
+			if(bl.from==0&&bl.to==0){
+				continue;
+			}
+			if(tw!=0&&tw!=bl.from){
+				unsigned long df = 0;
+				if(tw<bl.from){
+					df = bl.from-tw;
+				}else{
+					df = tw-bl.from;
+				}
+				if(df>size){
+					teller = tw;
+					break;
+				}
+			}
+			tw = bl.to;
+		}
+	}
+	if(teller==0){
+		// alligning stuff make things more difficult. 
+		// so for now, we do the easy way
+		for(int i = 0 ; i < MEMORY_BLOCK_LIMIT ; i++){
+			MemoryBlock bl = memreg[i];
+			if(bl.from==0&&bl.to==0){
+				continue;
+			}
+			if(teller<bl.to){
+				teller = bl.to;
+			}
+		}
+	}
+
+	if(teller==0){
+		teller = 0x30000;
+	}
+
 	while(1){
-		unsigned long tx = (unsigned long)&memman[mempoint];
-		if((tx&tag)==0){
+		unsigned long Y = teller&tag;
+		if(Y==0){
 			break;
 		}
-		mempoint++;
+		teller++;
 	}
-	unsigned long currentloc = (unsigned long)&memman[mempoint];
-	for(unsigned long i = 0 ; i < size ; i++){
-		memman[mempoint+i] = 0x00;
+
+	memblck->from = teller;
+	memblck->to = teller + size;
+
+	for(int i = memblck->from ; i < memblck->to ; i++){
+		((unsigned char*)(memblck->from+i))[0] = 0;
 	}
-	mempoint += size;
-	return (void *)currentloc;
+
+	//printf("[MEM] Allocated memory: FROM=%x TO=%x SIZE=%x\n",memblck->from,memblck->to,size);
+	return memblck->from;
+}
+
+void free(void *loc){
+	for(int i = 0 ; i < MEMORY_BLOCK_LIMIT ; i++){
+		MemoryBlock *mb = (MemoryBlock*) (&memreg)+(sizeof(MemoryBlock)*i);
+		if(mb->from==loc){
+			mb->from = 0;
+			mb->to = 0;
+		}
+	}
 }
 
 void *malloc(unsigned long size){
-	unsigned long currentloc = (unsigned long)&memman[mempoint];
-	for(unsigned long i = 0 ; i < size ; i++){
-		memman[mempoint+i] = 0x00;
-	}
-	mempoint += size;
-	return (void *)currentloc;
+	return malloc_align(size,0);
 }
 
  
