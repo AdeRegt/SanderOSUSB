@@ -19,9 +19,9 @@ void resetTicks(){
 }
 
 void sleep(int ms){
-	clock=0;
+	clock = 0;
 	again:
-	if(clock<ms){
+	if(clock < ms) {
 		goto again;
 	}
 }
@@ -36,9 +36,9 @@ void irq_timer(){
 
 void init_timer(){
 	int divisor = 1193180 / 100;       /* Calculate our divisor */
-    	outportb(0x43, 0x36);             /* Set our command byte 0x36 */
-    	outportb(0x40, divisor & 0xFF);   /* Set low byte of divisor */
-    	outportb(0x40, divisor >> 8);     /* Set high byte of divisor */
-    	setNormalInt(0,(unsigned long)timerirq);
+	outportb(0x43, 0x36);             /* Set our command byte 0x36 */
+	outportb(0x40, divisor & 0xFF);   /* Set low byte of divisor */
+	outportb(0x40, divisor >> 8);     /* Set high byte of divisor */
+	setNormalInt(0,(unsigned long)timerirq);
 }
 

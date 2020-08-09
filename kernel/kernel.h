@@ -1,42 +1,116 @@
 #include "stdarg.h"
 #define ATAPI_SECTOR_SIZE 2048
 
-void printf(char *,...); 				//Our printf function
-char* convert(unsigned int, int); 		//Convert integer number into octal, hex, etc.
+/**
+ * printf own implementation
+ **/
+void printf(char *,...);
+
+/**
+ * Convert integer decimal base number into octal, hex, etc.
+ * @param number
+ *  number to convert
+ * @param int
+ *  base to convert to
+ **/
+char* convert(unsigned int num, int base);
+
+/**
+ * reads a byte from the input port specified
+ **/
 unsigned char inportb (unsigned short _port);
+
+/**
+ * write a byte data to the specified output port
+ **/
 void outportb (unsigned short _port, unsigned char _data);
+
+/**
+ * reads 2 bytes from the input port specified
+ **/
 unsigned short inportw(unsigned short _port);
+
+/**
+ * write 2 bytes data to the specified output port
+ **/
 void outportw(unsigned short _port, unsigned short _data);
+
+/**
+ * reads 8 bytes data to the specified output port
+ **/
 unsigned long inportl(unsigned short _port);
+
+/**
+ * write 8 bytes data to the specified output port
+ **/
 void outportl(unsigned short _port, unsigned long _data);
+
+/**
+ * Entry point of the kernel
+ **/
 void kernel_main();
 
+/**
+ * empty loop that sleeps for 'ms' miliseconds
+ **/
 void sleep(int ms);
+
+/**
+ * Initialize the ACP interface (mostly) to control the power
+ * https://en.wikipedia.org/wiki/Advanced_Configuration_and_Power_Interface
+ **/
 void init_acpi();
+
+/**
+ * self explained...
+ * NOTE: Should be called only after init_acpi which occurs at the begining
+ * but just in case
+ **/
 void poweroff();
 
-// MEMORY
+// MEMORY NOTE: Do they comply with the standard?
 void *malloc(unsigned long size);
 void *memset(void *str, int c, int n);
 int memcmp( char *str1, char *str2, int n);
 void *malloc_align(unsigned long size,unsigned long tag);
 void free(void *loc);
 int strlen(char *str);
-void memcpy( char *str1,  char *str2, int n);
+int memcmp( char *str1, char *str2, int size);
+void memcpy( char *str1,  char *str2, int size);
 
 // BLOCKDEVICE
 //void init_blockdevice();
 //void introduceDevice(unsigned char type,unsigned long pointertodevice,unsigned long readsector,unsigned long writesector,unsigned long eject,unsigned long framesize,unsigned char* name);
 //void dirdev();
 
-// STRING
+/**
+ * Renders a string [same as printf(msg)]
+ **/
 void printstring(char* msg);
+/**
+ * Renders a char
+ **/
 void putc(char a);
+/**
+ * Initialize the video driver
+ **/
 void init_video();
+/**
+ * Prints an unsigned integer
+ **/
 void hexdump(unsigned long msg);
+/**
+ * The actual render of the character into the screen buffer
+ **/
 void drawcharraw(unsigned char c, int offsetX, int offsetY, int fgcolor, int bgcolor);
+/**
+ * Gets the character from keyboard input
+ **/
 unsigned char getch();
 
+//////
+// arrows key codes
+//////
 #define VK_UP 0xCB
 #define VK_LEFT 0xCC
 #define VK_RIGHT 0xCD
@@ -52,29 +126,43 @@ typedef struct{
 InputStatus getInputStatus();
 
 // VIDEO
-int init_graph_vga(int width, int height,int chain4);
-void cls();
+int init_graph_vga(unsigned int width, unsigned int height,int chain4);
+int isGraphicsMode();
 void putpixel(int x,int y, unsigned char color);
 char getpixel(int x,int y);
-int isGraphicsMode();
-void addController(unsigned char drawable,unsigned long drawablefunc,unsigned short x,unsigned short y,unsigned short w,unsigned short h,unsigned long value,unsigned long onSelected,unsigned long onFocus,unsigned char controller);
+void cls();
 void draw();
-unsigned long show();
+void draw_bmp(unsigned char* file_buffer, unsigned short offsetX, unsigned short offsetY);
+void addController(unsigned char drawable,unsigned long drawablefunc,unsigned short x,unsigned short y,unsigned short w,unsigned short h,unsigned long value,unsigned long onSelected,unsigned long onFocus,unsigned char controller);
 void message(char *message);
 char confirm(char *message);
 char choose(char *message,int argcount,char **args);
 char *browseDIR(char *path);
 char *browse();
+unsigned long show();
 void freeGui();
 
-// GDT
+/** 
+ * Initialize GDT
+ * NOTE: is it Global descritpor table?
+ * https://en.wikipedia.org/wiki/Global_Descriptor_Table
+ **/
 void init_gdt();
 
-// IDT
+/** 
+ * Initialize IDT
+ * NOTE: is it Interrup descritpor table?
+ * https://en.wikipedia.org/wiki/Interrupt_descriptor_table
+ **/
 void init_idt();
 void idt_set_gate(unsigned char num, unsigned long base, unsigned short sel, unsigned char flags);
 void setErrorInt(unsigned char num,unsigned long base);
 void setNormalInt(unsigned char num,unsigned long base);
+
+
+////////
+// PROCESSING
+///////
 
 // PAGING
 void init_paging();
@@ -90,6 +178,10 @@ int activeTask();
 void init_timer();
 int getTicks();
 void resetTicks();
+
+//////////////
+// DEVICES
+//////////////
 
 // PS2
 void init_ps2();
@@ -112,11 +204,9 @@ void uhci_init(int bus,int slot,int function);
 
 
 typedef struct{
-
 	//
 	// Blockdevice settings
 	//
-	
 	unsigned long readRawSector;
 	unsigned long writeRawSector;
 	unsigned long reinitialise;
@@ -125,7 +215,6 @@ typedef struct{
 	//
 	// Filesystem settings
 	//
-	
 	unsigned long dir;
 	unsigned long readFile;
 	unsigned long writeFile;
@@ -138,13 +227,11 @@ typedef struct{
 	//
 	// Misc
 	//
-	
 	unsigned char readonly;
 	
 	//
 	// Advanced
 	//
-	
 	unsigned long arg1;	// LINK TO DATAPOINTER
 	unsigned long arg2;	// OFFSET DISK
 	unsigned long arg3;
@@ -202,11 +289,16 @@ typedef struct{
 	unsigned char endpointBulkIN;
 	unsigned char endpointBulkOUT;
 }USB_DEVICE;
+void init_ehci(unsigned long bus,unsigned long slot,unsigned long function);
 void init_usb_hid(USB_DEVICE* device);
 unsigned long usb_get_keyboard();
 unsigned char get_usb_hid_keyboard_input(USB_DEVICE* device,unsigned char wait);
 
-void init_ehci(unsigned long bus,unsigned long slot,unsigned long function);
+
+
+/////////////
+// ETHERNET
+/////////////
 
 typedef struct{
 	unsigned long buffersize;

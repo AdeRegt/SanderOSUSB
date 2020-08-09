@@ -160,16 +160,19 @@ void *malloc(unsigned long size){
 	return malloc_align(size,0);
 }
 
+ 
 void *memset(void *str, int c, int n){
 	for(int t = 0 ; t < n ; t++){
+		// why do we ask for an int and
+		//  then use only a byte from it???
 		((unsigned char*)str)[t] = c;
 	}
 	return str;
 }
 
-int memcmp( char *str1,  char *str2, int n){
+int memcmp(char *str1,  char *str2, int n){
 	for(int i = 0 ; i < n ; i++){
-		if(str1[i]!=str2[i]){
+		if(str1[i] != str2[i]){
 			return 1;
 		}
 	}
@@ -184,10 +187,7 @@ void memcpy( char *from,  char *to, int n){
 
 int strlen(char *str){
 	int count = 0;
-	while(1){
-		if(str[count]==0x00){
-			break;
-		}
+	while(str[count] != '\0') {
 		count++;
 	}
 	return count;

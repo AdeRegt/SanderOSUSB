@@ -1,9 +1,8 @@
 #include "../kernel.h"
 unsigned char* videomemory = (unsigned char*)0xb8000;
 
-static int SCREEN_WIDTH = 0;
-static int SCREEN_HEIGHT = 0;
-
+static unsigned int SCREEN_WIDTH = 0;
+static unsigned int SCREEN_HEIGHT = 0;
 
 typedef struct{
 	unsigned char isActive;
@@ -226,6 +225,70 @@ void drawButton(GUIControlObject o){
 			o.isSelected ? 0x50 : 0x10);//4
 		}
 		i2++;
+	}
+}
+
+typedef struct {
+	unsigned int size;
+	unsigned int reserved[4];
+	unsigned int pixelBufferOffset;
+	char bmptype[2];
+} BMP_HEADER;
+
+typedef struct {
+	unsigned int size;
+	unsigned int width;
+	unsigned int height;
+} BMP_DBIHEADER;
+
+/* List of compression methods we should aim to support */
+enum BMPCompressionMethod {
+	BI_RGB,
+	BI_RLE8,
+	BI_RLE4,
+	BI_JPEG
+};
+
+/*
+ * Parse a bmp file and return the pixel buffer.
+ * For info about the file structure refere to:
+ * https://en.wikipedia.org/wiki/BMP_file_format#File_structure
+ */
+unsigned char* getImageFromBMP(unsigned char* file_buffer, unsigned int* width, unsigned int* height) {
+	BMP_HEADER header = *(BMP_HEADER*)file_buffer;
+	*width = *(unsigned short*)(file_buffer + 0x12);
+	*height = *(unsigned short*)(file_buffer + 0x16);
+
+	if (header.bmptype[0] == 'B' && header.bmptype[0] == 'M') {
+		unsigned short bits_per_pixel = *(file_buffer + 0x1C);
+		unsigned int compression_method = *(file_buffer + 0x1E);
+		if (compression_method != BI_RGB && compression_method != BI_RLE4) {
+			return NULL;
+		}
+	}
+
+	return file_buffer + header.pixelBufferOffset;
+}
+
+/*
+ * Renders a bmp file into the screen.
+ * NOTE: For now just render the entire image in the screen
+ * (should be the same size as the window)
+*/
+void draw_bmp(unsigned char* file_buffer, unsigned short offsetX, unsigned short offsetY) {
+	// read file_buffer and extract the pixel_buffer
+	unsigned int width, height;
+	unsigned char* pixel_buffer = getImageFromBMP(file_buffer, &width, &height);
+
+	// get the bounds of the image
+	unsigned int draw_w = (((unsigned int)offsetX + width) >= SCREEN_WIDTH) ? SCREEN_WIDTH : width;
+	unsigned int draw_h = (((unsigned int)offsetY + height) >= SCREEN_HEIGHT) ? SCREEN_HEIGHT : height;
+
+	// draw the image
+	for(int x = 0 ; x < draw_w ; x++){
+		for(int y = 0 ; y < draw_h ; y++){
+			putpixel(offsetX + x, offsetY + y, pixel_buffer[x + width * y]);
+		}
 	}
 }
 
@@ -1071,47 +1134,46 @@ unsigned char font[4000] = {
 0b01111111,
 };
 
-void drawcharraw(unsigned char c, int offsetX, int offsetY, int fgcolor, int bgcolor)
-{
-	
+void drawcharraw(unsigned char c, int offsetX, int offsetY, int fgcolor, int bgcolor) {
 	int selector = (c-'0')*6;
 	for(int i = 0 ; i < 6 ; i++){
-		if(font[selector+i] & 0b10000000){
+		unsigned char font_sector = font[selector+i];
+		if(font_sector  & 0b10000000){
 			putpixel(offsetX+0,offsetY+i,fgcolor);
 		}else{
 			putpixel(offsetX+0,offsetY+i,bgcolor);
 		}
-		if(font[selector+i] & 0b01000000){
+		if(font_sector & 0b01000000){
 			putpixel(offsetX+1,offsetY+i,fgcolor);
 		}else{
 			putpixel(offsetX+1,offsetY+i,bgcolor);
 		}
-		if(font[selector+i] & 0b00100000){
+		if(font_sector & 0b00100000){
 			putpixel(offsetX+2,offsetY+i,fgcolor);
 		}else{
 			putpixel(offsetX+2,offsetY+i,bgcolor);
 		}
-		if(font[selector+i] & 0b00010000){
+		if(font_sector & 0b00010000){
 			putpixel(offsetX+3,offsetY+i,fgcolor);
 		}else{
 			putpixel(offsetX+3,offsetY+i,bgcolor);
 		}
-		if(font[selector+i] & 0b00001000){
+		if(font_sector & 0b00001000){
 			putpixel(offsetX+4,offsetY+i,fgcolor);
 		}else{
 			putpixel(offsetX+4,offsetY+i,bgcolor);
 		}
-		if(font[selector+i] & 0b00000100){
+		if(font_sector & 0b00000100){
 			putpixel(offsetX+5,offsetY+i,fgcolor);
 		}else{
 			putpixel(offsetX+5,offsetY+i,bgcolor);
 		}
-		if(font[selector+i] & 0b00000010){
+		if(font_sector & 0b00000010){
 			putpixel(offsetX+6,offsetY+i,fgcolor);
 		}else{
 			putpixel(offsetX+6,offsetY+i,bgcolor);
 		}
-		if(font[selector+i] & 0b00000001){
+		if(font_sector & 0b00000001){
 			putpixel(offsetX+7,offsetY+i,fgcolor);
 		}else{
 			putpixel(offsetX+7,offsetY+i,bgcolor);
@@ -1380,7 +1442,7 @@ static const byte height_600[] = { 0x70, 0xf0, 0x60, 0x5b, 0x8c,0x57, 0x58, 0x70
 // you'll need to switch planes to access the whole screen but
 // that allows you using any resolution, up to 400x600
 
-int init_graph_vga(int width, int height,int chain4) 
+int init_graph_vga(unsigned int width, unsigned int height,int chain4) 
   // returns 1=ok, 0=fail
 {
 	const byte *w,*h;
