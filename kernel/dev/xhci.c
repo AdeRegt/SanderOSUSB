@@ -1201,7 +1201,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 
 			//
 			// and test
-			if(0){
+			if(1){
 				printf("[XHCI] Port %x : NOOP ring control\n",device->portnumber);
 				((volatile unsigned long*)&interrupter_1)[0] = 0;
 				TRB *trbx = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));

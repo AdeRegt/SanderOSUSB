@@ -16,6 +16,7 @@ unsigned long usbper_addr;
 unsigned long usbasc_addr;
 unsigned long usbcon_addr;
 unsigned char available_ports;
+unsigned char deviceaddress;
 
 extern void ehciirq();
 void irq_ehci(){
@@ -685,7 +686,6 @@ void init_ehci_port(int portnumber){
     }
 
     // set device address to device
-    unsigned char deviceaddress = 1;
     printf("[EHCI] Port %x : Setting device address to %x \n",portnumber,deviceaddress);
     unsigned char deviceaddressok = ehci_set_device_address(deviceaddress);
     if(deviceaddressok==0){
@@ -737,6 +737,10 @@ void init_ehci_port(int portnumber){
             printf("[EHCI] EP2 size=%x type=%x dir=%c num=%x epsize=%x \n",ep2->bLength,ep2->bDescriptorType,ep2->bEndpointAddress&0x80?'I':'O',ep2->bEndpointAddress&0xF,ep2->wMaxPacketSize&0x7FF);
             device->endpointBulkIN = ep1->bEndpointAddress&0x80?ep1->bEndpointAddress&0xF:ep2->bEndpointAddress&0xF;
             device->endpointBulkOUT = (ep1->bEndpointAddress&0x80)==0?ep1->bEndpointAddress&0xF:ep2->bEndpointAddress&0xF;
+        }else if(desc->bNumEndpoints==1){
+            EHCI_DEVICE_ENDPOINT *ep1 = (EHCI_DEVICE_ENDPOINT*)(((unsigned long)sec)+sizeof(usb_config_descriptor)+sizeof(usb_interface_descriptor));
+            printf("[EHCI] EP1 size=%x type=%x dir=%c num=%x epsize=%x \n",ep1->bLength,ep1->bDescriptorType,ep1->bEndpointAddress&0x80?'I':'O',ep1->bEndpointAddress&0xF,ep1->wMaxPacketSize&0x7FF);
+            device->endpointBulkIN = ep1->bEndpointAddress&0xF;
         }
     }
 
@@ -752,6 +756,9 @@ void init_ehci_port(int portnumber){
         printf("[EHCI] Port %x : Unable to set configuration\n",portnumber);
         return;
     }
+
+    deviceaddress++; 
+    
     usb_device_install(device);
 }
 
@@ -879,6 +886,7 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
     // set routing
     ((unsigned long*)usbcon_addr)[0] |= 1;
 
+    deviceaddress = 1;
     ehci_probe();
 
 }
