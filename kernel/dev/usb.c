@@ -6,7 +6,7 @@ unsigned long usb_send_bulk(USB_DEVICE *device,unsigned long count,void *buffer)
 	if(device->drivertype==1){
 		return EHCI_ERROR;
 	}else if(device->drivertype==2){
-		return ehci_send_bulk(device,buffer,count);
+		return (unsigned long) ehci_send_bulk(device,buffer,count);
 	}else if(device->drivertype==3){
 		return EHCI_ERROR;
 	}else{
@@ -18,7 +18,7 @@ unsigned long usb_recieve_bulk(USB_DEVICE *device,unsigned long count,void *comm
 	if(device->drivertype==1){
 		return EHCI_ERROR;
 	}else if(device->drivertype==2){
-		return ehci_recieve_bulk(device,count,commando);
+		return (unsigned long) ehci_recieve_bulk(device,count,commando);
 	}else if(device->drivertype==3){
 		return EHCI_ERROR;
 	}else{
@@ -28,13 +28,13 @@ unsigned long usb_recieve_bulk(USB_DEVICE *device,unsigned long count,void *comm
 
 void *usb_send_and_recieve_control(USB_DEVICE *device,void *commando,void *buffer){
 	if(device->drivertype==1){
-		return EHCI_ERROR;
+		return (void *)EHCI_ERROR;
 	}else if(device->drivertype==2){
-		return ehci_send_and_recieve_command(device->portnumber,commando,buffer);
+		return (void *) ehci_send_and_recieve_command(device->portnumber,commando,buffer);
 	}else if(device->drivertype==3){
-		return EHCI_ERROR;
+		return (void *)EHCI_ERROR;
 	}else{
-		return EHCI_ERROR;
+		return (void *)EHCI_ERROR;
 	}
 }
 

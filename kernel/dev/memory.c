@@ -138,18 +138,18 @@ void *malloc_align(unsigned long size,unsigned long tag){
 	memblck->from = teller;
 	memblck->to = teller + size;
 
-	for(int i = memblck->from ; i < memblck->to ; i++){
+	for(unsigned long i = memblck->from ; i < memblck->to ; i++){
 		((unsigned char*)(memblck->from+i))[0] = 0;
 	}
 
 	//printf("[MEM] Allocated memory: FROM=%x TO=%x SIZE=%x\n",memblck->from,memblck->to,size);
-	return memblck->from;
+	return (void *)memblck->from;
 }
 
 void free(void *loc){
 	for(int i = 0 ; i < MEMORY_BLOCK_LIMIT ; i++){
 		MemoryBlock *mb = (MemoryBlock*) (&memreg)+(sizeof(MemoryBlock)*i);
-		if(mb->from==loc){
+		if(mb->from==(unsigned long)loc){
 			mb->from = 0;
 			mb->to = 0;
 		}

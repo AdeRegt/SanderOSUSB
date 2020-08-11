@@ -8,9 +8,9 @@ unsigned char usb_get_packed_hid(USB_DEVICE* device,unsigned long devicedesc){
     commando->wIndex = 0;
     commando->wLength = 3;
     commando->wValue = 0x0100;
-	unsigned char *res = usb_send_and_recieve_control(device,commando,devicedesc);
+	unsigned char *res = usb_send_and_recieve_control(device,commando,(void *)devicedesc);
 	free(commando);
-	return res;
+	return res[0];
 }
 
 unsigned char get_usb_hid_keyboard_input(USB_DEVICE* device,unsigned char wait){
@@ -18,7 +18,7 @@ unsigned char get_usb_hid_keyboard_input(USB_DEVICE* device,unsigned char wait){
 	again:
 	wait++;
 	unsigned char res = usb_get_packed_hid(device,(unsigned long)&devicedesc);
-	if(res!=EHCI_ERROR){
+	if(res!=(EHCI_ERROR&0xFF)){
 		if(devicedesc[2]!=0){
 			unsigned char tx = devicedesc[2];
 			if(tx<0xFF){

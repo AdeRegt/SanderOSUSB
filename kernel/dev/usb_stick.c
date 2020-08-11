@@ -73,7 +73,7 @@ unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsign
 	}
 
 	CommandStatusWrapper* csw = (CommandStatusWrapper*)0;
-	csw = buffer;
+	csw = (CommandStatusWrapper*)buffer;
 	if(csw->signature!=USB_STORAGE_CSW_SIGN){
 		unsigned char* cuv = malloc(13);
 		unsigned long t2 = usb_recieve_bulk(device,13,cuv);

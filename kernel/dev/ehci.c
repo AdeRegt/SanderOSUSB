@@ -90,7 +90,7 @@ unsigned char ehci_wait_for_completion(volatile EhciTD *status){
     if(lstatus==0){
         //
         // Something is wrong... can we discover what is wrong?
-        unsigned char errorcount = (status->token >> 10) & 0b111; // maxerror
+        // unsigned char errorcount = (status->token >> 10) & 0b111; // maxerror
         // According to the specification of ehci, for CRC, Timeout,Bad PID the result is 0
         // For Babble and buffererror , result is not 0
     }
@@ -418,7 +418,7 @@ unsigned char* ehci_send_and_recieve_command(unsigned char addr,EhciCMD* command
     EhciQH* qh3 = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
     EhciTD* td = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
     EhciTD* trans = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
-    volatile EhciTD* status = (volatile EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
+    EhciTD* status = (EhciTD*) malloc_align(sizeof(EhciTD),0x1FF);
 
     //
     // Derde commando
@@ -426,7 +426,7 @@ unsigned char* ehci_send_and_recieve_command(unsigned char addr,EhciCMD* command
     td->token |= 3 << 10; // CERR=3
     td->token |= 8 << 16; // TBYTE=8
     td->token |= 1 << 7; // ACTIVE=1
-    td->nextlink = (unsigned long)commando->wLength?trans:status;
+    td->nextlink = commando->wLength?(unsigned long)trans:(unsigned long)status;
     td->altlink = 1;
     td->buffer[0] = (unsigned long)commando;
 
@@ -649,15 +649,15 @@ unsigned char* ehci_recieve_bulk(USB_DEVICE *device,unsigned long expectedIN,voi
     return buffer;
 }
 
-unsigned char* ehci_send_and_recieve_bulk(unsigned char addr,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut){
+unsigned char* ehci_send_and_recieve_bulk(USB_DEVICE *device,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut){
 
 
-    unsigned long lstatus = ehci_send_bulk(addr,out,expectedOut);
+    unsigned long lstatus = ehci_send_bulk(device,out,expectedOut);
     if(lstatus==EHCI_ERROR){
         return (unsigned char*)EHCI_ERROR;
     }
 
-    unsigned char* buffer = ehci_recieve_bulk(addr,expectedIN,malloc(expectedIN));
+    unsigned char* buffer = ehci_recieve_bulk(device,expectedIN,malloc(expectedIN));
     if((unsigned long)buffer==EHCI_ERROR){
         return (unsigned char *)EHCI_ERROR;
     }

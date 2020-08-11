@@ -260,7 +260,7 @@ unsigned char* getImageFromBMP(unsigned char* file_buffer, unsigned int* width, 
 	*height = *(unsigned short*)(file_buffer + 0x16);
 
 	if (header.bmptype[0] == 'B' && header.bmptype[0] == 'M') {
-		unsigned short bits_per_pixel = *(file_buffer + 0x1C);
+		//unsigned short bits_per_pixel = *(file_buffer + 0x1C);
 		unsigned int compression_method = *(file_buffer + 0x1E);
 		if (compression_method != BI_RGB && compression_method != BI_RLE4) {
 			return NULL;
@@ -285,8 +285,8 @@ void draw_bmp(unsigned char* file_buffer, unsigned short offsetX, unsigned short
 	unsigned int draw_h = (((unsigned int)offsetY + height) >= SCREEN_HEIGHT) ? SCREEN_HEIGHT : height;
 
 	// draw the image
-	for(int x = 0 ; x < draw_w ; x++){
-		for(int y = 0 ; y < draw_h ; y++){
+	for(unsigned int x = 0 ; x < draw_w ; x++){
+		for(unsigned int y = 0 ; y < draw_h ; y++){
 			putpixel(offsetX + x, offsetY + y, pixel_buffer[x + width * y]);
 		}
 	}
@@ -1368,8 +1368,8 @@ char getpixel(int x,int y){
 }
 
 void cls(){
-	for(int x = 0 ; x < SCREEN_WIDTH ; x++){
-		for(int y = 0 ; y < SCREEN_HEIGHT ; y++){
+	for(unsigned int x = 0 ; x < SCREEN_WIDTH ; x++){
+		for(unsigned int y = 0 ; y < SCREEN_HEIGHT ; y++){
 			putpixel(x,y,0x01);
 		}
 	}
