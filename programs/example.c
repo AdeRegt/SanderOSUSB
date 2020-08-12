@@ -1,4 +1,4 @@
-#include "../SanderOSUSB.h"
+#include <SanderOSUSB.h>
 
 const char *messagestring = "This is an example program\n";
 char dinges[1];

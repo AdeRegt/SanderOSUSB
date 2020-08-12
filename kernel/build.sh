@@ -2,6 +2,7 @@ export PREFIX="$HOME/opt/cross"
 export TARGET=i686-elf
 export PATH="$PREFIX/bin:$PATH"
 
+echo "Build kernel" 
 nasm -felf32 stub/i386/grub/boot.asm -o boot.o || exit
 nasm -felf32 hal/i386/isr.asm -o isr.o || exit
 nasm -felf32 hal/i386/video.asm -o videoasm.o || exit
@@ -48,7 +49,13 @@ ar rcs ../lib/libsos.a ../kernel.bin
 
 cd ..
 
+objdump --syms kernel.bin >> symbols
+cd utils
+gcc gensymbols.c -o ./gensymbols
+./gensymbols
+cd ..
 
+echo "Build programs"
 for i in programs/*.asm
 do
 	nasm $i -o programs/`basename $i .asm`.bin || exit
@@ -57,12 +64,17 @@ done
 nasm -felf32 programs/base.as -o programs/base.o || exit
 for i in programs/*.c
 do
-	gcc -c $i -o programs/`basename $i .c`.o  -m32  -std=gnu99 -ffreestanding -Wall -Wextra || exit
+	gcc -I include -c $i -o programs/`basename $i .c`.o  -m32  -std=gnu99 -ffreestanding -Wall -Wextra || exit
 	gcc -T programs/proglinker.ld  -m32 -O2 -ffreestanding -nostdlib programs/base.o programs/`basename $i .c`.o -o programs/`basename $i .c`.bin || exit
 done
 
+if [ -f buildlink.sh ]; then
+    ./buildlink.sh
+fi
+
 rm programs/*.o
 
+echo "Build ISO"
 rm cdrom.iso
 mkdir mnt
 mkdir mnt/prgs
