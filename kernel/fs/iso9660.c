@@ -17,7 +17,29 @@ unsigned long charstoint(unsigned char a,unsigned char b,unsigned char c,unsigne
 	
 unsigned long iso_9660_target(Device *device,char* path){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
+	selfloor = 0;
 	
+	//printf("Te zoeken path= %s \n",path);
+
+	//
+	// analyseren pathgegevens
+	// / replacen met 0x0D
+	// opzoeken of . bestaat
+	//
+	int pathlengte = strlen(path);
+	int paths = 1;
+	char is_bestand = 0;
+	for(int i = 0 ; i < pathlengte ; i++){
+		if(path[i]=='/'){
+			path[i] = 0x0d;
+			paths++;
+		}
+		if(path[i]=='.'){
+			is_bestand = 1;
+		}
+	}
+	//printf("Er zijn %x pathelementen\n",paths);
+
 	//
 	// eerst opzoeken van de primaire block
 	//
@@ -42,74 +64,57 @@ unsigned long iso_9660_target(Device *device,char* path){
 	if(path[0]==0){
 		return res;
 	}
-	int pathpointer = 0;
-	char tot = 1;
-	int tcnt = 0;
-	
-	nextpathelem:
-	tcnt = 0;
-	isonameloc = pathpointer;
-	for(int i = 0 ; i < 30 ; i++){
-		char deze = path[pathpointer++];
-		if(deze=='.'){
-			goto foundyay;
+
+	char pathchunk[20];
+	int pathsel = 0; // pathchunckcount
+	int ipath = 0; // pathchunksel
+	char deze = 0;
+	int boomdiepte = 1;
+	memset(pathchunk,20,0);
+	for(int i = 0 ; i < (paths-(is_bestand?1:0)) ; i++){
+		memset(pathchunk,20,0);
+		ipath = 0;
+		kopieernogeen:
+		deze = path[pathsel++];
+		if(!(deze==0x00||deze==0x0D)){
+			pathchunk[ipath++] = deze;
+			goto kopieernogeen;
 		}
-		if(deze==0x00||deze=='/'){
-			pathpart[i]=0;
-			tcnt = i;
-			break;
-		}
-		pathpart[i]=deze;
-	}
-	
-	int found = 0;
-	int i = 0;
-	for(int y = 0 ; y < 10 ; y++){
-		char ttutA = isobuffer[i+0];
-		char ttutB = isobuffer[i+1];
-		char ttutC = isobuffer[i+7];
-		if(tot==ttutC){
-//			putc('\"');
-//			for(int z = 0 ; z < ttutA ; z++){
-//				putc(buffer[i+8+z]);
-//			}
-//			putc('\"');
-			if(tcnt==ttutA){
-				found = 1;
-				for(int z = 0 ; z < ttutA ; z++){
-					char A = isobuffer[i+8+z];
-					char B = pathpart[z];
-					if(A!=B){
-						found = 0;
-					}
-				}
-				if(found==1){
-					tot = y+1;
-					res = charstoint(isobuffer[i+2],isobuffer[i+3],isobuffer[i+4],isobuffer[i+5]);
-					selfloor = tot;
+		pathchunk[ipath] = 0x00;
+		//printf("Chunk [%s] word nu behandeld \n",pathchunk);
+
+		// door alle directories lopen van actuele boom
+		unsigned char entrytextlength = 0;
+		unsigned char entrytotallength = 0;
+		unsigned char entrytree = 0;
+		int entrypointer = 0;
+		int edept = 0;
+		nogmaals:
+		entrytextlength = isobuffer[entrypointer+0];
+		entrytotallength = isobuffer[entrypointer+1];
+		entrytree = isobuffer[entrypointer+7];
+		if(entrytree==boomdiepte&&entrytextlength==ipath){
+			char found = 1;
+			for(int t = 0 ; t < entrytextlength ; t++){
+				if(isobuffer[entrypointer+8+t]!=pathchunk[t]){
+					found = 0;
 				}
 			}
+			if(found){
+				boomdiepte = edept+1;
+				res = charstoint(isobuffer[entrypointer+2],isobuffer[entrypointer+3],isobuffer[entrypointer+4],isobuffer[entrypointer+5]);
+				selfloor = boomdiepte;
+				continue;
+			}
 		}
-		int z = ttutA+ttutB+8;
+		int z = entrytextlength+entrytotallength+8;
 		if(z%2!=0){
 			z++;
 		}
-		i += z;
+		entrypointer += z;
+		edept++;
+		goto nogmaals;
 	}
-	if(found){
-		char deze = path[pathpointer-1];
-		if(deze==0x00||deze=='#'){
-			goto foundyay;
-		}else{
-			goto nextpathelem;
-		}
-	}else if(path[pathpointer-1]==0x00){
-		return res;
-	}else{
-		return 0;
-	}
-	
-	foundyay:
 	return res;
 }
 

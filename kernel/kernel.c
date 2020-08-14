@@ -67,6 +67,16 @@ void kernel_main(){
 	init_acpi();
 	printf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
+
+	unsigned char *sigma = (unsigned char *)dir("@");
+	printf("-> [%s] \n",sigma);
+	sigma = (unsigned char *)dir("A@");
+	printf("-> [%s] \n",sigma);
+	sigma = (unsigned char *)dir("A@boot");
+	printf("-> [%s] \n",sigma);
+	sigma = (unsigned char *)dir("A@boot/grub");
+	printf("-> [%s] \n",sigma);
+	for(;;);
 	
 	//320,200
 	if(init_graph_vga(320, 200, 1)==0) {
@@ -80,10 +90,10 @@ void kernel_main(){
 	};
 	
 	// Buffer size 256KB
-	unsigned char* img_file = malloc(256 * 1000);
-	fread("image.bmp", img_file);
-	draw_bmp(img_file, 0, 0);
-	show();
+	//unsigned char* img_file = malloc(256 * 1000);
+	//fread("image.bmp", img_file);
+	//draw_bmp(img_file, 0, 0);
+	//show();
 
 	if(!getDeviceCount()) {
 		message("Unable to discover usefull hardware");
