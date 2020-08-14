@@ -67,16 +67,6 @@ void kernel_main(){
 	init_acpi();
 	printf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
-
-	unsigned char *sigma = (unsigned char *)dir("@");
-	printf("-> [%s] \n",sigma);
-	sigma = (unsigned char *)dir("A@");
-	printf("-> [%s] \n",sigma);
-	sigma = (unsigned char *)dir("A@boot");
-	printf("-> [%s] \n",sigma);
-	sigma = (unsigned char *)dir("A@boot/grub");
-	printf("-> [%s] \n",sigma);
-	for(;;);
 	
 	//320,200
 	if(init_graph_vga(320, 200, 1)==0) {

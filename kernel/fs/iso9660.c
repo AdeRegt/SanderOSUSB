@@ -17,8 +17,8 @@ unsigned long charstoint(unsigned char a,unsigned char b,unsigned char c,unsigne
 	
 unsigned long iso_9660_target(Device *device,char* path){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
-	selfloor = 0;
-	
+	selfloor = 1;
+
 	//printf("Te zoeken path= %s \n",path);
 
 	//
