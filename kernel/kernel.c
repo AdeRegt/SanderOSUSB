@@ -38,6 +38,8 @@ void browser(){
 				printf("\n - Program finished! Press any key to return - \n");
 				getch();
 			}
+		}else{
+			confirm("Could not find file");
 		}
 	}
 }

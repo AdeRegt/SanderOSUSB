@@ -5,6 +5,7 @@
 #define addresssize 8
 
 int main(int argc,char** argv){
+	remove("../include/symbols.h");
 	FILE *bestand = fopen("../symbols","r");
 	FILE *writer = fopen("../include/symbols.h","w");
 	if(bestand){

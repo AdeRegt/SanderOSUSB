@@ -50,6 +50,7 @@ ar rcs ../lib/libsos.a ../kernel.bin
 cd ..
 
 rm include/symbols.h
+rm symbols
 objdump --syms kernel.bin >> symbols
 cd utils
 gcc gensymbols.c -o ./gensymbols

@@ -97,9 +97,9 @@ int fread(char* path,unsigned char* buffer)
 		if(devices[z].readFile==0){
 			return 0;
 		}else{
-			void* (*foo)(Device *,unsigned char*,unsigned char *) = (void*)devices[z].readFile;
-			foo((Device *)&devices[z],(unsigned char*)&path[2],buffer);
-			return 1;
+			unsigned char (*foo)(Device *,unsigned char*,unsigned char *) = (void*)devices[z].readFile;
+			unsigned char t = foo((Device *)&devices[z],(unsigned char*)&path[2],buffer);
+			return t;
 		}
 	}
 

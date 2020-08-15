@@ -332,7 +332,7 @@ char confirm(char *message){
 }
 
 char *browse(){
-	char *result = malloc(200);
+	char *result = (char *)malloc(200);
 	int pnt = 0;
 	char *sigma = (char *)browseDIR("@");
 	result[pnt++] = sigma[0];
@@ -358,7 +358,6 @@ char *browse(){
 			break;
 		}
 	}
-	
 	return result;
 }
 

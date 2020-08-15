@@ -14,6 +14,7 @@ unsigned long charstoint(unsigned char a,unsigned char b,unsigned char c,unsigne
 	unsigned char selfloor = 1;
 	volatile unsigned char* isobuffer = (volatile unsigned char*)0x1000;
 	unsigned long isonameloc = 0;
+	unsigned long dummy = 0;
 	
 unsigned long iso_9660_target(Device *device,char* path){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
@@ -29,12 +30,15 @@ unsigned long iso_9660_target(Device *device,char* path){
 	int pathlengte = strlen(path);
 	int paths = 1;
 	char is_bestand = 0;
+	int laatsteint = 0;
 	for(int i = 0 ; i < pathlengte ; i++){
 		if(path[i]=='/'){
 			path[i] = 0x0d;
 			paths++;
+			laatsteint = i+1;
 		}
 		if(path[i]=='.'){
+			isonameloc = laatsteint;
 			is_bestand = 1;
 		}
 	}
@@ -104,6 +108,10 @@ unsigned long iso_9660_target(Device *device,char* path){
 				boomdiepte = edept+1;
 				res = charstoint(isobuffer[entrypointer+2],isobuffer[entrypointer+3],isobuffer[entrypointer+4],isobuffer[entrypointer+5]);
 				selfloor = boomdiepte;
+				if((paths-(is_bestand?1:0))==(i+1)){
+					dummy = res;
+					return res;
+				}
 				continue;
 			}
 		}
@@ -183,11 +191,18 @@ char iso_9660_exists(Device *device,char* path){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	
 	int target = iso_9660_target(device,path);
+	target = dummy;
 	if(target!=0){
 		int i = 0;
 		int gz = 0;
 		readraw(device,target,1,(unsigned short *)isobuffer);
-		unsigned char* fname = (unsigned char*)(path+isonameloc);
+		int ctx = 0;
+		for(int i = 0 ; i< strlen(path) ; i++){
+			if(path[i]==0x0D){
+				ctx = i+1;
+			}
+		}
+		unsigned char* fname = (unsigned char*)(path+ctx);
 		for(i = 0 ; i < 1000 ; i++){
 			int t = 2;
 			if(isobuffer[i]==';'&&isobuffer[i+1]=='1'){
@@ -218,17 +233,24 @@ char iso_9660_exists(Device *device,char* path){
 	return 0;
 }
 
-void iso_9660_read(Device *device,char* path,char *buffer){
+unsigned char iso_9660_read(Device *device,char* path,char *buffer){
 	//atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location)
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	
-	int target = iso_9660_target(device,path);
+	unsigned long target = iso_9660_target(device,path);
+	target = dummy;
 	if(target!=0){
 		int tor = 0;
 		int i = 0;
 		int gz = 0;
 		readraw(device,target,1,(unsigned short *)isobuffer);
-		unsigned char* fname = (unsigned char*)(path+isonameloc);
+		int ctx = 0;
+		for(int i = 0 ; i< strlen(path) ; i++){
+			if(path[i]==0x0D){
+				ctx = i+1;
+			}
+		}
+		unsigned char* fname = (unsigned char*)(path+ctx);
 		for(i = 0 ; i < 1000 ; i++){
 			int t = 2;
 			if(isobuffer[i]==';'&&isobuffer[i+1]=='1'){
@@ -258,7 +280,7 @@ void iso_9660_read(Device *device,char* path,char *buffer){
 						for(unsigned int q = 0 ; q < cnt ; q++){
 							readraw(device,lba+q,1,(unsigned short *)(buffer+(device->arg5*q)));
 						}
-						return;
+						return 1;
 					}
 				}
 			}
@@ -267,4 +289,5 @@ void iso_9660_read(Device *device,char* path,char *buffer){
 	}else{
 		buffer[0]=0x00;
 	}
+	return 0;
 }
