@@ -33,7 +33,6 @@ unsigned long iso_9660_target(Device *device,char* path){
 	int laatsteint = 0;
 	for(int i = 0 ; i < pathlengte ; i++){
 		if(path[i]=='/'){
-			path[i] = 0x0d;
 			paths++;
 			laatsteint = i+1;
 		}
@@ -67,6 +66,8 @@ unsigned long iso_9660_target(Device *device,char* path){
 	unsigned long res = charstoint(isobuffer[2],isobuffer[3],isobuffer[4],isobuffer[5]);
 	if(path[0]==0){
 		return res;
+	}else if(paths==1&&is_bestand==1){
+		printf("dinges\n");for(;;);
 	}
 
 	char pathchunk[20];
@@ -80,7 +81,7 @@ unsigned long iso_9660_target(Device *device,char* path){
 		ipath = 0;
 		kopieernogeen:
 		deze = path[pathsel++];
-		if(!(deze==0x00||deze==0x0D)){
+		if(!(deze==0x00||deze=='/')){
 			pathchunk[ipath++] = deze;
 			goto kopieernogeen;
 		}
@@ -198,7 +199,7 @@ char iso_9660_exists(Device *device,char* path){
 		readraw(device,target,1,(unsigned short *)isobuffer);
 		int ctx = 0;
 		for(int i = 0 ; i< strlen(path) ; i++){
-			if(path[i]==0x0D){
+			if(path[i]=='/'){
 				ctx = i+1;
 			}
 		}
@@ -246,7 +247,7 @@ unsigned char iso_9660_read(Device *device,char* path,char *buffer){
 		readraw(device,target,1,(unsigned short *)isobuffer);
 		int ctx = 0;
 		for(int i = 0 ; i< strlen(path) ; i++){
-			if(path[i]==0x0D){
+			if(path[i]=='/'){
 				ctx = i+1;
 			}
 		}

@@ -1494,7 +1494,6 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			disabledevice:
 			printf("[XHCI] Port %x : Disabling port\n",i);
 			xhci_disable_slot(assignedSloth);
-			for(;;);
 		}else{
 			printf("[XHCI] Port %x : No device attached!\n",i);
 		}

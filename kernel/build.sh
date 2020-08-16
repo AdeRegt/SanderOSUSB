@@ -81,8 +81,6 @@ rm cdrom.iso
 mkdir mnt
 mkdir mnt/prgs
 cp programs/*.bin mnt/prgs
-cp programs/fasm mnt/prgs/fasm
-cp test.asm mnt/test.asm
 mkdir mnt/boot
 mkdir mnt/boot/grub
 cp kernel.bin mnt/kernel.bin
