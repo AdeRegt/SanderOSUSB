@@ -41,8 +41,6 @@ char* dir(char* path){
 }
 
 char fexists(unsigned char* path){
-						printstring("Fexists\n");
-
 	for(int i = 0 ; i < 100 ; i++){
 		whoopsie[i] = 0x00;
 	}
@@ -50,8 +48,6 @@ char fexists(unsigned char* path){
 	if(path[1]=='@'){
 		int z = path[0] - 'A';
 		if(devices[z].existsFile==0){
-								printstring("I have no devices\n");
-
 			return 0;
 		}else{
 			char (*foo)(Device *,unsigned char*) = (void *)devices[z].existsFile;
@@ -63,17 +59,12 @@ char fexists(unsigned char* path){
 	}else{
 		//return 0;
 			if(getDeviceCount()>0){
-				printstring("I have a device\n");
 				if(devices[0].existsFile==0){
-									printstring("No device existsFile\n");
-
 					return 0;
 				}
 				char (*foo)(Device *,unsigned char*) = (void *)devices[0].existsFile;
 				return (char) foo((Device *)&devices[0],path);
 			}else{
-								printstring("No devices\n");
-
 				return 0;
 			}
 	}

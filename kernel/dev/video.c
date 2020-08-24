@@ -391,12 +391,13 @@ char *browseDIR(char *path){
 		}
 		addController(1,(unsigned long)&drawButton,t,r,50,15,(unsigned long)cont,0,0,1);
 		t += 55;
-		if(t>300){
+		if(t>280){
 			t = 22;
 			r+= 20;
 		}
 	}
-	return (char *)show();
+	char *v = (char *)show();
+	return v;
 }
 
 void freeGui(){

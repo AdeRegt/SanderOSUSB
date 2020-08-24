@@ -805,12 +805,21 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
         unsigned long capabilitypointer_addr =  capabilitypointer;
         printf("[EHCI] We have capabilitypointers at %x \n",capabilitypointer_addr);
         while(1){
-            unsigned long cap = getBARaddress(bus,slot,function,capabilitypointer_addr);
+            unsigned long cap = 0;
+            int timeout = 0;
+            cap = getBARaddress(bus,slot,function,capabilitypointer_addr);
             unsigned char cid = cap & 0xFF;
             if(cid==0x01){
                 printf("[EHCI] Legacy support available\n");
                 if(cap&(1<<16)){
                     printf("[EHCI] BIOS owns controller\n");
+                    setBARaddress(bus,slot,function,capabilitypointer_addr,cap | (1<<24));
+                    nognkeer:
+                    sleep(100);
+                    timeout++;
+                    if(timeout<2){
+                        goto nognkeer;
+                    }
                 }
             }else{
                 printf("[EHCI] Unknown extended cappoint %x : %x \n",cid,cap);

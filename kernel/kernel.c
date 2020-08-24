@@ -66,6 +66,8 @@ void kernel_main(){
 	init_serial();
 	printstring("=> APCI...\n");
 	init_acpi();
+	printstring("=> Soundblaster...\n");
+	init_soundblaster16();
 	printf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
 	

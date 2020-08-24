@@ -66,8 +66,6 @@ unsigned long iso_9660_target(Device *device,char* path){
 	unsigned long res = charstoint(isobuffer[2],isobuffer[3],isobuffer[4],isobuffer[5]);
 	if(path[0]==0){
 		return res;
-	}else if(paths==1&&is_bestand==1){
-		printf("dinges\n");for(;;);
 	}
 
 	char pathchunk[20];

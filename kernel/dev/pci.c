@@ -85,6 +85,13 @@ void pciConfigWriteWord (unsigned char bus, unsigned char slot, unsigned char fu
     outportl(PCI_DATA+offset,value);
 }
 
+void setBARaddress(int bus,int slot,int function,int barNO,unsigned long result){
+	unsigned long partA = result & 0xffff;
+	unsigned long partB = (result>>16) & 0xffff;
+	pciConfigWriteWord(bus,slot,function,barNO+0,partA);
+	pciConfigWriteWord(bus,slot,function,barNO+2,partB);
+}
+
 unsigned long getBARaddress(int bus,int slot,int function,int barNO){
 	unsigned long result = 0;
 	unsigned long partA = pciConfigReadWord(bus,slot,function,barNO);

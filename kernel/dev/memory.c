@@ -5,7 +5,7 @@
 //
 //
 
-#define MEMORY_BLOCK_LIMIT 500
+#define MEMORY_BLOCK_LIMIT 0x500
 typedef struct {
 	unsigned long from;
 	unsigned long to;
@@ -82,7 +82,7 @@ MemoryBlock *nextMemoryBlockAvailable(){
 void *malloc_align(unsigned long size,unsigned long tag){
 	MemoryBlock *memblck = nextMemoryBlockAvailable();
 	if(((unsigned long)memblck)==0){
-		printf("[PANIC] Out of memory!!!\n");
+		printf("[PANIC] Out of memory (passed limit of %x ) !!!\n",MEMORY_BLOCK_LIMIT);
 		for(;;);
 	}
 

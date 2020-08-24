@@ -13,12 +13,13 @@ Currently the following devices are supported:
 * PIC
 * PCI
 * ACPI
-* XHCI - HID - Keyboard
+* USB - HID - Keyboard
+* USB - Mass Storage Device
 * EHCI - Basic support
 * RTL8169
+* Soundblaster 16
 
 The following devices are on the list to get implemented:
-* EHCI - USBSTICK
 
 The following filesystems are supported:
 * ISO 9660

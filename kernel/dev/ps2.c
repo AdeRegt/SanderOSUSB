@@ -54,6 +54,20 @@ int waitforps2ok(){
 	return 1;
 }
 
+int ps2_echo(){
+	int a = writeToFirstPS2Port(0xEE);
+	if(a==0){
+		return 0;
+	}
+	resetTicks();
+	while(inportb(PS2_DATA)!=0xEE){
+		if(getTicks()==PS2_TIMEOUT){
+			return 0;
+		}
+	}
+	return 1;
+}
+
 void printps2devicetype(unsigned char a){
 	if(a==0x00){
 		printf("PS2: standard ps/2 mouse\n");
@@ -326,6 +340,11 @@ int init_ps2_mouse(){
 char ps2onceagain = 1;
 
 void init_ps2(){
+	int t = ps2_echo();
+	if(t==0){
+		printstring("<<PS2ECHO FAILED>>");
+		for(;;);
+	}
 	if(init_ps2_mouse()){
 		printstring("PS2: mouse enabled!\n");
 	}else{

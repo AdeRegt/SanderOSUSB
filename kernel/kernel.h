@@ -183,12 +183,16 @@ void resetTicks();
 // DEVICES
 //////////////
 
+// SOUNDBLASTER
+void init_soundblaster16();
+
 // PS2
 void init_ps2();
 
 // PCI
 void init_pci();
 unsigned long getBARaddress(int bus,int slot,int function,int barNO);
+void setBARaddress(int bus,int slot,int function,int barNO,unsigned long result);
 void init_xhci(unsigned long bus,unsigned long slot,unsigned long function);
 void dumpPCI(int bus,int slot,int function);
 void memdump(unsigned long location);

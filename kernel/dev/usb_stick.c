@@ -81,19 +81,19 @@ unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsign
 			return (unsigned char *)EHCI_ERROR;
 		}
 		csw = (CommandStatusWrapper*) cuv;
+		printf("[SMSD] Status at end\n");
 		if(csw->signature!=USB_STORAGE_CSW_SIGN){
 			printf("[SMSD] Command Status Wrapper has a invalid signature\n");
-			for(;;);
+			return (unsigned char *)EHCI_ERROR;
 		}
 	}
 	printf("[SMSD] Status=%x \n",csw->status);
 	if(csw->status){
-		for(;;);
+		return (unsigned char *)EHCI_ERROR;
 	}
 	if(csw->dataResidue){
 		printf("[SMSD] Data residu %x \n",csw->dataResidue);
 		printf("[SMSD] Asking for a re-read\n");
-		for(;;);
 		buffer = ehci_recieve_bulk(device,csw->dataResidue,malloc(csw->dataResidue));
 		if((unsigned long)buffer==EHCI_ERROR){printf("D");
 			return (unsigned char *)EHCI_ERROR;
