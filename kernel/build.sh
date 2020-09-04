@@ -2,6 +2,12 @@ export PREFIX="$HOME/opt/cross"
 export TARGET=i686-elf
 export PATH="$PREFIX/bin:$PATH"
 
+echo "Build bootloader"
+cd ../biosbootloader
+nasm -O0 -w+orphan-labels -f bin -o bootloader.bin bootloader.asm || exit
+nasm -O0 -w+orphan-labels -f bin -o stage2.bin stage2.asm || exit
+cd ../kernel
+
 echo "Build kernel" 
 nasm -felf32 stub/i386/grub/boot.asm -o boot.o || exit
 nasm -felf32 hal/i386/isr.asm -o isr.o || exit
