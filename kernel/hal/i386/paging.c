@@ -2,8 +2,10 @@
 
 #define PAGE_DIRECTORY_SIZE 1024
 
+#ifdef IS32
 extern void loadPageDirectory(unsigned long*);
 extern void enablePaging();
+#endif
 
 unsigned long page_directory[PAGE_DIRECTORY_SIZE] __attribute__((aligned(4096)));
 //unsigned long first_page_table[PAGE_DIRECTORY_SIZE] __attribute__((aligned(4096)));
@@ -37,12 +39,14 @@ void init_paging(){
     set_paging_frame(0);
 
     printf("[PAGING] Tell CPU where page tables are\n");
+#ifdef IS32
     loadPageDirectory(page_directory);
+#endif
 
     printf("[PAGING] Tell CPU to use paging\n");
-    #ifdef ENABLE_PAGING
+#ifdef ENABLE_PAGING
     enablePaging();
-    #endif
+#endif
 
     printf("[PAGING] Paging is enabled\n");
 }

@@ -38,7 +38,9 @@ static int vbox_port;
 //static struct vbox_header guest_info;
 struct vbox_guest_info hdr;
 
+#ifdef IS32
 extern void vbirq();
+#endif
 
 void irq_vb(){
 	outportb(0x20,0x20);
@@ -48,7 +50,9 @@ void irq_vb(){
 void init_vbox(unsigned long BAR ,unsigned char irq){
 	printf("VBOX: port detected at %x with irq %x \n",BAR,irq);
 	
+#ifdef IS32
 	setNormalInt(irq,(unsigned long)vbirq);
+#endif
 	
 	struct vbox_guest_info * guest_info = (struct vbox_guest_info *) &hdr;
 	guest_info->header.size = sizeof(struct vbox_guest_info);

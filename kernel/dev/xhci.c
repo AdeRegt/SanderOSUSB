@@ -388,7 +388,9 @@ typedef struct{
 	unsigned char bMaxPacketSize;
 }XHCI_DEVICE_DESCRIPTOR;
 
+#ifdef IS32
 extern void xhciirq();
+#endif 
 
 unsigned long basebar = 0;
 unsigned long usbcmd = 0;
@@ -747,7 +749,9 @@ unsigned char xhci_send_message(USB_DEVICE* device,TRB setup,TRB data,TRB end){
 void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	printf("[XHCI] entering xhci driver....\n");
 	unsigned long usbint = getBARaddress(bus,slot,function,0x3C) & 0x000000FF;
+#ifdef IS32
 	setNormalInt(usbint,(unsigned long)xhciirq);
+#endif
 //	
 //	GETTING BASIC INFO
 	deviceid = (getBARaddress(bus,slot,function,0) & 0xFFFF0000) >> 16;

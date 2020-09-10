@@ -39,6 +39,8 @@ void init_timer(){
 	outportb(0x43, 0x36);             /* Set our command byte 0x36 */
 	outportb(0x40, divisor & 0xFF);   /* Set low byte of divisor */
 	outportb(0x40, divisor >> 8);     /* Set high byte of divisor */
+#ifdef IS32
 	setNormalInt(0,(unsigned long)timerirq);
+#endif
 }
 

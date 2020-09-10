@@ -8,8 +8,8 @@
 struct Descriptor{
 	unsigned int command;  /* command/status uint32_t */
 	unsigned int vlan;     /* currently unused */
-	unsigned int low_buf;  /* low 32-bits of physical buffer address */
-	unsigned int high_buf; /* high 32-bits of physical buffer address */
+	void *low_buf;  /* low 32-bits of physical buffer address */
+	void *high_buf; /* high 32-bits of physical buffer address */
 };
 
 // The recieve and transmit queue
@@ -35,11 +35,11 @@ void irq_rtl8169(){
 		status |= 0x20;
 	}else if(status&0x01){
 		printf("[RTL81] Package recieved!\n");
-		((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0] = 1;
+		((unsigned volatile long*)((void *)&package_recieved_ack))[0] = 1;
 		status |= 0x01;
 	}else if(status&0x04){
 		printf("[RTL81] Package send!\n");
-		((unsigned volatile long*)((unsigned volatile long)&package_send_ack))[0] = 1;
+		((unsigned volatile long*)((void *)&package_send_ack))[0] = 1;
 		status |= 0x04;
 	}else{
 		printf("[RTL81] Unknown INT %x \n",status);
@@ -58,8 +58,8 @@ void irq_rtl8169(){
 void rtl_sendPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp){
 	unsigned long ms1 = 0x80000000 | (ip==1?0x40000:0) | (udp==1?0x20000:0) | (tcp==1?0x10000:0) | (first==1?0x20000000:0) | (last==1?0x10000000:0) | (desc.buffersize & 0x3FFF); // 0x80000000 | ownbit=yes | firstsegment | lastsegment | length
 	unsigned long ms2 = 0 ;
-	unsigned long ms3 = desc.low_buf;
-	unsigned long ms4 = desc.high_buf;
+	void *ms3 = desc.low_buf;
+	void *ms4 = desc.high_buf;
 	
 	struct Descriptor *desz = ((struct Descriptor*)(Tx_Descriptors+(sizeof(struct Descriptor)*tx_pointer)));
 	if(desz->command!=0x80000064){ // a check if we somehow lost the count
@@ -72,11 +72,11 @@ void rtl_sendPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned
 	
 	tx_pointer++;
 	
-	((unsigned volatile long*)((unsigned volatile long)&package_send_ack))[0] = 0;
+	((unsigned volatile long*)((void *)&package_send_ack))[0] = 0;
 	outportb(bar1 + 0x38, 0x40); // ring the doorbell
 	
 	while(1){ // wait for int or end of polling
-		unsigned volatile long x = ((unsigned volatile long*)((unsigned volatile long)&package_send_ack))[0];
+		unsigned volatile long x = ((unsigned volatile long*)((void *)&package_send_ack))[0];
 		if(x==1){
 			break;
 		}
@@ -85,18 +85,18 @@ void rtl_sendPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned
 			break;
 		}
 	}
-	((unsigned volatile long*)((unsigned volatile long)&package_send_ack))[0] = 0;
+	((unsigned volatile long*)((void *)&package_send_ack))[0] = 0;
 }
 
 PackageRecievedDescriptor rtl_recievePackage(){
-	((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0] = 0;
+	((unsigned volatile long*)((void *)&package_recieved_ack))[0] = 0;
 	while(1){ // wait of arival of interrupt
-		unsigned volatile long x = ((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0];
+		unsigned volatile long x = ((unsigned volatile long*)((void *)&package_recieved_ack))[0];
 		if(x==1){
 			break;
 		}
 	}
-	((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0] = 0;
+	((unsigned volatile long*)((void *)&package_recieved_ack))[0] = 0;
 	struct Descriptor desc = Rx_Descriptors[rx_pointer++];
 	PackageRecievedDescriptor res;
 	unsigned long buffer_size = desc.command & 0x3FFF;
@@ -123,10 +123,12 @@ void init_rtl(int bus,int slot,int function){
 	bar1 = getBARaddress(bus,slot,function,0x10) & 0xFFFFFFFE;
 	printf("[RTL81] BAR=%x \n",bar1);
 	
+#ifdef IS32
 	printf("[RTL81] Set interrupter\n");
 	unsigned long usbint = getBARaddress(bus,slot,function,0x3C) & 0x000000FF;
 	setNormalInt(usbint,(unsigned long)rtl8169irq);
-	
+#endif	
+
 	//
 	// trigger reset
 	printf("[RTL81] Resetting driver \n");
@@ -149,13 +151,13 @@ void init_rtl(int bus,int slot,int function){
 	unsigned int EOR = 0x40000000;
 	for(unsigned long i = 0; i < num_of_rx_descriptors; i++){
 		unsigned long rx_buffer_len = 100;
-		unsigned long packet_buffer_address = (unsigned long)malloc(rx_buffer_len);
+		void *packet_buffer_address = (void *)malloc(rx_buffer_len);
 		if(i == (num_of_rx_descriptors - 1)){
 			Rx_Descriptors[i].command = (OWN | EOR | (rx_buffer_len & 0x3FFF));
 		}else{
 			Rx_Descriptors[i].command = (OWN | (rx_buffer_len & 0x3FFF));
 		}
-		Rx_Descriptors[i].low_buf = (unsigned int)packet_buffer_address;
+		Rx_Descriptors[i].low_buf = (void *)packet_buffer_address;
 		Rx_Descriptors[i].high_buf = 0;
 	}
 	
@@ -165,14 +167,18 @@ void init_rtl(int bus,int slot,int function){
 	outportl(bar1 + 0x40, 0x03000700); /* TxConfig = IFG: normal, MXDMA: unlimited */
 	outportw(bar1 + 0xDA, 0x1FFF); /* Max rx packet size */
 	outportb(bar1 + 0xEC, 0x3B); /* max tx packet size */ // 0x3B
+#ifdef IS32
 	outportl(bar1 + 0x20, (unsigned long)&Tx_Descriptors[0]); /* Tell the NIC where the first Tx descriptor is */
 	outportl(bar1 + 0x24, (unsigned long)0); 
+#endif
+#ifdef IS32
 	outportl(bar1 + 0xE4, (unsigned long)&Rx_Descriptors[0]); /* Tell the NIC where the first Rx descriptor is */
 	outportl(bar1 + 0xE8, (unsigned long)0);
+#endif
 	outportw(bar1 + 0x3C, 0xC1FF); /* Set all masks open so we get much ints */
 	outportb(bar1 + 0x37, 0x0C); /* Enable Rx/Tx in the Command register */
 	outportb(bar1 + 0x50, 0x00); /* Lock config registers */
 	
-	register_ethernet_device((unsigned long)&rtl_sendPackage,(unsigned long)&rtl_recievePackage);
+	register_ethernet_device((void *)&rtl_sendPackage,(void *)&rtl_recievePackage);
 	printf("[RTL81] Setup finished\n");
 }

@@ -9,7 +9,7 @@ typedef struct{
 	unsigned char isDrawable;
 	unsigned char isSelected;
 	unsigned char hasFocus;
-	unsigned long draw;
+	void *draw;
 	unsigned short x;
 	unsigned short y;
 	unsigned short w;
@@ -436,13 +436,19 @@ void addController(unsigned char drawable,unsigned long drawablefunc,unsigned sh
 //
 //
 
+#ifdef IS32
 extern void video_load_font();
+#endif
 
 int vidpnt = 0;
 int curx = 0;
 int cury = 0;
 unsigned char _fontbuffer[4000];
 int isgraphics = 0;
+
+void setGraphicsMode(int a){
+	isgraphics = a;
+}
 
 int isGraphicsMode(){
 	return isgraphics;
@@ -459,7 +465,9 @@ void init_video(){
 	curx = 0;
 	cury = 0;
 	isgraphics = 0;
+#ifdef IS32
 	video_load_font();
+#endif
 }
 
 void printstring(char* message){
@@ -1199,6 +1207,13 @@ void putc(char a){
 		}else{
 			drawchar(a,curx,cury,0x04,0x01);
 			curx++;
+		}
+	}else if(isgraphics==2){
+		if(a!='\n'){
+			print_efi_char(a);
+		}else{
+			print_efi_char('\n');
+			print_efi_char('\r');
 		}
 	}else{
 		if(a!='\n'){

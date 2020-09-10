@@ -16,7 +16,7 @@ unsigned char usb_stick_get_max_lun(USB_DEVICE *device){
     commando->wLength = 1; // getlength=8
     commando->wValue = 0; // get config info
 	unsigned char *res = usb_send_and_recieve_control(device,commando,malloc(1));
-	if((unsigned long)res==EHCI_ERROR){
+	if((void *)res==(void *)EHCI_ERROR){
 		return (unsigned char)(EHCI_ERROR&0xFF);
 	}
 	return res[0];
@@ -61,14 +61,14 @@ struct rdcap_10_response_t {
 } __attribute__ ((packed));
 
 unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut){
-	unsigned long lstatus = usb_send_bulk(device,expectedOut,out);
-    if(lstatus==EHCI_ERROR){
+	void *lstatus = usb_send_bulk(device,expectedOut,out);
+    if((void *)lstatus==(void *)EHCI_ERROR){
         return (unsigned char*)EHCI_ERROR;
     }
 
 	unsigned char* buffer = malloc(expectedIN);
-	unsigned long t1 = usb_recieve_bulk(device,expectedIN,buffer);
-	if((unsigned long)t1==EHCI_ERROR){
+	void *t1 = usb_recieve_bulk(device,expectedIN,buffer);
+	if((void *)t1==(void *)EHCI_ERROR){
 		return (unsigned char *)EHCI_ERROR;
 	}
 
@@ -76,8 +76,8 @@ unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsign
 	csw = (CommandStatusWrapper*)buffer;
 	if(csw->signature!=USB_STORAGE_CSW_SIGN){
 		unsigned char* cuv = malloc(13);
-		unsigned long t2 = usb_recieve_bulk(device,13,cuv);
-		if((unsigned long)t2==EHCI_ERROR){
+		void *t2 = usb_recieve_bulk(device,13,cuv);
+		if((void *)t2==(void *)EHCI_ERROR){
 			return (unsigned char *)EHCI_ERROR;
 		}
 		csw = (CommandStatusWrapper*) cuv;
@@ -95,7 +95,7 @@ unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsign
 		printf("[SMSD] Data residu %x \n",csw->dataResidue);
 		printf("[SMSD] Asking for a re-read\n");
 		buffer = ehci_recieve_bulk(device,csw->dataResidue,malloc(csw->dataResidue));
-		if((unsigned long)buffer==EHCI_ERROR){printf("D");
+		if((void *)buffer==(void *)EHCI_ERROR){printf("D");
 			return (unsigned char *)EHCI_ERROR;
 		}
 	}
@@ -163,11 +163,11 @@ unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
 }
 
 void usb_stick_read_raw_sector(Device *dxv,unsigned long LBA,unsigned char count,unsigned short *l0cation){
-	EHCI_USBSTICK *stick = (EHCI_USBSTICK*) ((unsigned long)dxv->arg1);
+	EHCI_USBSTICK *stick = (EHCI_USBSTICK*) ((void *)dxv->arg1);
 	unsigned char *location = (unsigned char*)l0cation;
 	for(int i = 0 ; i < count ; i++){
 		unsigned char* tak = usb_stick_read_sector(stick->master,dxv->arg2+LBA);
-		if((unsigned long)tak!=EHCI_ERROR){
+		if((void *)tak!=(void *)EHCI_ERROR){
 			for(int z = 0 ; z < 512 ; z++){
 				location[(i*512)+z] = tak[z];
 			}
@@ -203,7 +203,7 @@ void usb_stick_init(USB_DEVICE *device){//unsigned char addr,unsigned char subcl
 	if(USB_STORAGE_ENABLE_ENQ){
 		unsigned char* inquiry_raw = usb_stick_get_inquiry(device);
 		struct cdbres_inquiry* inc = (struct cdbres_inquiry*)inquiry_raw;
-		if((unsigned long)inquiry_raw==(unsigned long)EHCI_ERROR){
+		if((void *)inquiry_raw==(void *)EHCI_ERROR){
 			printf("[SMSD] An error occured while getting inquiry info \n");
 			return;
 		}
@@ -217,7 +217,7 @@ void usb_stick_init(USB_DEVICE *device){//unsigned char addr,unsigned char subcl
 	// get capacity
 	if(USB_STORAGE_ENABLE_CAP){
 		unsigned char* capacity_raw = usb_stick_get_capacity(device);
-		if((unsigned long)capacity_raw==(unsigned long)EHCI_ERROR){
+		if((void *)capacity_raw==(void *)EHCI_ERROR){
 			printf("[SMSD] An error occured while getting capacity info \n");
 			return;
 		}
@@ -229,7 +229,7 @@ void usb_stick_init(USB_DEVICE *device){//unsigned char addr,unsigned char subcl
 	
 	if(USB_STORAGE_ENABLE_SEC){
 		unsigned char* t = usb_stick_read_sector(device,0);
-		if((unsigned long)t==(unsigned long)EHCI_ERROR){
+		if((void *)t==(void *)EHCI_ERROR){
 			printf("[SMSD] An error occured while reading a sector \n");
 			return;
 		}
@@ -242,8 +242,8 @@ void usb_stick_init(USB_DEVICE *device){//unsigned char addr,unsigned char subcl
 	usbdevice->master = device;
 
 	Device *regdev = (Device*) malloc(sizeof(Device));
-	regdev->readRawSector = (unsigned long) usb_stick_read_raw_sector;
-	regdev->arg1 = (unsigned long)usbdevice;
+	regdev->readRawSector = (void *) usb_stick_read_raw_sector;
+	regdev->arg1 = (void *)usbdevice;
 	regdev->arg5 = 512;
 
 	detectFilesystemsOnMBR(regdev);

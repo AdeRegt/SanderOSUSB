@@ -2,27 +2,27 @@
 
 //
 // In this file all calls to one of the USB drivers are listed
-unsigned long usb_send_bulk(USB_DEVICE *device,unsigned long count,void *buffer){
+void *usb_send_bulk(USB_DEVICE *device,unsigned long count,void *buffer){
 	if(device->drivertype==1){
-		return EHCI_ERROR;
+		return (void *)EHCI_ERROR;
 	}else if(device->drivertype==2){
-		return (unsigned long) ehci_send_bulk(device,buffer,count);
+		return (void *) ehci_send_bulk(device,buffer,count);
 	}else if(device->drivertype==3){
-		return EHCI_ERROR;
+		return (void *)EHCI_ERROR;
 	}else{
-		return EHCI_ERROR;
+		return (void *)EHCI_ERROR;
 	}
 }
 
-unsigned long usb_recieve_bulk(USB_DEVICE *device,unsigned long count,void *commando){
+void *usb_recieve_bulk(USB_DEVICE *device,unsigned long count,void *commando){
 	if(device->drivertype==1){
-		return EHCI_ERROR;
+		return (void*)EHCI_ERROR;
 	}else if(device->drivertype==2){
-		return (unsigned long) ehci_recieve_bulk(device,count,commando);
+		return (void *) ehci_recieve_bulk(device,count,commando);
 	}else if(device->drivertype==3){
-		return EHCI_ERROR;
+		return (void*)EHCI_ERROR;
 	}else{
-		return EHCI_ERROR;
+		return (void*)EHCI_ERROR;
 	}
 }
 

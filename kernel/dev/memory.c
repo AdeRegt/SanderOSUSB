@@ -7,8 +7,8 @@
 
 #define MEMORY_BLOCK_LIMIT 0x500
 typedef struct {
-	unsigned long from;
-	unsigned long to;
+	void *from;
+	void *to;
 }MemoryBlock;
 
 MemoryBlock memreg[MEMORY_BLOCK_LIMIT];
@@ -86,20 +86,25 @@ void *malloc_align(unsigned long size,unsigned long tag){
 		for(;;);
 	}
 
-	unsigned long teller = 0;
+	void *teller = 0;
 	if(tag==0&&getMemoryBlockUsedCount()!=0){
-		unsigned long tw = 0;
+		pointer tw = 0;
 		for(int i = 0 ; i < MEMORY_BLOCK_LIMIT ; i++){
 			MemoryBlock bl = memreg[i];
 			if(bl.from==0&&bl.to==0){
 				continue;
 			}
 			if(tw!=0&&tw!=bl.from){
-				unsigned long df = 0;
+				pointer df = 0;
 				if(tw<bl.from){
 					df = bl.from-tw;
 				}else{
-					df = tw-bl.from;
+					#ifndef IS64
+					df = tw-((unsigned long)bl.from);
+					#endif
+					#ifdef IS64
+					df = tw-((unsigned long long)bl.from);
+					#endif
 				}
 				if(df>size){
 					teller = tw;
@@ -124,11 +129,16 @@ void *malloc_align(unsigned long size,unsigned long tag){
 	}
 
 	if(teller==0){
-		teller = 0x30000;
+		teller = (void *)0x30000;
 	}
 
 	while(1){
-		unsigned long Y = teller&tag;
+		#ifndef IS64
+		unsigned long Y = ((unsigned long)teller)&tag;
+		#endif
+		#ifdef IS64
+		unsigned long Y = ((unsigned long long)teller)&tag;
+		#endif
 		if(Y==0){
 			break;
 		}
@@ -136,10 +146,15 @@ void *malloc_align(unsigned long size,unsigned long tag){
 	}
 
 	memblck->from = teller;
-	memblck->to = teller + size;
+	memblck->to = (void *)(teller + size);
 
-	for(unsigned long i = memblck->from ; i < memblck->to ; i++){
-		((unsigned char*)(memblck->from+i))[0] = 0;
+	for(void *i = memblck->from ; i < memblck->to ; i++){
+		#ifndef IS64
+		((unsigned long *)(memblck->from+((unsigned long)i)))[0] = 0;
+		#endif
+		#ifdef IS64
+		((unsigned long long *)(memblck->from+((unsigned long long)i)))[0] = 0;
+		#endif
 	}
 
 	//printf("[MEM] Allocated memory: FROM=%x TO=%x SIZE=%x\n",memblck->from,memblck->to,size);
@@ -149,7 +164,7 @@ void *malloc_align(unsigned long size,unsigned long tag){
 void free(void *loc){
 	for(int i = 0 ; i < MEMORY_BLOCK_LIMIT ; i++){
 		MemoryBlock *mb = (MemoryBlock*) (&memreg)+(sizeof(MemoryBlock)*i);
-		if(mb->from==(unsigned long)loc){
+		if(mb->from==(void *)loc){
 			mb->from = 0;
 			mb->to = 0;
 		}

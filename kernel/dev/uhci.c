@@ -79,7 +79,9 @@ int uhci_init_port(unsigned long port,int i){
 	return 1;
 }
 
+#ifdef IS32
 extern void uhciirq();
+#endif
 
 void irq_uhci(){
 	printf("[UHCI] Int fired!\n");
@@ -100,10 +102,12 @@ void uhci_init(int bus,int slot,int function){
 		return;
 	}
 	
+#ifdef IS32
 	unsigned long usbint = getBARaddress(bus,slot,function,0x3C) & 0x000000FF;
 	printf("[UHCI] Installing interrupts at %x \n",usbint);
 	setNormalInt(usbint,(unsigned long)uhciirq);
-	
+#endif
+
 	unsigned short deviceid = (getBARaddress(bus,slot,function,0) & 0xFFFF0000) >> 16;
 	printf("[UHCI] Deviceid=%x \n",deviceid);
 	if(deviceid==0x7020){

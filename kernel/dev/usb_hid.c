@@ -1,7 +1,7 @@
 #include "../kernel.h"
 // OSDEV article: https://wiki.osdev.org/USB_Human_Interface_Devices
 
-unsigned char usb_get_packed_hid(USB_DEVICE* device,unsigned long devicedesc){
+unsigned char usb_get_packed_hid(USB_DEVICE* device,void *devicedesc){
 	EhciCMD* commando = (EhciCMD*) malloc(sizeof(EhciCMD));
 	commando->bRequest = 1;
 	commando->bRequestType = 0xA1;
@@ -17,7 +17,7 @@ unsigned char get_usb_hid_keyboard_input(USB_DEVICE* device,unsigned char wait){
 	unsigned volatile char devicedesc[10];
 	again:
 	wait++;
-	unsigned char res = usb_get_packed_hid(device,(unsigned long)&devicedesc);
+	unsigned char res = usb_get_packed_hid(device,(void *)&devicedesc);
 	if(res!=(EHCI_ERROR&0xFF)){
 		if(devicedesc[2]!=0){
 			unsigned char tx = devicedesc[2];
@@ -92,16 +92,16 @@ unsigned char get_usb_hid_keyboard_input(USB_DEVICE* device,unsigned char wait){
 //	unsigned char (*send)(USB_DEVICE* device,TRB setup,TRB data,TRB end) = (void*)device->sendMessage;
 //}
 
-unsigned long usb_hid_has_keyboard = 0;
+void *usb_hid_has_keyboard = 0;
 
-unsigned long usb_get_keyboard(){
+void *usb_get_keyboard(){
 	return usb_hid_has_keyboard;
 }
 
 void init_usb_hid_keyboard(USB_DEVICE* device){
 	//
 	// Use GET_REPORT protocol
-	usb_hid_has_keyboard = (unsigned long)device;
+	usb_hid_has_keyboard = (void *)device;
 	
 	return;
 }
@@ -127,7 +127,7 @@ void init_usb_hid(USB_DEVICE* device){
     commando->wValue = 0;
 	unsigned char *res = usb_send_and_recieve_control(device,commando,0);
 	free(commando);
-	if((unsigned long)res==EHCI_ERROR){
+	if((void *)res==(void *)EHCI_ERROR){
 		printf("[HID] Unable to set protocol\n");
 		return;
 	}

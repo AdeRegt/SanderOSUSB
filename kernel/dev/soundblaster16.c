@@ -49,9 +49,16 @@ int soundblaster16_playSoundData(void *data,unsigned short size,unsigned char he
 		outportb(0x0A,5);
 		outportb(0x0C,1);
 		outportb(0x0B,0x49);
+#ifdef IS32
 		outportb(0x83,(((unsigned long)data)>>16)&0xFF);
 		outportb(0x02,((unsigned long)data)&0xFF);
 		outportb(0x02,(((unsigned long)data)>>8)&0xFF);
+#endif
+#ifdef IS64
+		outportb(0x83,(((unsigned long long)data)>>16)&0xFF);
+		outportb(0x02,((unsigned long long)data)&0xFF);
+		outportb(0x02,(((unsigned long long)data)>>8)&0xFF);
+#endif
 		outportb(0x03,size&0xFF);
 		outportb(0x03,(size>>8)&0xFF);
 		outportb(0x0A,1);
@@ -117,7 +124,9 @@ void init_soundblaster16(){
 	// set interrupt
 	unsigned char targetinterrupt = 5;
 	printf("[SNDBST] Setting interrupt to %x \n",targetinterrupt);
+#ifdef IS32
 	setNormalInt(targetinterrupt,(unsigned long)sndirq);
+#endif
 	outportb(SOUNDBLASTER16_DSP_MIXER_PORT,0x80);
 	outportb(SOUNDBLASTER16_DSP_MIXER_PORT,0x02); // 2= interrupt 5
 

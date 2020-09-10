@@ -349,6 +349,6 @@ void initialiseFAT(Device* device){
 		}
 		printf("\n");
 	}
-	device->dir	= (unsigned long)&fat_dir;
-	device->readFile= (unsigned long)&fat_read;
+	device->dir	= (void *)&fat_dir;
+	device->readFile = (void *)&fat_read;
 }

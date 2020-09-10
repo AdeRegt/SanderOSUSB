@@ -82,8 +82,10 @@ void printps2devicetype(unsigned char a){
 	}
 }
 
+#ifdef IS32
 extern void mouseirq();
 extern void keyboardirq();
+#endif 
 
 int csr_y = 12;
 int csr_x = 40;
@@ -267,7 +269,9 @@ int init_ps2_keyboard(){
 	if(!writeToFirstPS2Port(0xF4)){goto error;}
 	if(!waitforps2ok()){goto error;}
 	
+#ifdef IS32
     	setNormalInt(1,(unsigned long)keyboardirq);
+#endif
     	return 1;
     	
     	error:
@@ -330,7 +334,9 @@ int init_ps2_mouse(){
 	if(!writeToSecondPS2Port(0xF4)){goto error;}
 	if(!waitforps2ok()){goto error;}
 	
+#ifdef IS32
     	setNormalInt(12,(unsigned long)mouseirq);
+#endif
     	return 1;
     	
     	error:
@@ -365,7 +371,7 @@ InputStatus getInputStatus(){
 	is.mouse_y		= ccr_y;
 	is.mouse_z		= 0xCD;
 	is.mousePressed		= clck;
-	unsigned long tx = usb_get_keyboard();
+	void *tx = usb_get_keyboard();
 	if(tx==0){
 		is.keyPressed		= keyword;
 	}else{
@@ -376,13 +382,18 @@ InputStatus getInputStatus(){
 	return is;
 }
 
+#ifdef IS32
 extern char keywait();
+#endif
 
 unsigned char getch(){
-	unsigned long tx = usb_get_keyboard();
+	void *tx = usb_get_keyboard();
 	if(tx==0){
+#ifdef IS32
 		return keywait();
+#endif
 	}else{
 		return get_usb_hid_keyboard_input((USB_DEVICE*)tx,1);
 	}
+	return 0x00;
 }

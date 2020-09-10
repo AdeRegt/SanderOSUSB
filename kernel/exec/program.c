@@ -4,7 +4,7 @@
 
 static int kernel_program_load_elf(const char *buffer)
 {
-    unsigned long gamma = loadelf((void *)buffer);
+    void *gamma = loadelf((void *)buffer);
     if (gamma == 0)
     {
         return -EIO;

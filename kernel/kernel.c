@@ -44,7 +44,9 @@ void browser(){
 }
 
 void kernel_main(){
+#ifdef IS32
 	init_video();
+#endif
 	printstring("Welcome to the Sanderslando Kernel!!\n");
 	printstring("Loading core components...\n");
 	printstring("=> Global Description Table...\n");

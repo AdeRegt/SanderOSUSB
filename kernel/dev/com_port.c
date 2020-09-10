@@ -4,8 +4,9 @@
 //
 //
 
+#ifdef IS32
 extern void serialirq();
-
+#endif
 
 unsigned int serial_received(unsigned short PORT) {
    return inportb(PORT + 5) & 1;
@@ -42,7 +43,9 @@ void init_serial_device(unsigned short PORT) {
    outportb(PORT + 2, 0xC7);    // Enable FIFO, clear them, with 14-byte threshold
    outportb(PORT + 4, 0x0B);    // IRQs enabled, RTS/DSR set
    outportb(PORT + 1, 1);
+#ifdef IS32
    setNormalInt(4,(unsigned long)serialirq);
+#endif
 }
 
 void init_serial(){

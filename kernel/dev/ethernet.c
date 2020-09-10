@@ -13,7 +13,7 @@ void ethernet_detect(int bus,int slot,int function,int device,int vendor){
 
 EthernetDevice defaultEthernetDevice;
 
-void register_ethernet_device(unsigned long sendPackage,unsigned long recievePackage){
+void register_ethernet_device(void *sendPackage,void *recievePackage){
     defaultEthernetDevice.recievePackage = recievePackage;
     defaultEthernetDevice.sendPackage = sendPackage;
 }

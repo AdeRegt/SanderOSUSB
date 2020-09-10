@@ -6,15 +6,15 @@
 
 
 unsigned long periodic_list[EHCI_PERIODIC_FRAME_SIZE] __attribute__ ((aligned (0x1000)));
-unsigned long portbaseaddress;
-unsigned long usbcmd_addr;
-unsigned long usbsts_addr;
-unsigned long usbint_addr;
-unsigned long usbfin_addr;
-unsigned long usbctr_addr;
-unsigned long usbper_addr;
-unsigned long usbasc_addr;
-unsigned long usbcon_addr;
+void *portbaseaddress;
+void *usbcmd_addr;
+void *usbsts_addr;
+void *usbint_addr;
+void *usbfin_addr;
+void *usbctr_addr;
+void *usbper_addr;
+void *usbasc_addr;
+void *usbcon_addr;
 unsigned char available_ports;
 unsigned char deviceaddress;
 
@@ -492,7 +492,7 @@ unsigned char* ehci_send_and_recieve_command(unsigned char addr,EhciCMD* command
     return buffer;
 }
 
-unsigned long ehci_send_bulk(USB_DEVICE *device,unsigned char* out,unsigned long expectedOut){
+void *ehci_send_bulk(USB_DEVICE *device,unsigned char* out,unsigned long expectedOut){
     //
     // Send bulk
     EhciTD *command = (EhciTD*) malloc_align(sizeof(EhciTD),0xFF);
@@ -794,7 +794,7 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
     available_ports = hcsparams & 0b1111;
     printf("[EHCI] We have %x ports available\n",available_ports);
     unsigned long hccparams_addr = baseaddress+0x08;
-    unsigned long hccparams = ((unsigned long*)hccparams_addr)[0];
+    unsigned long hccparams = (unsigned long)((unsigned long*)hccparams_addr)[0];
     printf("[EHCI] HCCParams are %x \n",hccparams);
     unsigned char bit64cap = hccparams & 1;
     if(bit64cap){
@@ -831,9 +831,11 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
             capabilitypointer_addr += cxt;
         }
     }
+#ifdef IS32
 	unsigned long usbint = getBARaddress(bus,slot,function,0x3C) & 0x000000FF;
     setNormalInt(usbint,(unsigned long)ehciirq);
     printf("[EHCI] Installing interrupts at %x \n",usbint);
+#endif
 
     //
     // Now, let the hostcontroller do what we are asking.
@@ -881,7 +883,7 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
     ((unsigned long*)usbint_addr)[0] |= 0b10111; // enable all interrupts except: frame_list_rollover async_adv
 
     // set periodic list base
-    ((unsigned long*)usbper_addr)[0] = (unsigned long)&periodic_list;
+    ((unsigned long*)usbper_addr)[0] = (unsigned long)((pointer)&periodic_list)&0xFFFFFFFF;
 
     // set interrupt treshold (usbcmd) : default is 8mf with value 08
     ((unsigned long*)usbcmd_addr)[0] |= (0x40<<16);

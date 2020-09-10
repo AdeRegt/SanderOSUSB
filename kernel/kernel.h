@@ -1,10 +1,19 @@
 #include "stdarg.h"
 #define ATAPI_SECTOR_SIZE 2048
 
+#ifdef IS64
+#define pointer unsigned long long
+#endif
+#ifndef IS64
+#define pointer unsigned long
+#endif
+
 /**
  * printf own implementation
  **/
 void printf(char *,...);
+void setGraphicsMode(int a);
+void print_efi_char(unsigned char a);
 
 /**
  * Convert integer decimal base number into octal, hex, etc.
@@ -211,22 +220,22 @@ typedef struct{
 	//
 	// Blockdevice settings
 	//
-	unsigned long readRawSector;
-	unsigned long writeRawSector;
-	unsigned long reinitialise;
-	unsigned long eject;
+	void *readRawSector;
+	void *writeRawSector;
+	void *reinitialise;
+	void *eject;
 	
 	//
 	// Filesystem settings
 	//
-	unsigned long dir;
-	unsigned long readFile;
-	unsigned long writeFile;
-	unsigned long existsFile;
-	unsigned long newFile;
-	unsigned long deleteFile;
-	unsigned long renameFile;
-	unsigned long copyfile;
+	void *dir;
+	void *readFile;
+	void *writeFile;
+	void *existsFile;
+	void *newFile;
+	void *deleteFile;
+	void *renameFile;
+	void *copyfile;
 	
 	//
 	// Misc
@@ -236,7 +245,7 @@ typedef struct{
 	//
 	// Advanced
 	//
-	unsigned long arg1;	// LINK TO DATAPOINTER
+	void *arg1;	// LINK TO DATAPOINTER
 	unsigned long arg2;	// OFFSET DISK
 	unsigned long arg3;
 	unsigned long arg4;
@@ -253,7 +262,7 @@ char fexists(unsigned char* path);
 int fread(char* path,unsigned char* buffer);
 int getDeviceCount();
 int iself(unsigned char* buffer);
-unsigned long loadelf(void * buffer);
+void *loadelf(void * buffer);
 void detectFilesystemsOnMBR(Device* dev);
 void initialiseExt2(Device* device);
 void initialiseFAT(Device* device);
@@ -295,7 +304,7 @@ typedef struct{
 }USB_DEVICE;
 void init_ehci(unsigned long bus,unsigned long slot,unsigned long function);
 void init_usb_hid(USB_DEVICE* device);
-unsigned long usb_get_keyboard();
+void *usb_get_keyboard();
 unsigned char get_usb_hid_keyboard_input(USB_DEVICE* device,unsigned char wait);
 
 
@@ -306,18 +315,18 @@ unsigned char get_usb_hid_keyboard_input(USB_DEVICE* device,unsigned char wait);
 
 typedef struct{
 	unsigned long buffersize;
-	unsigned long low_buf;
-	unsigned long high_buf;
+	void *low_buf;
+	void *high_buf;
 }PackageRecievedDescriptor;
 
 typedef struct{
-	unsigned long sendPackage;
-	unsigned long recievePackage;
+	void *sendPackage;
+	void *recievePackage;
 }EthernetDevice;
 
 void init_rtl(int bus,int slot,int function);
 void ethernet_detect(int bus,int slot,int function,int device,int vendor);
-void register_ethernet_device(unsigned long sendPackage,unsigned long recievePackage);
+void register_ethernet_device(void *sendPackage,void *recievePackage);
 EthernetDevice getDefaultEthernetDevice();
 PackageRecievedDescriptor getEthernetPackage();
 void sendEthernetPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp);
@@ -391,14 +400,19 @@ typedef struct __attribute__ ((packed)) {
 }usb_interface_descriptor;
 
 void usb_stick_init(USB_DEVICE *device);//unsigned char addr,unsigned char subclass,unsigned char protocol);
-#define EHCI_ERROR 0xCAFEBABE
+#ifndef IS64
+#define EHCI_ERROR ((unsigned long)0xCAFEBABE)
+#endif
+#ifdef IS64
+#define EHCI_ERROR ((unsigned long long)0xC0A0F0E0B0A0B0E0)
+#endif
 unsigned char* ehci_send_and_recieve_command(unsigned char addr,EhciCMD* commando, void *buffer);
 unsigned char* ehci_send_and_recieve_bulk(USB_DEVICE *device,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut);
 unsigned char* ehci_recieve_bulk(USB_DEVICE *device,unsigned long expectedIN,void *buffer);
-unsigned long ehci_send_bulk(USB_DEVICE *device,unsigned char* out,unsigned long expectedOut);
+void *ehci_send_bulk(USB_DEVICE *device,unsigned char* out,unsigned long expectedOut);
 unsigned char* ehci_get_device_configuration(unsigned char addr,unsigned char size);
 
-unsigned long usb_send_bulk(USB_DEVICE *device,unsigned long count,void *buffer);
-unsigned long usb_recieve_bulk(USB_DEVICE *device,unsigned long count,void *commando);
+void *usb_send_bulk(USB_DEVICE *device,unsigned long count,void *buffer);
+void *usb_recieve_bulk(USB_DEVICE *device,unsigned long count,void *commando);
 void *usb_send_and_recieve_control(USB_DEVICE *device,void *commando,void *buffer);
 void usb_device_install(USB_DEVICE *device);

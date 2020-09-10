@@ -44,7 +44,7 @@ int iself(unsigned char* buffer){
 	return buffer[0]==ELFMAG0&&buffer[1]==ELFMAG1&&buffer[2]==ELFMAG2&&buffer[3]==ELFMAG3;
 }
 
-unsigned long loadelf(void * buffer){
+void *loadelf(void * buffer){
 	ELFHEADER * header = (ELFHEADER *)buffer;
 	if(header->e_type==2||header->e_type==3){
 		ELFSECTION * sections = (ELFSECTION *)((long)buffer + header->e_shoff);

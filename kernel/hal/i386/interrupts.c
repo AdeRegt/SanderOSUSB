@@ -111,6 +111,7 @@ void special_handler(Register *r){
 
 /* Installs the IDT */
 void init_idt(){
+#ifdef IS32
     	/* Sets the special IDT pointer up, just like in 'gdt.c' */
     	idtp.limit = (sizeof (struct idt_entry) * 256) - 1;
     	idtp.base = (unsigned long)&idt;
@@ -138,6 +139,7 @@ void init_idt(){
 	idt_set_gate(0x80, (unsigned)isr_special_stub, 0x08, 0x8E);
     	idt_load();
     	asm("sti");
+#endif
 }
 
 //
@@ -162,7 +164,9 @@ struct gdt_ptr{
 struct gdt_entry gdt[3];
 struct gdt_ptr gp;
 
+#ifdef IS32
 extern void gdt_flush();
+#endif
 
 void gdt_set_gate(int num, unsigned long base, unsigned long limit, unsigned char access, unsigned char gran){
     /* Setup the descriptor base address */
@@ -185,5 +189,7 @@ void init_gdt(){
     gdt_set_gate(0, 0, 0, 0, 0);
     gdt_set_gate(1, 0, 0xFFFFFFFF, 0x9A, 0xCF);
     gdt_set_gate(2, 0, 0xFFFFFFFF, 0x92, 0xCF);
+#ifdef IS32
     gdt_flush();
+#endif
 }

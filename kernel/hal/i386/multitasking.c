@@ -5,7 +5,9 @@ typedef struct {
     unsigned char active;
 }Process;
 
+#ifdef IS32
 extern void timerirq();
+#endif
 
 Process registers[10];
 static int regnow = 0;
@@ -96,7 +98,9 @@ int createTask(unsigned long entrypoint){
 void init_multitasking(){
     regcount = 1;
     printf("[MULT] Multitasking module enabled!\n");
+#ifdef IS32
     setNormalInt(0,(unsigned long)timerirq);
+#endif
     registers[0].active = 1;
     printf("[MULT] Finished multitasking\n");
 }

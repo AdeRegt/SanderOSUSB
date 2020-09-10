@@ -5,7 +5,9 @@
 //
 //
 
+#ifdef IS32
 extern void ideirq();
+#endif
 extern void iso_9660_dir();
 extern void iso_9660_read();
 extern char iso_9660_exists();
@@ -221,7 +223,9 @@ void ata_read_raw(Device *dxv,unsigned long LBA,unsigned char count,unsigned sho
 char issata = 0;
 
 void init_ide_device(IDEDevice device){
+#ifdef IS32
 	setNormalInt(device.irq,(unsigned long)ideirq);
+#endif
 	printstring("IDE: initialising device CMD=");
 	hexdump(device.command);
 	printstring(" CTRL=");

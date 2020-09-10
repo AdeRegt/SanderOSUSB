@@ -1,7 +1,14 @@
 #include <efi.h>
 #include <efilib.h>
+#include "../../kernel.h"
  
 EFI_SYSTEM_TABLE *ST;
+
+void print_efi_char(unsigned char a){
+    unsigned char* test = L"w";
+    test[0] = a;
+    ST->ConOut->OutputString(ST->ConOut, test);
+}
 
 EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 {
@@ -10,6 +17,9 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
  
     /* Store the system table for future use in other functions */
     ST = SystemTable;
+
+    setGraphicsMode(2);
+    kernel_main();
  
     /* Say hi */
     Status = ST->ConOut->OutputString(ST->ConOut, L"SanderOSUSB has been loaded\n\r");
