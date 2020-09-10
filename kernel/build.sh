@@ -5,6 +5,7 @@ export PATH="$PREFIX/bin:$PATH"
 echo "Build bootloader"
 cd ../biosbootloader
 nasm -O0 -w+orphan-labels -f bin -o bootloader.bin bootloader.asm || exit
+smlrc -seg16 stage2.c stage2c.asm
 nasm -O0 -w+orphan-labels -f bin -o stage2.bin stage2.asm || exit
 cd ../kernel
 
