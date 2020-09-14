@@ -3,6 +3,17 @@
 Thank you for showing interest in SanderOSUSB!
 SanderOSUSB is a 32bit single tasking monolythic kernel that is supposed to run from USB or cd-rom.
 
+## Compiling
+For compiling you need the following programs:
+- gcc
+- nasm
+- xorriso
+
+``` sudo apt install gcc nasm xorriso ```
+
+And then run the file **/kernel/build.sh**
+
+## Suported Devices
 Currently the following devices are supported:
 * IDE - ATA
 * IDE - ATAPI
