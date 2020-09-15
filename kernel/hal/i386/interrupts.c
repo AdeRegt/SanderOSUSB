@@ -73,7 +73,7 @@ void special_handler(Register *r){
 	outportb(0x20,0x20);
 	if(r->eax==0x01){ // EXIT
     		printf("\nProgram finished!");
-			r->eip = (unsigned long)browser;
+			r->eip = (pointer)browser;
 	}else if(r->eax==0x03){ // F-READ
 		if(r->ebx==1){ // FROM STDOUT
 			volatile unsigned char kt = ((volatile unsigned char*)&keyword)[0];
@@ -185,7 +185,7 @@ void gdt_set_gate(int num, unsigned long base, unsigned long limit, unsigned cha
 
 void init_gdt(){
     gp.limit = (sizeof(struct gdt_entry) * 3) - 1;
-    gp.base = (unsigned long)&gdt;
+    gp.base = (pointer)&gdt;
     gdt_set_gate(0, 0, 0, 0, 0);
     gdt_set_gate(1, 0, 0xFFFFFFFF, 0x9A, 0xCF);
     gdt_set_gate(2, 0, 0xFFFFFFFF, 0x92, 0xCF);

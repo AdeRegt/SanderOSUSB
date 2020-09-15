@@ -5,7 +5,7 @@
 EFI_SYSTEM_TABLE *ST;
 
 void print_efi_char(unsigned char a){
-    unsigned char* test = L"w";
+    CHAR16 *test = L"w";
     test[0] = a;
     ST->ConOut->OutputString(ST->ConOut, test);
 }

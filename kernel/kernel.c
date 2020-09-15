@@ -21,7 +21,7 @@ void browser(){
 			}else if(t==1){
 				if(iself(buffer)){
 					printf("ELF: program is ELF!\n");
-					unsigned long gamma = loadelf(buffer);
+					void *gamma = loadelf(buffer);
 					if(gamma==0){
 						printf("ELF: Unable to load ELF!\n");
 					}else{
@@ -49,6 +49,7 @@ void kernel_main(){
 #endif
 	printstring("Welcome to the Sanderslando Kernel!!\n");
 	printstring("Loading core components...\n");
+#ifdef IS32
 	printstring("=> Global Description Table...\n");
 	init_gdt();
 	printstring("=> Interrupt Description Table...\n");
@@ -74,6 +75,7 @@ void kernel_main(){
 	printstring("\nEnd of loading system!\n");
 	
 	//320,200
+#endif
 	if(init_graph_vga(320, 200, 1)==0) {
 		printf("VGA: failed to set!\n");
 		for(;;);

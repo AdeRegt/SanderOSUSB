@@ -8,6 +8,8 @@
 #define pointer unsigned long
 #endif
 
+#define uint32 __UINT32_TYPE__
+
 /**
  * printf own implementation
  **/
@@ -271,9 +273,9 @@ int pow(int base,int exp);
 
 void irq_timer();
 typedef struct{
-    unsigned int gs, fs, es, ds;      /* pushed the segs last */
-    unsigned int edi, esi, ebp, esp, ebx, edx, ecx, eax;  /* pushed by 'pusha' */
-    unsigned int eip, cs, eflags, useresp, ss;   /* pushed by the processor automatically */ 
+    pointer gs, fs, es, ds;      /* pushed the segs last */
+    pointer edi, esi, ebp, esp, ebx, edx, ecx, eax;  /* pushed by 'pusha' */
+    pointer eip, cs, eflags, useresp, ss;   /* pushed by the processor automatically */ 
 }Register;
 
 typedef struct{

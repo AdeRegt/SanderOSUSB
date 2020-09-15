@@ -777,7 +777,7 @@ void ehci_probe(){
 
 void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
     printf("[EHCI] Entering EHCI module\n");
-    unsigned long baseaddress = getBARaddress(bus,slot,function,0x10);
+    uint32 baseaddress = (uint32)getBARaddress(bus,slot,function,0x10);
     printf("[EHCI] The base address of EHCI is %x \n",baseaddress);
     portbaseaddress = baseaddress + ((unsigned char*)baseaddress)[0];
     printf("[EHCI] The address to the first EHCI registers is %x \n",portbaseaddress);
@@ -793,8 +793,8 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
     printf("[EHCI] HCSParams are %x \n",hcsparams);
     available_ports = hcsparams & 0b1111;
     printf("[EHCI] We have %x ports available\n",available_ports);
-    unsigned long hccparams_addr = baseaddress+0x08;
-    unsigned long hccparams = (unsigned long)((unsigned long*)hccparams_addr)[0];
+    uint32 hccparams_addr = baseaddress+0x08;
+    uint32 hccparams = ((uint32 *)hccparams_addr)[0];
     printf("[EHCI] HCCParams are %x \n",hccparams);
     unsigned char bit64cap = hccparams & 1;
     if(bit64cap){

@@ -22,11 +22,11 @@ void set_paging_frame(unsigned long addr){
     unsigned long addr2 = addr;
     addr2 -= (addr2 & 0xFFF);
     printf("[PAGING] Create page for %x \n",addr2);
-    long *first_page_table = malloc_align(PAGE_DIRECTORY_SIZE*sizeof(unsigned long),4096);
+    pointer *first_page_table = malloc_align(PAGE_DIRECTORY_SIZE*sizeof(unsigned long),4096);
     for(int i = 0 ; i < PAGE_DIRECTORY_SIZE ; i++){
         first_page_table[i] = (addr2+(i * 0x1000))  | 0x3;
     }
-    page_directory[pagecount++] = ((unsigned int)first_page_table) | 0x3;
+    page_directory[pagecount++] = ((pointer)first_page_table) | 0x3;
 }
 
 void init_paging(){

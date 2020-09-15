@@ -183,10 +183,10 @@ void atapi_read_sector(IDEDevice cdromdevice,unsigned long lba,unsigned char cou
 
 void atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location){
 	IDEDevice ide;
-	ide.command 	= dev->arg1;
-	ide.control 	= dev->arg2;
-	ide.irq 	= dev->arg3;
-	ide.slave 	= dev->arg4;
+	ide.command 	= (unsigned short)dev->arg1;
+	ide.control 	= (unsigned short)dev->arg2;
+	ide.irq 	= (unsigned char)dev->arg3;
+	ide.slave 	= (unsigned char)dev->arg4;
 	atapi_read_sector(ide,lba,count,location);
 }
 
@@ -302,9 +302,9 @@ void init_ide_device(IDEDevice device){
 
 			Device *regdev = (Device*)malloc(sizeof(Device));
 					
-			regdev->readRawSector 	= (unsigned long)&ata_read_raw;
+			regdev->readRawSector 	= (void *)&ata_read_raw;
 			
-			regdev->arg1 = (unsigned long)&device;
+			regdev->arg1 = (void *)&device;
 			regdev->arg2 = 0;
 			regdev->arg3 = 0;
 			regdev->arg4 = 0;
@@ -359,14 +359,14 @@ void init_ide_device(IDEDevice device){
 				
 				Device *regdev = getNextFreeDevice();
 				
-				regdev->readRawSector 	= (unsigned long)&atapi_read_raw;
+				regdev->readRawSector 	= (void *)&atapi_read_raw;
 //				regdev->writeRawSector 	= (unsigned long)&atapi_write_raw;
 //				regdev->reinitialise 	= (unsigned long)&atapi_reset_raw;
-				regdev->eject 		= (unsigned long)&atapi_eject_raw;
+				regdev->eject 		= (void *)&atapi_eject_raw;
 				
-				regdev->dir		= (unsigned long)&iso_9660_dir;
-				regdev->readFile	= (unsigned long)&iso_9660_read;
-				regdev->existsFile	= (unsigned long)&iso_9660_exists;
+				regdev->dir		= (void *)&iso_9660_dir;
+				regdev->readFile	= (void *)&iso_9660_read;
+				regdev->existsFile	= (void *)&iso_9660_exists;
 				
 				// .command= 0x1f0,.control=0x3f6,.irq=14,.slave=0
 				regdev->arg1 = device.command;
