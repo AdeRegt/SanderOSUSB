@@ -99,13 +99,13 @@ void fat_read(Device *device,char* path,char *buffer){
 	unsigned char filename[11];
 	
 	//
-	// pad opzoeken
+	// lookup path
 	while(1){
-		// buffer leegmaken
+		// clear buffer
 		for(int i = 0 ; i < 11 ; i++){
 			filename[i] = 0x00;
 		}
-		// buffer vullen met nieuw woord
+		// fill buffer with new word
 		unsigned char erstw = path[pathoffset];
 		if(erstw==0x00){
 			break;
@@ -140,9 +140,9 @@ void fat_read(Device *device,char* path,char *buffer){
 			for(int i = 0 ; i < 11 ; i++){
 				if(currentdir->name[i]!=0x00){
 					if(currentdir->name[i]==filename[sigma++]){
-						// naam (nog) hetzelfde
+						// name is still the same
 					}else{
-						// naam is veranderd.
+						// naam is not the same
 						yotta = 0;
 					}
 				}
@@ -164,7 +164,6 @@ void fat_read(Device *device,char* path,char *buffer){
 	
 	readraw(device,first_sector_of_cluster,1,(unsigned short*)buffer);
 }
-
 
 void fat_dir(Device *device,char* path,char *buffer){
 	//atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location)
@@ -198,13 +197,13 @@ void fat_dir(Device *device,char* path,char *buffer){
 	unsigned char filename[11];
 	
 	//
-	// pad opzoeken
+	// lookup path
 	while(1){
-		// buffer leegmaken
+		// clear buffer
 		for(int i = 0 ; i < 11 ; i++){
 			filename[i] = 0x00;
 		}
-		// buffer vullen met nieuw woord
+		// fill buffer with new word
 		unsigned char erstw = path[pathoffset];
 		if(erstw==0x00){
 			break;
@@ -239,9 +238,9 @@ void fat_dir(Device *device,char* path,char *buffer){
 			for(int i = 0 ; i < 11 ; i++){
 				if(currentdir->name[i]!=0x00){
 					if(currentdir->name[i]==filename[sigma++]){
-						// naam (nog) hetzelfde
+						// name still equals
 					}else{
-						// naam is veranderd.
+						// name differs
 						yotta = 0;
 					}
 				}
@@ -262,7 +261,7 @@ void fat_dir(Device *device,char* path,char *buffer){
 	}
 	
 	//
-	// bestanden printen
+	// print files
 	unsigned long offset = 0;
 	unsigned long bufofs = 0;
 	while(1){
