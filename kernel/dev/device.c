@@ -70,26 +70,29 @@ char fexists(unsigned char* path){
 	}
 }
 
-int fread(char* path,unsigned char* buffer)
-{
-	for(int i = 0 ; i < 100 ; i++){
-		whoopsie[i] = 0x00;
-	}
-	if(path[0]=='@'){
-		int t = 0; 
-		for(int i = 0 ; i < deviceint ; i++){
-			if(t!=0){
-				whoopsie[t++] = ';';
-			}
-			whoopsie[t++] = 'A'+i;
-		}
-	}else if(path[1]=='@'){
+int fread(char* path,unsigned char* buffer){
+	if(path[1]=='@'){
 		int z = path[0] - 'A';
 		if(devices[z].readFile==0){
 			return 0;
 		}else{
 			unsigned char (*foo)(Device *,unsigned char*,unsigned char *) = (void*)devices[z].readFile;
 			unsigned char t = foo((Device *)&devices[z],(unsigned char*)&path[2],buffer);
+			return t;
+		}
+	}
+
+	return 0;
+}
+
+int fwrite(char* path,unsigned char* buffer,unsigned long filesize){
+	if(path[1]=='@'){
+		int z = path[0] - 'A';
+		if(devices[z].writeFile==0){
+			return 0;
+		}else{
+			unsigned char (*foo)(Device *,unsigned char*,unsigned char *,unsigned long) = (void*)devices[z].writeFile;
+			unsigned char t = foo((Device *)&devices[z],(unsigned char*)&path[2],buffer,filesize);
 			return t;
 		}
 	}

@@ -251,6 +251,7 @@ Device *getNextFreeDevice();
 char* dir(char* path);
 char fexists(unsigned char* path);
 int fread(char* path,unsigned char* buffer);
+int fwrite(char* path,unsigned char* buffer,unsigned long filesize);
 int getDeviceCount();
 int iself(unsigned char* buffer);
 unsigned long loadelf(void * buffer);
