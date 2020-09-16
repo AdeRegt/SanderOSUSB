@@ -393,8 +393,8 @@ void init_ide_device(IDEDevice device)
 		// maybe hdd?
 		printf("[IDE] maybe ata\n");
 		// ATA device detected!
-		unsigned short *buffer = (unsigned short *)0x1000;
-		ata_read_sector(device, 0, 1, buffer);
+		unsigned char *buffer = (unsigned char *)0x1000;
+		ata_read_sector(device, 0, 1, (unsigned short *)buffer);
 		if (buffer[510] == 0x55 && buffer[511] == 0xAA)
 		{
 			printf("[ATA] hdd is bootable!\n");
@@ -402,6 +402,10 @@ void init_ide_device(IDEDevice device)
 		else
 		{
 			printf("[ATA] hdd is not bootable!\n");
+			// mark it as bootable for our next test
+			buffer[510] = 0x55;
+			buffer[511] = 0xAA;
+			ata_write_sector(device,0,1,(unsigned short *)buffer);
 			return;
 		}
 
