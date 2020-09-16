@@ -13,6 +13,16 @@ For compiling you need the following programs:
 
 And then run the file **/kernel/build.sh**
 
+## Runing the OS
+- install qemu
+
+```sudo apt install qemu qemu-utils qemu-kvm```
+
+- go to the repo directory
+- run:
+
+```qemu-system-x86_64 -cdrom ./cdrom.iso```
+
 ## Suported Devices
 Currently the following devices are supported:
 * IDE - ATA
