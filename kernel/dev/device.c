@@ -99,3 +99,8 @@ int fwrite(char* path,unsigned char* buffer,unsigned long filesize){
 
 	return 0;
 }
+
+void raw_write(Device *device, unsigned long LBA, unsigned char count, unsigned short *location){
+	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->writeRawSector;
+	readraw(device,LBA,count,location);
+}

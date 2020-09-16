@@ -279,6 +279,18 @@ void ata_write_sector(IDEDevice hdddevice, unsigned long LBA, unsigned char coun
 	ide_wait_for_ready(hdddevice);
 }
 
+void ata_write_raw(Device *dxv, unsigned long LBA, unsigned char count, unsigned short *location)
+{
+	unsigned char tok = count;
+	IDEDevice *dev = (IDEDevice *)dxv->arg1;
+	IDEDevice device;
+	device.command = dev->command;
+	device.control = dev->control;
+	device.irq = dev->irq;
+	device.slave = dev->slave;
+	ata_write_sector(device, dxv->arg2 + LBA, tok, location);
+}
+
 void ata_read_raw(Device *dxv, unsigned long LBA, unsigned char count, unsigned short *location)
 {
 	unsigned char tok = count;
@@ -396,7 +408,7 @@ void init_ide_device(IDEDevice device)
 		Device *regdev = (Device *)malloc(sizeof(Device));
 
 		regdev->readRawSector = (unsigned long)&ata_read_raw;
-		regdev->writeRawSector = (unsigned long)&ata_write_sector;
+		regdev->writeRawSector = (unsigned long)&ata_write_raw;
 
 		regdev->arg1 = (unsigned long)&device;
 		regdev->arg2 = 0;
