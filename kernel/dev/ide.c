@@ -228,6 +228,65 @@ void atapi_read_raw(Device *dev, unsigned long lba, unsigned char count, unsigne
 	atapi_read_sector(ide, lba, count, location);
 }
 
+void atapi_write_sector(IDEDevice cdromdevice, unsigned long lba, unsigned char count, unsigned short *location)
+{
+	getIDEError(cdromdevice);
+	ide_wait_for_ready(cdromdevice);
+
+	outportb(cdromdevice.command + 6, cdromdevice.slave == 1 ? 0xB0 : 0xA0);
+	outportb(cdromdevice.command + 1, 0x00);
+	outportb(cdromdevice.command + 4, ATAPI_SECTOR_SIZE & 0xff);
+	outportb(cdromdevice.command + 5, ATAPI_SECTOR_SIZE >> 8);
+	outportb(cdromdevice.command + 7, 0xA0);
+
+	getIDEError(cdromdevice);
+
+	ide_wait_for_ready(cdromdevice);
+
+	read_cmd[9] = count;
+	read_cmd[2] = (lba >> 0x18) & 0xFF; /* most sig. byte of LBA */
+	read_cmd[3] = (lba >> 0x10) & 0xFF;
+	read_cmd[4] = (lba >> 0x08) & 0xFF;
+	read_cmd[5] = (lba >> 0x00) & 0xFF;
+	read_cmd[0] = 0xAA;
+
+	resetIDEFire();
+	getIDEError(cdromdevice);
+	ide_wait_for_ready(cdromdevice);
+	unsigned short *mdx = (unsigned short *)&read_cmd;
+	ide_wait_for_ready(cdromdevice);
+	for (int f = 0; f < 6; f++)
+	{
+		outportw(cdromdevice.command + 0, mdx[f]);
+	}
+	getIDEError(cdromdevice);
+	waitForIDEFire();
+	ide_wait_for_ready(cdromdevice);
+	unsigned short size = (((int)inportb(cdromdevice.command + 5)) << 8) | (int)(inportb(cdromdevice.command + 4));
+	ide_wait_for_ready(cdromdevice);
+	int mp = 0;
+	for (unsigned short i = 0; i < (size / 2); i++)
+	{
+		if (getIDEError(cdromdevice) == 1)
+		{
+			return;
+		}
+		ide_wait_for_ready(cdromdevice);
+		outportw(cdromdevice.command + 0,location[mp++]);
+	}
+	ide_wait_for_ready(cdromdevice);
+}
+
+void atapi_write_raw(Device *dev, unsigned long lba, unsigned char count, unsigned short *location)
+{
+	IDEDevice ide;
+	ide.command = dev->arg1;
+	ide.control = dev->arg2;
+	ide.irq = dev->arg3;
+	ide.slave = dev->arg4;
+	atapi_write_sector(ide, lba, count, location);
+}
+
 void ata_read_sector(IDEDevice hdddevice, unsigned long LBA, unsigned char count, unsigned short *location)
 {
 	unsigned char cunt = count;
@@ -263,9 +322,9 @@ void ata_write_sector(IDEDevice hdddevice, unsigned long LBA, unsigned char coun
 	ide_wait_for_ready(hdddevice);
 	int U = 0;
 	int i = 0;
-	for (i = 0; i < (512 / 2); i++)
+	for (i = 0; i < ((512*cunt) / 2); i++)
 	{
-		outportw(hdddevice.command,location[U++]);
+		outportw(hdddevice.command, location[U++]);
 		sleep(1);
 	}
 	resetIDEFire();
@@ -485,7 +544,7 @@ void init_ide_device(IDEDevice device)
 				Device *regdev = getNextFreeDevice();
 
 				regdev->readRawSector = (unsigned long)&atapi_read_raw;
-				//				regdev->writeRawSector 	= (unsigned long)&atapi_write_raw;
+				regdev->writeRawSector = (unsigned long)&atapi_write_raw;
 				//				regdev->reinitialise 	= (unsigned long)&atapi_reset_raw;
 				regdev->eject = (unsigned long)&atapi_eject_raw;
 
