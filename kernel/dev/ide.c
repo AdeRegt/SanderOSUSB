@@ -14,6 +14,7 @@ volatile int ideXirq = 0;
 void irq_ide()
 {
 	ideXirq = 1;
+	printf("IDE: FIRE\n");
 	outportb(0x20, 0x20);
 	outportb(0xA0, 0x20);
 }
@@ -106,11 +107,15 @@ void ide_wait_for_ready(IDEDevice cdromdevice)
 	resetTicks();
 	while ((dev = inportb(cdromdevice.command + 7)) & ATA_SR_BSY)
 	{
+		if(dev & ATA_SR_DRQ)
+		{
+			break;
+		}
 		if (dev & ATA_SR_DF)
 		{
 			printf("IDE: ERROR1\n");
 			for (;;)
-				;
+			return;
 		}
 		if (dev & ATA_SR_ERR)
 		{
@@ -120,7 +125,7 @@ void ide_wait_for_ready(IDEDevice cdromdevice)
 		}
 		if (getTicks() == 5)
 		{
-			//			printf("IDE: TIMEOUT\n");
+			printf("IDE: TIMEOUT\n");
 			break;
 		}
 	}
@@ -293,18 +298,20 @@ void ata_read_sector(IDEDevice hdddevice, unsigned long LBA, unsigned char count
 	resetIDEFire();
 	outportb(hdddevice.command + 6, 0xE0 | (hdddevice.slave << 4) | ((LBA >> 24) & 0x0F));
 	outportb(hdddevice.command + 2, (unsigned char)cunt);
-	outportb(hdddevice.command + 3, (unsigned char)LBA);
-	outportb(hdddevice.command + 4, (unsigned char)(LBA >> 8));
-	outportb(hdddevice.command + 5, (unsigned char)(LBA >> 16));
+	outportb(hdddevice.command + 3, (unsigned char)LBA & 0xFF);
+	outportb(hdddevice.command + 4, (unsigned char)(LBA >> 8) & 0xFF);
+	outportb(hdddevice.command + 5, (unsigned char)(LBA >> 16) & 0xFF);
 	outportb(hdddevice.command + 7, 0x20);
 	getIDEError(hdddevice);
 	ide_wait_for_ready(hdddevice);
 	int U = 0;
 	int i = 0;
-	for (i = 0; i < (512 / 2); i++)
+	unsigned char *buffer = (unsigned char *) location;
+	for (i = 0; i < ((512 * cunt)/2); i++)
 	{
-		unsigned short X = inportw(hdddevice.command);
-		location[U++] = X;
+		unsigned short tA = inportw(hdddevice.command);
+		buffer[U++] = tA & 0xFF;
+		buffer[U++] = (tA>>8) & 0xFF;
 	}
 }
 
@@ -454,18 +461,23 @@ void init_ide_device(IDEDevice device)
 		// ATA device detected!
 		unsigned char *buffer = (unsigned char *)0x1000;
 		ata_read_sector(device, 0, 1, (unsigned short *)buffer);
+		ata_read_sector(device, 0, 1, (unsigned short *)buffer);
 		if (buffer[510] == 0x55 && buffer[511] == 0xAA)
 		{
 			printf("[ATA] hdd is bootable!\n");
 		}
 		else
 		{
-			printf("[ATA] hdd is not bootable!\n");
-			// mark it as bootable for our next test
-			buffer[510] = 0x55;
-			buffer[511] = 0xAA;
-			ata_write_sector(device,0,1,(unsigned short *)buffer);
-			return;
+			printf("[ATA] hdd is not bootable! (%x %x)\n",buffer[510],buffer[511]);
+			if(buffer[510]==0xFF&&buffer[511]==0xFF)
+			{
+				return;
+			}
+			else
+			{
+				for(int i = 0 ; i < 512 ; i++){printf("%x ",buffer[i]);}for(;;);
+				return;
+			}
 		}
 
 		Device *regdev = (Device *)malloc(sizeof(Device));

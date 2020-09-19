@@ -259,6 +259,7 @@ unsigned long loadelf(void * buffer);
 void detectFilesystemsOnMBR(Device* dev);
 void initialiseExt2(Device* device);
 void initialiseFAT(Device* device);
+void initialiseSFS(Device *device);
 
 int pow(int base,int exp);
 

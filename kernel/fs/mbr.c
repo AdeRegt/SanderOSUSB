@@ -102,6 +102,19 @@ void detectFilesystemsOnMBR(Device* device){
 			regdev->arg4 = device->arg4;
 			regdev->arg5 = device->arg5;
 			initialiseFAT(regdev);
+		}else if(mbrs[i].type==0xCD){
+			printf("[MBRI] SFS filesystem detected\n");
+			Device *regdev = getNextFreeDevice();
+		
+			regdev->readRawSector 	= device->readRawSector;
+			
+			regdev->arg1 = device->arg1;
+			regdev->arg2 = mbrs[i].lbastart;
+			regdev->arg3 = device->arg3;
+			regdev->arg4 = device->arg4;
+			regdev->arg5 = device->arg5;
+
+			initialiseSFS(regdev);
 		}
 		basex += 16;
 	}
