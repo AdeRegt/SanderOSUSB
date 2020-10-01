@@ -55,38 +55,44 @@ char getIDEError(IDEDevice cdromdevice)
 	unsigned char msg = inportb(cdromdevice.command + 7);
 	if ((msg >> 0) & 1)
 	{
+		if(msg==0xFF)
+		{
+			printf("IDE: returns FF\n");
+			return 1;
+		}
 		if (msg & 0x80)
 		{
 			printf("IDE: Bad sector\n");
 		}
-		else if (msg & 0x40)
+		if (msg & 0x40)
 		{
 			printf("IDE: Uncorrectable data\n");
 		}
-		else if (msg & 0x20)
+		if (msg & 0x20)
 		{
 			printf("IDE: No media\n");
 		}
-		else if (msg & 0x10)
+		if (msg & 0x10)
 		{
 			printf("IDE: ID mark not found\n");
 		}
-		else if (msg & 0x08)
+		if (msg & 0x08)
 		{
 			printf("IDE: No media\n");
 		}
-		else if (msg & 0x04)
+		if (msg & 0x04)
 		{
 			printf("IDE: Command aborted\n");
 		}
-		else if (msg & 0x02)
+		if (msg & 0x02)
 		{
 			printf("IDE: Track 0 not found\n");
 		}
-		else if (msg & 0x01)
+		if (msg & 0x01)
 		{
 			printf("IDE: No address mark\n");
 		}
+		printf("IDE: ERROR %x \n");
 		return 1;
 	}
 	return 0;
@@ -294,6 +300,7 @@ void atapi_write_raw(Device *dev, unsigned long lba, unsigned char count, unsign
 
 void ata_read_sector(IDEDevice hdddevice, unsigned long LBA, unsigned char count, unsigned short *location)
 {
+
 	unsigned char cunt = count;
 	resetIDEFire();
 	outportb(hdddevice.command + 6, 0xE0 | (hdddevice.slave << 4) | ((LBA >> 24) & 0x0F));
@@ -302,12 +309,13 @@ void ata_read_sector(IDEDevice hdddevice, unsigned long LBA, unsigned char count
 	outportb(hdddevice.command + 4, (unsigned char)(LBA >> 8) & 0xFF);
 	outportb(hdddevice.command + 5, (unsigned char)(LBA >> 16) & 0xFF);
 	outportb(hdddevice.command + 7, 0x20);
-	getIDEError(hdddevice);
+	//getIDEError(hdddevice);
 	ide_wait_for_ready(hdddevice);
+	getIDEError(hdddevice);
 	int U = 0;
 	int i = 0;
 	unsigned char *buffer = (unsigned char *) location;
-	for (i = 0; i < ((512 * cunt)/2); i++)
+	for (i = 0; i < 256; i++)
 	{
 		unsigned short tA = inportw(hdddevice.command);
 		buffer[U++] = tA & 0xFF;
@@ -475,7 +483,7 @@ void init_ide_device(IDEDevice device)
 			}
 			else
 			{
-				for(int i = 0 ; i < 512 ; i++){printf("%x ",buffer[i]);}for(;;);
+				//for(int i = 0 ; i < 512 ; i++){printf("%x ",buffer[i]);}for(;;);
 				return;
 			}
 		}

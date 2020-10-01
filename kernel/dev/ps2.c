@@ -108,6 +108,7 @@ volatile int clck = 0;
 volatile int mouse_cycle = 0;
 volatile char mouse_byte[5];
 volatile char mousetype = 0;
+unsigned char mousebuffer[6*8];
 
 void irq_mouse(){
 	unsigned char status = inportb(0x64);
@@ -177,34 +178,58 @@ void irq_mouse(){
 	if(ccr_y>200){
 		ccr_y = 195;
 	}
-	
-	putpixel(oldx+0,oldy+0,old00z);
-	putpixel(oldx+1,oldy+0,old01z);
-	putpixel(oldx+2,oldy+0,old02z);
-	putpixel(oldx+0,oldy+1,old10z);
-	putpixel(oldx+1,oldy+1,old11z);
-	putpixel(oldx+2,oldy+1,old12z);
-	putpixel(oldx+0,oldy+2,old20z);
-	putpixel(oldx+1,oldy+2,old21z);
-	putpixel(oldx+2,oldy+2,old22z);
-	old00z = getpixel(ccr_x+0,ccr_y+0);
-	old01z = getpixel(ccr_x+1,ccr_y+0);
-	old02z = getpixel(ccr_x+2,ccr_y+0);
-	old10z = getpixel(ccr_x+0,ccr_y+1);
-	old11z = getpixel(ccr_x+1,ccr_y+1);
-	old12z = getpixel(ccr_x+2,ccr_y+1);
-	old20z = getpixel(ccr_x+0,ccr_y+2);
-	old21z = getpixel(ccr_x+1,ccr_y+2);
-	old22z = getpixel(ccr_x+2,ccr_y+2);
-	putpixel(ccr_x+0,ccr_y+0,2);
-	putpixel(ccr_x+0,ccr_y+1,2);
-	putpixel(ccr_x+0,ccr_y+2,2);
-	putpixel(ccr_x+1,ccr_y+0,2);
-	putpixel(ccr_x+1,ccr_y+1,2);
-	putpixel(ccr_x+1,ccr_y+2,2);
-	putpixel(ccr_x+2,ccr_y+0,2);
-	putpixel(ccr_x+2,ccr_y+1,2);
-	putpixel(ccr_x+2,ccr_y+2,2);
+
+	unsigned char mouse[6] = {
+	0b11111000,
+	0b11110000,
+	0b11111000,
+	0b11111100,
+	0b10011110,
+	0b00001100
+	};
+
+	// oude buffer terug zetten
+	for(int y = 0 ; y < 6 ; y++){
+		for(int x = 0 ; x < 8 ; x++){
+			putpixel(oldx+x,oldy+y,mousebuffer[(y*8)+x]);
+		}
+	}
+
+	// nieuwe kopie van buffer
+	for(int y = 0 ; y < 6 ; y++){
+		for(int x = 0 ; x < 8 ; x++){
+			mousebuffer[(y*8)+x] = getpixel(ccr_x+x,ccr_y+y);
+		}
+	}
+
+	for(int y = 0 ; y < 6 ; y++){
+		unsigned char mouseline = mouse[y];
+		if(mouseline & 0b10000000){
+			putpixel(ccr_x+0,ccr_y+y,10);
+		}
+		if(mouseline & 0b01000000){
+			putpixel(ccr_x+1,ccr_y+y,10);
+		}
+		if(mouseline & 0b00100000){
+			putpixel(ccr_x+2,ccr_y+y,10);
+		}
+		if(mouseline & 0b00010000){
+			putpixel(ccr_x+3,ccr_y+y,10);
+		}
+		if(mouseline & 0b00001000){
+			putpixel(ccr_x+4,ccr_y+y,10);
+		}
+		if(mouseline & 0b00000100){
+			putpixel(ccr_x+5,ccr_y+y,10);
+		}
+		if(mouseline & 0b00000010){
+			putpixel(ccr_x+6,ccr_y+y,10);
+		}
+		if(mouseline & 0b00000001){
+			putpixel(ccr_x+7,ccr_y+y,10);
+		}
+	}
+
 	oldx = ccr_x;
 	oldy = ccr_y;
 	// EOI

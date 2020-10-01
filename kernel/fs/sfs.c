@@ -167,15 +167,15 @@ void sfs_read(Device *device,char* path,char *buffer){
 	}
 
 	unsigned int offset = 0;
-	for(int i = 0 ; i < 512 ; i++){
+	for(unsigned long i = 0 ; i < 512 ; i++){
 		if(tabletable[i]==nameexists){
+			printf("SFS: read %x [%x] \n",i,device->arg2+i);
 			unsigned long dir = ((unsigned long)buffer)+offset;
 			readraw(device,i,1,(unsigned short*)dir);
 			offset += 512;
 		}
 	}
 	for(;;);
-
 }
 
 void initialiseSFS(Device *device){

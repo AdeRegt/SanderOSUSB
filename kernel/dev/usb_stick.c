@@ -242,10 +242,9 @@ void usb_stick_init(USB_DEVICE *device){//unsigned char addr,unsigned char subcl
 	usbdevice->master = device;
 
 	Device *regdev = (Device*) malloc(sizeof(Device));
-	regdev->readRawSector = (unsigned long) usb_stick_read_raw_sector;
+	regdev->readRawSector = (unsigned long) &usb_stick_read_raw_sector;
 	regdev->arg1 = (unsigned long)usbdevice;
 	regdev->arg5 = 512;
 
 	detectFilesystemsOnMBR(regdev);
-	for(;;);
 }
