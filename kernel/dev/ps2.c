@@ -10,6 +10,14 @@
 #define PS2_COMMAND 0x64
 #define PS2_TIMEOUT 10
 
+#define PS2_MOUSE_MIN_X 1
+#define PS2_MOUSE_MIN_Y 1
+#define PS2_MOUSE_MIN_W 312
+#define PS2_MOUSE_MIN_H 190
+
+#define PS2_MOUSE_CUR_W 8
+#define PS2_MOUSE_CUR_H 6
+
 
 char getPS2StatusRegisterText(){
 	return inportb(PS2_STATUS);
@@ -166,20 +174,20 @@ void irq_mouse(){
 		}
 	}
 	
-	if(ccr_x<1){
-		ccr_x = 1;
+	if(ccr_x<PS2_MOUSE_MIN_X){
+		ccr_x = PS2_MOUSE_MIN_X;
 	}
-	if(ccr_y<1){
-		ccr_y = 1;
+	if(ccr_y<PS2_MOUSE_MIN_Y){
+		ccr_y = PS2_MOUSE_MIN_Y;
 	}
-	if(ccr_x>320){
-		ccr_x = 315;
+	if(ccr_x>PS2_MOUSE_MIN_W){
+		ccr_x = PS2_MOUSE_MIN_W;
 	}
-	if(ccr_y>200){
-		ccr_y = 195;
+	if(ccr_y>PS2_MOUSE_MIN_H){
+		ccr_y = PS2_MOUSE_MIN_H;
 	}
 
-	unsigned char mouse[6] = {
+	unsigned char mouse[PS2_MOUSE_CUR_H] = {
 	0b11111000,
 	0b11110000,
 	0b11111000,
@@ -188,21 +196,23 @@ void irq_mouse(){
 	0b00001100
 	};
 
-	// oude buffer terug zetten
-	for(int y = 0 ; y < 6 ; y++){
-		for(int x = 0 ; x < 8 ; x++){
-			putpixel(oldx+x,oldy+y,mousebuffer[(y*8)+x]);
+	// set old buffer back
+	if(mousebuffer[0]!=0x00){
+		for(int y = 0 ; y < PS2_MOUSE_CUR_H ; y++){
+			for(int x = 0 ; x < PS2_MOUSE_CUR_W ; x++){
+				putpixel(oldx+x,oldy+y,mousebuffer[(y*PS2_MOUSE_CUR_W)+x]);
+			}
 		}
 	}
 
-	// nieuwe kopie van buffer
-	for(int y = 0 ; y < 6 ; y++){
-		for(int x = 0 ; x < 8 ; x++){
-			mousebuffer[(y*8)+x] = getpixel(ccr_x+x,ccr_y+y);
+	// put new buffer
+	for(int y = 0 ; y < PS2_MOUSE_CUR_H ; y++){
+		for(int x = 0 ; x < PS2_MOUSE_CUR_W ; x++){
+			mousebuffer[(y*PS2_MOUSE_CUR_W)+x] = getpixel(ccr_x+x,ccr_y+y);
 		}
 	}
 
-	for(int y = 0 ; y < 6 ; y++){
+	for(int y = 0 ; y < PS2_MOUSE_CUR_H ; y++){
 		unsigned char mouseline = mouse[y];
 		if(mouseline & 0b10000000){
 			putpixel(ccr_x+0,ccr_y+y,10);
