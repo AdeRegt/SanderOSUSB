@@ -92,7 +92,6 @@ char getIDEError(IDEDevice cdromdevice)
 		{
 			printf("IDE: No address mark\n");
 		}
-		printf("IDE: ERROR %x \n");
 		return 1;
 	}
 	return 0;
@@ -111,6 +110,10 @@ void ide_wait_for_ready(IDEDevice cdromdevice)
 {
 	unsigned char dev = 0x00;
 	resetTicks();
+	// wait for atleast 5 times
+	for(int i = 0 ; i < 6 ; i++){
+		inportb(cdromdevice.command + 7);
+	}
 	while ((dev = inportb(cdromdevice.command + 7)) & ATA_SR_BSY)
 	{
 		if(dev & ATA_SR_DRQ)
@@ -300,7 +303,7 @@ void atapi_write_raw(Device *dev, unsigned long lba, unsigned char count, unsign
 
 void ata_read_sector(IDEDevice hdddevice, unsigned long LBA, unsigned char count, unsigned short *location)
 {
-
+	ide_wait_for_ready(hdddevice);
 	unsigned char cunt = count;
 	resetIDEFire();
 	outportb(hdddevice.command + 6, 0xE0 | (hdddevice.slave << 4) | ((LBA >> 24) & 0x0F));

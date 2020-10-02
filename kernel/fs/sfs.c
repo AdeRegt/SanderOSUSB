@@ -175,7 +175,6 @@ void sfs_read(Device *device,char* path,char *buffer){
 			offset += 512;
 		}
 	}
-	for(;;);
 }
 
 void initialiseSFS(Device *device){
@@ -207,4 +206,5 @@ void initialiseSFS(Device *device){
 	device->dir = (unsigned long)&sfs_dir;
 	device->readFile = (unsigned long)&sfs_read;
 	device->existsFile = (unsigned long)&sfs_exists;
+
 }
