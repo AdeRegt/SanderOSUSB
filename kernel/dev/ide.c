@@ -14,7 +14,10 @@ volatile int ideXirq = 0;
 void irq_ide()
 {
 	ideXirq = 1;
-	printf("IDE: FIRE\n");
+	// ACK
+	unsigned char A = inportb(0x1f7);
+	unsigned char B = inportb(0x177);
+	printf("IDE: FIRE A=%x B=%x \n",A,B);
 	outportb(0x20, 0x20);
 	outportb(0xA0, 0x20);
 }
@@ -110,10 +113,6 @@ void ide_wait_for_ready(IDEDevice cdromdevice)
 {
 	unsigned char dev = 0x00;
 	resetTicks();
-	// wait for atleast 5 times
-	for(int i = 0 ; i < 6 ; i++){
-		inportb(cdromdevice.command + 7);
-	}
 	while ((dev = inportb(cdromdevice.command + 7)) & ATA_SR_BSY)
 	{
 		if(dev & ATA_SR_DRQ)
@@ -314,13 +313,20 @@ void ata_read_sector(IDEDevice hdddevice, unsigned long LBA, unsigned char count
 	outportb(hdddevice.command + 7, 0x20);
 	//getIDEError(hdddevice);
 	ide_wait_for_ready(hdddevice);
-	getIDEError(hdddevice);
+	if(getIDEError(hdddevice)){
+		printf("IDE ends with error\n");
+		for(;;);
+	}
 	int U = 0;
 	int i = 0;
 	unsigned char *buffer = (unsigned char *) location;
 	for (i = 0; i < 256; i++)
 	{
 		unsigned short tA = inportw(hdddevice.command);
+		if(getIDEError(hdddevice))
+		{
+			return;
+		}
 		buffer[U++] = tA & 0xFF;
 		buffer[U++] = (tA>>8) & 0xFF;
 	}
@@ -471,6 +477,19 @@ void init_ide_device(IDEDevice device)
 		printf("[IDE] maybe ata\n");
 		// ATA device detected!
 		unsigned char *buffer = (unsigned char *)0x1000;
+		if(getIDEError(device))
+		{
+			printf("[IDE] Error cought\n");
+			for(;;);
+		}
+		for (int i = 0; i < 256; i++)
+		{
+			if(getIDEError(device))
+			{
+				return;
+			}
+			inportw(device.command);
+		}
 		ata_read_sector(device, 0, 1, (unsigned short *)buffer);
 		ata_read_sector(device, 0, 1, (unsigned short *)buffer);
 		if (buffer[510] == 0x55 && buffer[511] == 0xAA)

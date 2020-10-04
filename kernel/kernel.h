@@ -126,6 +126,7 @@ typedef struct{
 InputStatus getInputStatus();
 
 // VIDEO
+void print_bios_char_table();
 int init_graph_vga(unsigned int width, unsigned int height,int chain4);
 int isGraphicsMode();
 void putpixel(int x,int y, unsigned char color);

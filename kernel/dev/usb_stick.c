@@ -163,9 +163,11 @@ unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
 }
 
 void usb_stick_read_raw_sector(Device *dxv,unsigned long LBA,unsigned char count,unsigned short *l0cation){
+	printf("READ COMMAND RECIEVED\n");
 	EHCI_USBSTICK *stick = (EHCI_USBSTICK*) ((unsigned long)dxv->arg1);
 	unsigned char *location = (unsigned char*)l0cation;
 	for(int i = 0 ; i < count ; i++){
+		printf("USBSTICK: Read LBA %x with count %x \n",LBA,count);
 		unsigned char* tak = usb_stick_read_sector(stick->master,dxv->arg2+LBA);
 		if((unsigned long)tak!=EHCI_ERROR){
 			for(int z = 0 ; z < 512 ; z++){
@@ -245,6 +247,7 @@ void usb_stick_init(USB_DEVICE *device){//unsigned char addr,unsigned char subcl
 	regdev->readRawSector = (unsigned long) &usb_stick_read_raw_sector;
 	regdev->arg1 = (unsigned long)usbdevice;
 	regdev->arg5 = 512;
+	printf("[USB] Read raw sector code located at %x \n",regdev->readRawSector);
 
 	detectFilesystemsOnMBR(regdev);
 }

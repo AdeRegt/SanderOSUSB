@@ -44,7 +44,7 @@ unsigned char pathbuffer[SFS_MAX_FILE_NAME];
 unsigned char tabletable[512];
 
 void sfs_get_detail(Device *device,char* path){
-	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
+	//void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	int pathpointer = 0;
 	if(path[0]==0x00){
 		goto end;
@@ -124,7 +124,7 @@ void sfs_dir(Device *device,char* path,char *buffer){
 }
 
 char sfs_exists(Device *device,char* path){
-	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
+	//void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	sfs_get_detail(device,path);
 	unsigned char nameexists = 0;
 	for(int i = 0 ; i < SFS_FILE_TABLE_ENTRIES ; i++){
@@ -180,6 +180,7 @@ void sfs_read(Device *device,char* path,char *buffer){
 void initialiseSFS(Device *device){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	printf("[SFS] SanderOSUSB File System (SFS) driver activated\n");
+	printf("[SFS] Read raw sector code located at %x \n",device->readRawSector);
 	unsigned char* bootsecloc = (unsigned char*)&bootsector;
 	readraw(device,0,1,(unsigned short*)bootsecloc);
 	if(bootsector.signature!=0xCD){
@@ -206,5 +207,8 @@ void initialiseSFS(Device *device){
 	device->dir = (unsigned long)&sfs_dir;
 	device->readFile = (unsigned long)&sfs_read;
 	device->existsFile = (unsigned long)&sfs_exists;
+
+	printf("[SFS] readSector: %x dir: %x \n",device->readRawSector,device->dir);
+	for(;;);
 
 }
