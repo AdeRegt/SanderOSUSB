@@ -163,16 +163,17 @@ unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
 }
 
 void usb_stick_read_raw_sector(Device *dxv,unsigned long LBA,unsigned char count,unsigned short *l0cation){
-	printf("READ COMMAND RECIEVED\n");
+	printf("READ COMMAND RECIEVED TO READ %x SECTORS FROM %x \n",count,LBA);
 	EHCI_USBSTICK *stick = (EHCI_USBSTICK*) ((unsigned long)dxv->arg1);
 	unsigned char *location = (unsigned char*)l0cation;
 	for(int i = 0 ; i < count ; i++){
-		printf("USBSTICK: Read LBA %x with count %x \n",LBA,count);
-		unsigned char* tak = usb_stick_read_sector(stick->master,dxv->arg2+LBA);
+		unsigned char* tak = usb_stick_read_sector(stick->master,dxv->arg2+LBA+i);
 		if((unsigned long)tak!=EHCI_ERROR){
 			for(int z = 0 ; z < 512 ; z++){
 				location[(i*512)+z] = tak[z];
 			}
+		}else{
+			printf("READ COMMAND ERROR\n");
 		}
 	}
 }

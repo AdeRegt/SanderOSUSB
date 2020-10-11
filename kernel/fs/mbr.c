@@ -109,7 +109,7 @@ void detectFilesystemsOnMBR(Device* device){
 			Device *regdev = getNextFreeDevice();
 		
 			regdev->readRawSector 	= atmp2;
-			printf("[MBR] readrawsectornew %x readrawsectorold %x \n",regdev->readRawSector,device->readRawSector);
+			printf("[MBR] readrawsectornew %x readrawsectorold %x lbastart: %x \n",regdev->readRawSector,device->readRawSector,mbrs[i].lbastart);
 			regdev->arg1 = device->arg1;
 			regdev->arg2 = mbrs[i].lbastart;
 			regdev->arg3 = device->arg3;

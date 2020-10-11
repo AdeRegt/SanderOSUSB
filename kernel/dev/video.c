@@ -20,7 +20,7 @@ typedef struct{
 	unsigned char isController;
 }GUIControlObject;
 
-#define MAXGUIOBJ 20
+#define MAXGUIOBJ 100
 GUIControlObject guiobjects[MAXGUIOBJ];
 int selectId = 0;
 
@@ -211,7 +211,6 @@ void drawButton(GUIControlObject o){
 			putpixel(o.x+x,o.y+y,o.isSelected?0x50:0x10);
 		}
 	}
-	
 	while((deze = msg[i++])!=0x00){
 		if((o.x+2+((i2+1)*8))>(o.x+o.w)){
 			o.y += 8;
@@ -340,8 +339,10 @@ char *browse(){
 	char *sigma = (char *)browseDIR("@");
 	result[pnt++] = sigma[0];
 	result[pnt++] = '@';
+	result[pnt] = 0;
 	while(1){
 		char *taf = (char *)browseDIR(result);
+
 		if(taf[0]==0){
 			message("Directory does not exists");
 			result[0] = '@';
@@ -383,13 +384,14 @@ char *browseDIR(char *path){
 	int i = 0;
 	int t = 22;
 	int r = 140;
+	char d = 0x00;
 	while(1){
-		char d = filesystemtext[i];
+		d = filesystemtext[i];
 		if(d==0x00){
 			break;
 		}
-		char *cont = malloc(20);
 		int z = 0;
+		int tmpx = i;
 		while(1){
 			char e = filesystemtext[i++];
 			if(e==0x00){
@@ -397,11 +399,12 @@ char *browseDIR(char *path){
 				break;
 			}
 			if(e==';'){
+				i--;
+				filesystemtext[i++] = 0;
 				break;
 			}
-			cont[z++] = e;
 		}
-		addController(1,(unsigned long)&drawButton,t,r,50,15,(unsigned long)cont,0,0,1);
+		addController(1,(unsigned long)&drawButton,t,r,50,15,(unsigned long)(filesystemtext+tmpx),0,0,1);
 		t += 55;
 		if(t>280){
 			t = 22;
@@ -986,10 +989,10 @@ unsigned char font[4000] = {
 //
 // ]
 0b01111110,
-0b01000000,
-0b01000000,
-0b01000000,
-0b01000000,
+0b00000010,
+0b00000010,
+0b00000010,
+0b00000010,
 0b01111110,
 
 //

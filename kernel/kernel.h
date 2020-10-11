@@ -125,6 +125,14 @@ typedef struct{
 }InputStatus;
 InputStatus getInputStatus();
 
+typedef struct
+{
+	unsigned short command;
+	unsigned short control;
+	unsigned char irq;
+	unsigned char slave;
+} IDEDevice;
+
 // VIDEO
 void print_bios_char_table();
 int init_graph_vga(unsigned int width, unsigned int height,int chain4);
