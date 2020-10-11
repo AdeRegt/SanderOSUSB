@@ -134,6 +134,7 @@ typedef struct
 } IDEDevice;
 
 // VIDEO
+void force_mouse_resample();
 void print_bios_char_table();
 int init_graph_vga(unsigned int width, unsigned int height,int chain4);
 int isGraphicsMode();

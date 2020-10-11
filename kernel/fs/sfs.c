@@ -123,6 +123,51 @@ void sfs_dir(Device *device,char* path,char *buffer){
 	}
 }
 
+char sfs_new_file(Device *device,char* path){
+	return 2;
+}
+
+char sfs_write(Device *device,char* path,char *buffer,int size){
+	//
+	// First, calculate size in sectors
+	int sectorsize = 1;
+	int calcsect = 0;
+	int physsecsize = 512;
+	againcalc:
+	calcsect = sectorsize*physsecsize;
+	if(calcsect>size){
+		goto finishedcalc;
+	}
+	sectorsize++;
+	goto againcalc;
+	finishedcalc:
+	printf("[SFS] We expect to use %x sectors for file %s \n",sectorsize,path);
+
+	//
+	// then, get current file info
+	sfs_get_detail(device,path);
+	unsigned char nameexists = 0;
+	for(int i = 0 ; i < SFS_FILE_TABLE_ENTRIES ; i++){
+		SFSFileEntry fe = filetable.entries[i];
+		unsigned char te = 1;
+		for(int y = 0 ; y < SFS_MAX_FILE_NAME ; y++){
+			if(fe.filename[y]!=pathbuffer[y]){
+				te = 0;
+			}
+		}
+		if(te){
+			nameexists = fe.fileid;
+			goto acknowledge;
+		}
+	}
+	if(nameexists==0){
+		nameexists = sfs_new_file(device,path);
+	}
+	acknowledge:
+
+	for(;;);
+}
+
 char sfs_exists(Device *device,char* path){
 	//void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	sfs_get_detail(device,path);
@@ -137,6 +182,7 @@ char sfs_exists(Device *device,char* path){
 		}
 		if(te){
 			nameexists = fe.fileid;
+			return 1;
 		}
 	}
 	if(nameexists==0){
@@ -146,7 +192,7 @@ char sfs_exists(Device *device,char* path){
 	return 1;
 }
 
-void sfs_read(Device *device,char* path,char *buffer){
+unsigned char sfs_read(Device *device,char* path,char *buffer){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	sfs_get_detail(device,path);
 	unsigned char nameexists = 0;
@@ -160,13 +206,16 @@ void sfs_read(Device *device,char* path,char *buffer){
 		}
 		if(te){
 			nameexists = fe.fileid;
+			goto found;
 		}
 	}
 	if(nameexists==0){
-		return;
+		return 0 ;
 	}
 
 	unsigned int offset = 0;
+	found:
+	offset = 0;
 	for(unsigned long i = 0 ; i < 512 ; i++){
 		if(tabletable[i]==nameexists){
 			printf("SFS: read %x [%x] \n",i,device->arg2+i);
@@ -175,6 +224,7 @@ void sfs_read(Device *device,char* path,char *buffer){
 			offset += 512;
 		}
 	}
+	return 1;
 }
 
 void initialiseSFS(Device *device){
@@ -208,6 +258,8 @@ void initialiseSFS(Device *device){
 	device->dir = (unsigned long)&sfs_dir;
 	device->readFile = (unsigned long)&sfs_read;
 	device->existsFile = (unsigned long)&sfs_exists;
+	device->writeFile = (unsigned long)&sfs_write;
+	device->newFile = (unsigned long)&sfs_new_file;
 
 	printf("[SFS] readSector: %x dir: %x \n",device->readRawSector,device->dir);
 

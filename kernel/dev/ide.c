@@ -5,6 +5,14 @@
 //
 //
 
+typedef struct {
+	unsigned char unused1[46];
+	unsigned char version[3];
+	unsigned char unused2[4];
+	unsigned char name[20];
+	unsigned char unused3[439];
+}IDE_IDENTIFY;
+
 extern void ideirq();
 extern void iso_9660_dir();
 extern void iso_9660_read();
@@ -33,7 +41,7 @@ void waitForIDEFire()
 	{
 		if (getTicks() == 5)
 		{
-			//			printf("IDE: timeout!\n");
+			printf("IDE: timeout!\n");for(;;);
 			break;
 		}
 	}
@@ -225,6 +233,35 @@ void atapi_read_raw(Device *dev, unsigned long lba, unsigned char count, unsigne
 	atapi_read_sector(ide, lba, count, location);
 }
 
+void ata_read_sector(IDEDevice dev, unsigned long LBA, unsigned char count, unsigned short *location){
+	unsigned char cunt = count;
+	resetIDEFire();
+	outportb(dev.command + 6, 0xE0 | (dev.slave << 4) | ((LBA >> 24) & 0x0F));
+	outportb(dev.command + 2, (unsigned char)cunt);
+	outportb(dev.command + 3, (unsigned char)LBA);
+	outportb(dev.command + 4, (unsigned char)(LBA >> 8));
+	outportb(dev.command + 5, (unsigned char)(LBA >> 16));
+	outportb(dev.command + 7, 0x20);
+	waitForIDEFire();
+	int U = 0;
+	int i = 0;
+	for (i = 0; i < (512 / 2); i++)
+	{
+		unsigned short X = inportw(dev.command);
+		location[U++] = X;
+	}
+}
+
+void ata_read_raw(Device *dev, unsigned long lba, unsigned char count, unsigned short *location)
+{
+	IDEDevice ide;
+	ide.command = dev->arg1;
+	ide.control = dev->arg2;
+	ide.irq = dev->arg3;
+	ide.slave = dev->arg4;
+	ata_read_sector(ide, lba + dev->arg2 , count, location);
+}
+
 char issata = 0;
 
 void init_ide_device(IDEDevice device)
@@ -239,6 +276,8 @@ void init_ide_device(IDEDevice device)
 	printstring(" SLV=");
 	printstring(device.slave == 1 ? "SLAVE" : "MASTER");
 	printstring("\n");
+
+	resetIDEFire();
 
 	outportb(device.command + 6, device.slave == 1 ? 0xB0 : 0xA0);
 	outportb(device.command + 2, 0);
@@ -271,6 +310,10 @@ void init_ide_device(IDEDevice device)
 		{
 			break;
 		}
+		else if(ideXirq)
+		{
+			break;
+		}
 	}
 
 	if (inportb(0x1F4) == 0x3C || inportb(0x1F5) == 0xC3)
@@ -283,10 +326,29 @@ void init_ide_device(IDEDevice device)
 	if (inportb(device.command + 4) == 0 && inportb(device.command + 5) == 0)
 	{
 		printstring("IDE: device is ATA\n");
+		unsigned char *identbuffer = (unsigned char *) malloc(sizeof(IDE_IDENTIFY));
 		for (int i = 0; i < 256; i++)
 		{
-			inportw(device.command);
+			unsigned short datapart = inportw(device.command);
+			unsigned char datapartA = (datapart>>8) & 0xFF;
+			unsigned char datapartB = datapart & 0xFF;
+			identbuffer[(i*2)+0] = datapartA;
+			identbuffer[(i*2)+1] = datapartB;
 		}
+		IDE_IDENTIFY *ident = (IDE_IDENTIFY*) identbuffer;
+		ident->unused2[0] = 0;
+		ident->unused3[0] = 0;
+		printf("[IDE] ATA version=%s name=%s \n",ident->version,ident->name);
+
+		Device *regdev = (Device*)malloc(sizeof(Device));
+		regdev->readRawSector = (unsigned long)&ata_read_raw;
+		regdev->arg1 = device.command;
+		regdev->arg2 = 0;//device.control;
+		regdev->arg3 = device.irq;
+		regdev->arg4 = device.slave;
+		regdev->arg5 = 512;
+		detectFilesystemsOnMBR(regdev);
+		
 		// ATA device detected!
 	}
 	else
@@ -324,10 +386,19 @@ void init_ide_device(IDEDevice device)
 		if (getIDEError(device) == 0)
 		{
 			printstring("IDE: device is ATAPI\n");
+			unsigned char *identbuffer = (unsigned char *) malloc(sizeof(IDE_IDENTIFY));
 			for (int i = 0; i < 256; i++)
 			{
-				inportw(device.command);
+				unsigned short datapart = inportw(device.command);
+				unsigned char datapartA = (datapart>>8) & 0xFF;
+				unsigned char datapartB = datapart & 0xFF;
+				identbuffer[(i*2)+0] = datapartA;
+				identbuffer[(i*2)+1] = datapartB;
 			}
+			IDE_IDENTIFY *ident = (IDE_IDENTIFY*) identbuffer;
+			ident->unused2[0] = 0;
+			ident->unused3[0] = 0;
+			printf("[IDE] ATAPI version=%s name=%s \n",ident->version,ident->name);
 			unsigned char *buffer = (unsigned char *)0x2000;
 			atapi_read_sector(device, 0, 1, (unsigned short *)buffer);
 			if (buffer[510] == 0x55 && buffer[511] == 0xAA)

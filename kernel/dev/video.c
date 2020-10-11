@@ -36,6 +36,7 @@ void draw(){
 			}
 		}
 	}
+	force_mouse_resample();
 }
 
 void unfocus(){
@@ -390,7 +391,6 @@ char *browseDIR(char *path){
 		if(d==0x00){
 			break;
 		}
-		int z = 0;
 		int tmpx = i;
 		while(1){
 			char e = filesystemtext[i++];

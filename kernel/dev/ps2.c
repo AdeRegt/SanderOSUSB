@@ -118,6 +118,12 @@ volatile char mouse_byte[5];
 volatile char mousetype = 0;
 unsigned char mousebuffer[6*8];
 
+volatile char forcemouseresample = 1;
+
+void force_mouse_resample(){
+	forcemouseresample = 1;
+}
+
 void irq_mouse(){
 	unsigned char status = inportb(0x64);
 	if(status & 1){
@@ -197,13 +203,14 @@ void irq_mouse(){
 	};
 
 	// set old buffer back
-	if(mousebuffer[0]!=0x00){
+	if(mousebuffer[0]!=0x00&&forcemouseresample==0){
 		for(int y = 0 ; y < PS2_MOUSE_CUR_H ; y++){
 			for(int x = 0 ; x < PS2_MOUSE_CUR_W ; x++){
 				putpixel(oldx+x,oldy+y,mousebuffer[(y*PS2_MOUSE_CUR_W)+x]);
 			}
 		}
 	}
+	forcemouseresample = 0;
 
 	// put new buffer
 	for(int y = 0 ; y < PS2_MOUSE_CUR_H ; y++){
