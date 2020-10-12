@@ -14,8 +14,8 @@ typedef struct{
 void detectFilesystemsOnMBR(Device* device){
 	//atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location)
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
-	printf("[MBR] Read raw sector code located at %x \n",device->readRawSector);
 	unsigned long atmp2 = device->readRawSector;
+	unsigned long atmp3 = device->writeRawSector;
 
 	unsigned char* msg = (unsigned char*) 0x1000;
 	readraw(device, 0, 1, (unsigned short *)msg);
@@ -109,7 +109,7 @@ void detectFilesystemsOnMBR(Device* device){
 			Device *regdev = getNextFreeDevice();
 		
 			regdev->readRawSector 	= atmp2;
-			printf("[MBR] readrawsectornew %x readrawsectorold %x lbastart: %x \n",regdev->readRawSector,device->readRawSector,mbrs[i].lbastart);
+			regdev->writeRawSector 	= atmp3;
 			regdev->arg1 = device->arg1;
 			regdev->arg2 = mbrs[i].lbastart;
 			regdev->arg3 = device->arg3;

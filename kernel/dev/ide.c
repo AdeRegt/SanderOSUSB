@@ -39,7 +39,7 @@ void waitForIDEFire()
 	resetTicks();
 	while (ideXirq == 0)
 	{
-		if (getTicks() == 5)
+		if (getTicks() == 9)
 		{
 			printf("IDE: timeout!\n");for(;;);
 			break;
@@ -262,6 +262,44 @@ void ata_read_raw(Device *dev, unsigned long lba, unsigned char count, unsigned 
 	ata_read_sector(ide, lba + dev->arg2 , count, location);
 }
 
+void ata_write_sector(IDEDevice dev, unsigned long LBA, unsigned char count, unsigned short *location){
+	unsigned char cunt = count;
+	resetIDEFire();
+	outportb(dev.command + 6, 0xE0 | (dev.slave << 4) | ((LBA >> 24) & 0x0F));
+	outportb(dev.command + 2, (unsigned char)cunt);
+	outportb(dev.command + 3, (unsigned char)LBA);
+	outportb(dev.command + 4, (unsigned char)(LBA >> 8));
+	outportb(dev.command + 5, (unsigned char)(LBA >> 16));
+	outportb(dev.command + 7, 0x30);
+	ide_wait_for_ready(dev);
+	int U = 0;
+	int i = 0;
+	for (i = 0; i < ((512*1) / 2); i++)
+	{
+		outportw(dev.command, location[U++]);
+	}
+	printf("STGE\n");
+	ide_wait_for_ready(dev);
+	resetIDEFire();
+	outportb(dev.command + 6, 0xE0 | (dev.slave << 4));
+	outportb(dev.command + 2, (unsigned char)0);
+	outportb(dev.command + 3, (unsigned char)0);
+	outportb(dev.command + 4, (unsigned char)0);
+	outportb(dev.command + 5, (unsigned char)0);
+	outportb(dev.command + 7, 0xE7);
+	waitForIDEFire();
+}
+
+void ata_write_raw(Device *dev, unsigned long lba, unsigned char count, unsigned short *location)
+{
+	IDEDevice ide;
+	ide.command = dev->arg1;
+	ide.control = dev->arg2;
+	ide.irq = dev->arg3;
+	ide.slave = dev->arg4;
+	ata_write_sector(ide, lba + dev->arg2 , count, location);
+}
+
 char issata = 0;
 
 void init_ide_device(IDEDevice device)
@@ -342,6 +380,7 @@ void init_ide_device(IDEDevice device)
 
 		Device *regdev = (Device*)malloc(sizeof(Device));
 		regdev->readRawSector = (unsigned long)&ata_read_raw;
+		regdev->writeRawSector = (unsigned long)&ata_write_raw;
 		regdev->arg1 = device.command;
 		regdev->arg2 = 0;//device.control;
 		regdev->arg3 = device.irq;

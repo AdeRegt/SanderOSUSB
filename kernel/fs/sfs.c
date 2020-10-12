@@ -43,8 +43,7 @@ SFSDirectory filetable;
 unsigned char pathbuffer[SFS_MAX_FILE_NAME];
 unsigned char tabletable[512];
 
-void sfs_get_detail(Device *device,char* path){
-	//void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
+void sfs_get_detail(char* path){
 	int pathpointer = 0;
 	if(path[0]==0x00){
 		goto end;
@@ -102,7 +101,7 @@ void sfs_get_detail(Device *device,char* path){
 }
 
 void sfs_dir(Device *device,char* path,char *buffer){
-	sfs_get_detail(device,path);
+	sfs_get_detail(path);
 	int counter = 0;
 	for(int i = 0 ; i < SFS_FILE_TABLE_ENTRIES ; i++){
 		SFSFileEntry fe = filetable.entries[i];
@@ -124,10 +123,41 @@ void sfs_dir(Device *device,char* path,char *buffer){
 }
 
 char sfs_new_file(Device *device,char* path){
-	return 2;
+	void* (*writeraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->writeRawSector;
+	sfs_get_detail(path);
+	// which number exists?
+	char number = 2;
+	while(1){
+		char found = 0;
+		for(int i = 0 ; i < SFS_FILE_TABLE_ENTRIES ; i++){
+			if(filetable.entries[i].fileid==number){
+				found = 1;
+			}
+		}
+		if(found==1){
+			number++;
+			found = 0;
+		}else{
+			break;
+		}
+	}
+	for(int i = 0 ; i < SFS_FILE_TABLE_ENTRIES ; i++){
+		if(filetable.entries[i].fileid==0){
+			filetable.entries[i].fileid = number;
+			for(int t = 0 ; t < SFS_MAX_FILE_NAME ; t++){
+				filetable.entries[i].filename[t] = pathbuffer[t];
+			}
+			break;
+		}
+	}
+	writeraw(device,bootsector.offset_first_sectortable + bootsector.sectortablesize,1,&filetable);
+	return number;
 }
 
 char sfs_write(Device *device,char* path,char *buffer,int size){
+	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
+	void* (*writeraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->writeRawSector;
+
 	//
 	// First, calculate size in sectors
 	int sectorsize = 1;
@@ -141,11 +171,10 @@ char sfs_write(Device *device,char* path,char *buffer,int size){
 	sectorsize++;
 	goto againcalc;
 	finishedcalc:
-	printf("[SFS] We expect to use %x sectors for file %s \n",sectorsize,path);
 
 	//
 	// then, get current file info
-	sfs_get_detail(device,path);
+	sfs_get_detail(path);
 	unsigned char nameexists = 0;
 	for(int i = 0 ; i < SFS_FILE_TABLE_ENTRIES ; i++){
 		SFSFileEntry fe = filetable.entries[i];
@@ -164,13 +193,39 @@ char sfs_write(Device *device,char* path,char *buffer,int size){
 		nameexists = sfs_new_file(device,path);
 	}
 	acknowledge:
-
-	for(;;);
+	//
+	// then: remove previous data
+	for(unsigned long i = 0 ; i < 512 ; i++){
+		if(tabletable[i]==nameexists){
+			tabletable[i] = 0;
+		}
+	}
+	//
+	// then: fill system with new data
+	int tmpsect = sectorsize;
+	for(unsigned long i = 3 ; i < 512 ; i++){
+		if(tabletable[i]==0){
+			tabletable[i] = nameexists;
+			tmpsect--;
+			if(tmpsect==0){
+				break;
+			}
+		}
+	}
+	writeraw(device,bootsector.offset_first_sectortable,1,(unsigned short *)&tabletable);
+	unsigned char sectoroffsettemp = 0;
+	for(unsigned long i = 0 ; i < 512 ; i++){
+		if(tabletable[i]==nameexists){
+			writeraw(device,i,1,(unsigned short*)(buffer+sectoroffsettemp));
+			sectoroffsettemp += 512;
+		}
+	}
+	return 1;
 }
 
 char sfs_exists(Device *device,char* path){
 	//void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
-	sfs_get_detail(device,path);
+	sfs_get_detail(path);
 	unsigned char nameexists = 0;
 	for(int i = 0 ; i < SFS_FILE_TABLE_ENTRIES ; i++){
 		SFSFileEntry fe = filetable.entries[i];
@@ -194,7 +249,7 @@ char sfs_exists(Device *device,char* path){
 
 unsigned char sfs_read(Device *device,char* path,char *buffer){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
-	sfs_get_detail(device,path);
+	sfs_get_detail(path);
 	unsigned char nameexists = 0;
 	for(int i = 0 ; i < SFS_FILE_TABLE_ENTRIES ; i++){
 		SFSFileEntry fe = filetable.entries[i];
