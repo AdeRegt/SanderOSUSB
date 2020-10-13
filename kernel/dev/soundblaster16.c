@@ -121,11 +121,4 @@ void init_soundblaster16(){
 	outportb(SOUNDBLASTER16_DSP_MIXER_PORT,0x80);
 	outportb(SOUNDBLASTER16_DSP_MIXER_PORT,0x02); // 2= interrupt 5
 
-	int i = soundblaster16_playSampleData();
-	if(i){
-		printf("[SNDBST] Finished playing example\n");
-	}else{
-		printf("[SNDBST] Unable to playing example\n");
-	}
-
 }

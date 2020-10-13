@@ -1314,7 +1314,9 @@ void drawchar(unsigned char c, int x, int y, int fgcolor, int bgcolor)
 
 void putc(char a){
 	if(isgraphics==1){
-		if(curx==40||a=='\n'){
+		if(cury>27){
+			curx = 0;
+		}else if(curx==40||a=='\n'){
 			curx=0;
 			cury++;
 		}else if(a==' '){
