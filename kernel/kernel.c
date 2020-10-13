@@ -13,11 +13,23 @@ void browser(){
 			c[2] = "cancel";
 			unsigned int t = choose("How can I help you",3,c);
 			if(t==0){
+				int offset = 0;
+				again:
+				cls();
 				for(int i = 0 ; i < 512 ; i++){
-					printf("%c",buffer[i]);
+					printf("%c",buffer[offset+i]);
 				}
-				printf("\n\nPress any key to continue\n");
-				getch();
+				printf("\n\nup,down,q=quit\n");
+				volatile unsigned char res = getch();
+				if(res==VK_UP){
+					offset -= 512;
+				}
+				if(res==VK_DOWN){
+					offset += 512;
+				}
+				if(res!='q'){
+					goto again;
+				}
 			}else if(t==1){
 				if(iself(buffer)){
 					printf("ELF: program is ELF!\n");
@@ -70,7 +82,7 @@ void kernel_main(){
 	init_soundblaster16();
 	printf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
-	
+	//printf("DATA: %s ",dir("A@"));for(;;);
 	//320,200
 	if(init_graph_vga(320, 200, 1)==0) {
 		printf("VGA: failed to set!\n");

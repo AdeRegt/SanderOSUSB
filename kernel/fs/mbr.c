@@ -14,7 +14,9 @@ typedef struct{
 void detectFilesystemsOnMBR(Device* device){
 	//atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location)
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
-	
+	unsigned long atmp2 = device->readRawSector;
+	unsigned long atmp3 = device->writeRawSector;
+
 	unsigned char* msg = (unsigned char*) 0x1000;
 	readraw(device, 0, 1, (unsigned short *)msg);
 	unsigned int basex = 0x01BE;
@@ -102,6 +104,19 @@ void detectFilesystemsOnMBR(Device* device){
 			regdev->arg4 = device->arg4;
 			regdev->arg5 = device->arg5;
 			initialiseFAT(regdev);
+		}else if(mbrs[i].type==0xCD){
+			printf("[MBRI] SFS filesystem detected\n");
+			Device *regdev = getNextFreeDevice();
+		
+			regdev->readRawSector 	= atmp2;
+			regdev->writeRawSector 	= atmp3;
+			regdev->arg1 = device->arg1;
+			regdev->arg2 = mbrs[i].lbastart;
+			regdev->arg3 = device->arg3;
+			regdev->arg4 = device->arg4;
+			regdev->arg5 = device->arg5;
+
+			initialiseSFS(regdev);
 		}
 		basex += 16;
 	}

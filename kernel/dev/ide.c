@@ -5,6 +5,14 @@
 //
 //
 
+typedef struct {
+	unsigned char unused1[46];
+	unsigned char version[3];
+	unsigned char unused2[4];
+	unsigned char name[20];
+	unsigned char unused3[439];
+}IDE_IDENTIFY;
+
 extern void ideirq();
 extern void iso_9660_dir();
 extern void iso_9660_read();
@@ -14,6 +22,9 @@ volatile int ideXirq = 0;
 void irq_ide()
 {
 	ideXirq = 1;
+	printf("[IDE] ACK int\n");
+	inportb(0x177); // acknowledge second
+	inportb(0x1F7);	// acknowledge first
 	outportb(0x20, 0x20);
 	outportb(0xA0, 0x20);
 }
@@ -28,21 +39,15 @@ void waitForIDEFire()
 	resetTicks();
 	while (ideXirq == 0)
 	{
-		if (getTicks() == 5)
+		if (getTicks() == 9)
 		{
-			//			printf("IDE: timeout!\n");
+			printf("IDE: timeout!\n");for(;;);
 			break;
 		}
 	}
 }
 
-typedef struct
-{
-	unsigned short command;
-	unsigned short control;
-	unsigned char irq;
-	unsigned char slave;
-} IDEDevice;
+#define ATAPI_SECTOR_SIZE 2048
 
 IDEDevice ata1 = {.command = 0x1f0, .control = 0x3f6, .irq = 14, .slave = 0};
 IDEDevice ata2 = {.command = 0x1f0, .control = 0x3f6, .irq = 14, .slave = 1};
@@ -228,138 +233,71 @@ void atapi_read_raw(Device *dev, unsigned long lba, unsigned char count, unsigne
 	atapi_read_sector(ide, lba, count, location);
 }
 
-void atapi_write_sector(IDEDevice cdromdevice, unsigned long lba, unsigned char count, unsigned short *location)
-{
-	getIDEError(cdromdevice);
-	ide_wait_for_ready(cdromdevice);
-
-	outportb(cdromdevice.command + 6, cdromdevice.slave == 1 ? 0xB0 : 0xA0);
-	outportb(cdromdevice.command + 1, 0x00);
-	outportb(cdromdevice.command + 4, ATAPI_SECTOR_SIZE & 0xff);
-	outportb(cdromdevice.command + 5, ATAPI_SECTOR_SIZE >> 8);
-	outportb(cdromdevice.command + 7, 0xA0);
-
-	getIDEError(cdromdevice);
-
-	ide_wait_for_ready(cdromdevice);
-
-	read_cmd[9] = count;
-	read_cmd[2] = (lba >> 0x18) & 0xFF; /* most sig. byte of LBA */
-	read_cmd[3] = (lba >> 0x10) & 0xFF;
-	read_cmd[4] = (lba >> 0x08) & 0xFF;
-	read_cmd[5] = (lba >> 0x00) & 0xFF;
-	read_cmd[0] = 0xAA;
-
+void ata_read_sector(IDEDevice dev, unsigned long LBA, unsigned char count, unsigned short *location){
+	unsigned char cunt = count;
 	resetIDEFire();
-	getIDEError(cdromdevice);
-	ide_wait_for_ready(cdromdevice);
-	unsigned short *mdx = (unsigned short *)&read_cmd;
-	ide_wait_for_ready(cdromdevice);
-	for (int f = 0; f < 6; f++)
-	{
-		outportw(cdromdevice.command + 0, mdx[f]);
-	}
-	getIDEError(cdromdevice);
+	outportb(dev.command + 6, 0xE0 | (dev.slave << 4) | ((LBA >> 24) & 0x0F));
+	outportb(dev.command + 2, (unsigned char)cunt);
+	outportb(dev.command + 3, (unsigned char)LBA);
+	outportb(dev.command + 4, (unsigned char)(LBA >> 8));
+	outportb(dev.command + 5, (unsigned char)(LBA >> 16));
+	outportb(dev.command + 7, 0x20);
 	waitForIDEFire();
-	ide_wait_for_ready(cdromdevice);
-	unsigned short size = (((int)inportb(cdromdevice.command + 5)) << 8) | (int)(inportb(cdromdevice.command + 4));
-	ide_wait_for_ready(cdromdevice);
-	int mp = 0;
-	for (unsigned short i = 0; i < (size / 2); i++)
+	int U = 0;
+	int i = 0;
+	for (i = 0; i < (512 / 2); i++)
 	{
-		if (getIDEError(cdromdevice) == 1)
-		{
-			return;
-		}
-		ide_wait_for_ready(cdromdevice);
-		outportw(cdromdevice.command + 0,location[mp++]);
+		unsigned short X = inportw(dev.command);
+		location[U++] = X;
 	}
-	ide_wait_for_ready(cdromdevice);
 }
 
-void atapi_write_raw(Device *dev, unsigned long lba, unsigned char count, unsigned short *location)
+void ata_read_raw(Device *dev, unsigned long lba, unsigned char count, unsigned short *location)
 {
 	IDEDevice ide;
 	ide.command = dev->arg1;
 	ide.control = dev->arg2;
 	ide.irq = dev->arg3;
 	ide.slave = dev->arg4;
-	atapi_write_sector(ide, lba, count, location);
+	ata_read_sector(ide, lba + dev->arg2 , count, location);
 }
 
-void ata_read_sector(IDEDevice hdddevice, unsigned long LBA, unsigned char count, unsigned short *location)
-{
+void ata_write_sector(IDEDevice dev, unsigned long LBA, unsigned char count, unsigned short *location){
 	unsigned char cunt = count;
 	resetIDEFire();
-	outportb(hdddevice.command + 6, 0xE0 | (hdddevice.slave << 4) | ((LBA >> 24) & 0x0F));
-	outportb(hdddevice.command + 2, (unsigned char)cunt);
-	outportb(hdddevice.command + 3, (unsigned char)LBA);
-	outportb(hdddevice.command + 4, (unsigned char)(LBA >> 8));
-	outportb(hdddevice.command + 5, (unsigned char)(LBA >> 16));
-	outportb(hdddevice.command + 7, 0x20);
-	getIDEError(hdddevice);
-	ide_wait_for_ready(hdddevice);
+	outportb(dev.command + 6, 0xE0 | (dev.slave << 4) | ((LBA >> 24) & 0x0F));
+	outportb(dev.command + 2, (unsigned char)cunt);
+	outportb(dev.command + 3, (unsigned char)LBA);
+	outportb(dev.command + 4, (unsigned char)(LBA >> 8));
+	outportb(dev.command + 5, (unsigned char)(LBA >> 16));
+	outportb(dev.command + 7, 0x30);
+	ide_wait_for_ready(dev);
 	int U = 0;
 	int i = 0;
-	for (i = 0; i < (512 / 2); i++)
+	for (i = 0; i < ((512*1) / 2); i++)
 	{
-		unsigned short X = inportw(hdddevice.command);
-		location[U++] = X;
+		outportw(dev.command, location[U++]);
 	}
-}
-
-void ata_write_sector(IDEDevice hdddevice, unsigned long LBA, unsigned char count, unsigned short *location)
-{
-	unsigned char cunt = count;
+	printf("STGE\n");
+	ide_wait_for_ready(dev);
 	resetIDEFire();
-	outportb(hdddevice.command + 6, 0xE0 | (hdddevice.slave << 4) | ((LBA >> 24) & 0x0F));
-	outportb(hdddevice.command + 2, (unsigned char)cunt);
-	outportb(hdddevice.command + 3, (unsigned char)LBA);
-	outportb(hdddevice.command + 4, (unsigned char)(LBA >> 8));
-	outportb(hdddevice.command + 5, (unsigned char)(LBA >> 16));
-	outportb(hdddevice.command + 7, 0x30);
-	getIDEError(hdddevice);
-	ide_wait_for_ready(hdddevice);
-	int U = 0;
-	int i = 0;
-	for (i = 0; i < ((512*cunt) / 2); i++)
-	{
-		outportw(hdddevice.command, location[U++]);
-		sleep(1);
-	}
-	resetIDEFire();
-	outportb(hdddevice.command + 6, 0xE0 | (hdddevice.slave << 4));
-	outportb(hdddevice.command + 2, (unsigned char)0);
-	outportb(hdddevice.command + 3, (unsigned char)0);
-	outportb(hdddevice.command + 4, (unsigned char)0);
-	outportb(hdddevice.command + 5, (unsigned char)0);
-	outportb(hdddevice.command + 7, 0xE7);
-	getIDEError(hdddevice);
-	ide_wait_for_ready(hdddevice);
+	outportb(dev.command + 6, 0xE0 | (dev.slave << 4));
+	outportb(dev.command + 2, (unsigned char)0);
+	outportb(dev.command + 3, (unsigned char)0);
+	outportb(dev.command + 4, (unsigned char)0);
+	outportb(dev.command + 5, (unsigned char)0);
+	outportb(dev.command + 7, 0xE7);
+	waitForIDEFire();
 }
 
-void ata_write_raw(Device *dxv, unsigned long LBA, unsigned char count, unsigned short *location)
+void ata_write_raw(Device *dev, unsigned long lba, unsigned char count, unsigned short *location)
 {
-	unsigned char tok = count;
-	IDEDevice *dev = (IDEDevice *)dxv->arg1;
-	IDEDevice device;
-	device.command = dev->command;
-	device.control = dev->control;
-	device.irq = dev->irq;
-	device.slave = dev->slave;
-	ata_write_sector(device, dxv->arg2 + LBA, tok, location);
-}
-
-void ata_read_raw(Device *dxv, unsigned long LBA, unsigned char count, unsigned short *location)
-{
-	unsigned char tok = count;
-	IDEDevice *dev = (IDEDevice *)dxv->arg1;
-	IDEDevice device;
-	device.command = dev->command;
-	device.control = dev->control;
-	device.irq = dev->irq;
-	device.slave = dev->slave;
-	ata_read_sector(device, dxv->arg2 + LBA, tok, location);
+	IDEDevice ide;
+	ide.command = dev->arg1;
+	ide.control = dev->arg2;
+	ide.irq = dev->arg3;
+	ide.slave = dev->arg4;
+	ata_write_sector(ide, lba + dev->arg2 , count, location);
 }
 
 char issata = 0;
@@ -377,42 +315,29 @@ void init_ide_device(IDEDevice device)
 	printstring(device.slave == 1 ? "SLAVE" : "MASTER");
 	printstring("\n");
 
-	// first, softreset
-	outportb(device.control, 0x04);
-	outportb(device.control, 0x00);
+	resetIDEFire();
 
-	outportb(device.command + 0x06, 0xA0 | device.slave << 4);
+	outportb(device.command + 6, device.slave == 1 ? 0xB0 : 0xA0);
+	outportb(device.command + 2, 0);
+	outportb(device.command + 3, 0);
+	outportb(device.command + 4, 0);
+	outportb(device.command + 5, 0);
+	outportb(device.command + 7, 0xEC);
 
 	resetTicks();
 	while (1)
 	{
-		if ((inportb(device.command + 7) & 0x80) > 0)
-		{
-			break;
-		}
-		else if (!(inportb(device.command + 4) == 0 && inportb(device.command + 5) == 0))
-		{
-			break;
-		}
-		else if (getTicks() == 2)
+		if (getTicks() > 2)
 		{
 			break;
 		}
 	}
-
-	unsigned char cl = inportb(device.command + 0x04);
-	unsigned char ch = inportb(device.command + 0x05);
-
-	if (cl == 0xFF && ch == 0xFF)
+	if (inportb(device.command + 7) == 0)
 	{
-		printf("[IDE] return\n");
+		printstring("IDE: device does not exist!\n");
 		return;
 	}
 
-	outportb(device.command + 0x01, 1);
-	outportb(device.control, 0);
-	outportb(device.command + 0x06, 0xA0 | device.slave << 4);
-	resetTicks();
 	while (1)
 	{
 		if ((inportb(device.command + 7) & 0x80) > 0)
@@ -423,67 +348,59 @@ void init_ide_device(IDEDevice device)
 		{
 			break;
 		}
-		else if (getTicks() == 2)
+		else if(ideXirq)
 		{
 			break;
 		}
 	}
-	outportb(device.command + 0x07, 0xEC);
-	resetTicks();
-	while (1)
+
+	if (inportb(0x1F4) == 0x3C || inportb(0x1F5) == 0xC3)
 	{
-		if ((inportb(device.command + 7) & 0x80) > 0)
-		{
-			break;
-		}
-		else if (!(inportb(device.command + 4) == 0 && inportb(device.command + 5) == 0))
-		{
-			break;
-		}
-		else if (getTicks() == 2)
-		{
-			break;
-		}
+		printf("IDE: Device is SATA\n");
+		issata = 1;
+		return;
 	}
-	cl = inportb(device.command + 0x04);
-	ch = inportb(device.command + 0x05);
-	if (!(cl == 0x14 && ch == 0xEB) && !(cl == 0x69 && ch == 0x96))
+
+	if (inportb(device.command + 4) == 0 && inportb(device.command + 5) == 0)
 	{
-		// maybe hdd?
-		printf("[IDE] maybe ata\n");
-		// ATA device detected!
-		unsigned char *buffer = (unsigned char *)0x1000;
-		ata_read_sector(device, 0, 1, (unsigned short *)buffer);
-		if (buffer[510] == 0x55 && buffer[511] == 0xAA)
+		printstring("IDE: device is ATA\n");
+		unsigned char *identbuffer = (unsigned char *) malloc(sizeof(IDE_IDENTIFY));
+		for (int i = 0; i < 256; i++)
 		{
-			printf("[ATA] hdd is bootable!\n");
+			unsigned short datapart = inportw(device.command);
+			unsigned char datapartA = (datapart>>8) & 0xFF;
+			unsigned char datapartB = datapart & 0xFF;
+			identbuffer[(i*2)+0] = datapartA;
+			identbuffer[(i*2)+1] = datapartB;
 		}
-		else
-		{
-			printf("[ATA] hdd is not bootable!\n");
-			// mark it as bootable for our next test
-			buffer[510] = 0x55;
-			buffer[511] = 0xAA;
-			ata_write_sector(device,0,1,(unsigned short *)buffer);
-			return;
-		}
+		IDE_IDENTIFY *ident = (IDE_IDENTIFY*) identbuffer;
+		ident->unused2[0] = 0;
+		ident->unused3[0] = 0;
+		printf("[IDE] ATA version=%s name=%s \n",ident->version,ident->name);
 
-		Device *regdev = (Device *)malloc(sizeof(Device));
-
+		Device *regdev = (Device*)malloc(sizeof(Device));
 		regdev->readRawSector = (unsigned long)&ata_read_raw;
 		regdev->writeRawSector = (unsigned long)&ata_write_raw;
-
-		regdev->arg1 = (unsigned long)&device;
-		regdev->arg2 = 0;
-		regdev->arg3 = 0;
-		regdev->arg4 = 0;
+		regdev->arg1 = device.command;
+		regdev->arg2 = 0;//device.control;
+		regdev->arg3 = device.irq;
+		regdev->arg4 = device.slave;
 		regdev->arg5 = 512;
 		detectFilesystemsOnMBR(regdev);
+		
+		// ATA device detected!
 	}
 	else
 	{
-		// is cdrom
-		printf("[IDE] maybe atapi\n");
+		for (int i = 0; i < 256; i++)
+		{
+			inportw(device.command);
+		}
+
+		// Device is NOT ATA
+		// Maybe it is ATAPI?
+		//if((inportb(device.command+4)==0x14)&&(inportb(device.command+5)==0xEB)){
+
 		outportb(device.command + 6, device.slave == 1 ? 0xB0 : 0xA0);
 		outportb(device.command + 2, 0);
 		outportb(device.command + 3, 0);
@@ -508,10 +425,19 @@ void init_ide_device(IDEDevice device)
 		if (getIDEError(device) == 0)
 		{
 			printstring("IDE: device is ATAPI\n");
+			unsigned char *identbuffer = (unsigned char *) malloc(sizeof(IDE_IDENTIFY));
 			for (int i = 0; i < 256; i++)
 			{
-				inportw(device.command);
+				unsigned short datapart = inportw(device.command);
+				unsigned char datapartA = (datapart>>8) & 0xFF;
+				unsigned char datapartB = datapart & 0xFF;
+				identbuffer[(i*2)+0] = datapartA;
+				identbuffer[(i*2)+1] = datapartB;
 			}
+			IDE_IDENTIFY *ident = (IDE_IDENTIFY*) identbuffer;
+			ident->unused2[0] = 0;
+			ident->unused3[0] = 0;
+			printf("[IDE] ATAPI version=%s name=%s \n",ident->version,ident->name);
 			unsigned char *buffer = (unsigned char *)0x2000;
 			atapi_read_sector(device, 0, 1, (unsigned short *)buffer);
 			if (buffer[510] == 0x55 && buffer[511] == 0xAA)
@@ -521,7 +447,6 @@ void init_ide_device(IDEDevice device)
 			else
 			{
 				printf("ATAPI: cdrom is not bootable!\n");
-				return;
 			}
 			int choice = -1;
 			for (int i = 0; i < 10; i++)
@@ -544,7 +469,7 @@ void init_ide_device(IDEDevice device)
 				Device *regdev = getNextFreeDevice();
 
 				regdev->readRawSector = (unsigned long)&atapi_read_raw;
-				regdev->writeRawSector = (unsigned long)&atapi_write_raw;
+				//				regdev->writeRawSector 	= (unsigned long)&atapi_write_raw;
 				//				regdev->reinitialise 	= (unsigned long)&atapi_reset_raw;
 				regdev->eject = (unsigned long)&atapi_eject_raw;
 
@@ -560,17 +485,6 @@ void init_ide_device(IDEDevice device)
 				regdev->arg5 = ATAPI_SECTOR_SIZE;
 			}
 		}
-	}
-}
-
-void init_ide2()
-{
-	init_ide_device(ata1);
-	if (issata == 0)
-	{
-		init_ide_device(ata2);
-		init_ide_device(ata3);
-		init_ide_device(ata4);
 	}
 }
 

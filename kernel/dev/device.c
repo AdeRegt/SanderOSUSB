@@ -28,6 +28,7 @@ char* dir(char* path){
 			}
 			whoopsie[t++] = 'A'+i;
 		}
+		whoopsie[t++] = 0x00;
 	}else if(path[1]=='@'){
 		int z = path[0] - 'A';
 		if(devices[z].dir==0){

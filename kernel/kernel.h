@@ -125,7 +125,17 @@ typedef struct{
 }InputStatus;
 InputStatus getInputStatus();
 
+typedef struct
+{
+	unsigned short command;
+	unsigned short control;
+	unsigned char irq;
+	unsigned char slave;
+} IDEDevice;
+
 // VIDEO
+void force_mouse_resample();
+void print_bios_char_table();
 int init_graph_vga(unsigned int width, unsigned int height,int chain4);
 int isGraphicsMode();
 void putpixel(int x,int y, unsigned char color);
@@ -259,6 +269,7 @@ unsigned long loadelf(void * buffer);
 void detectFilesystemsOnMBR(Device* dev);
 void initialiseExt2(Device* device);
 void initialiseFAT(Device* device);
+void initialiseSFS(Device *device);
 
 int pow(int base,int exp);
 

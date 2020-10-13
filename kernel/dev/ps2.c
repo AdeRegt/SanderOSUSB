@@ -10,6 +10,14 @@
 #define PS2_COMMAND 0x64
 #define PS2_TIMEOUT 10
 
+#define PS2_MOUSE_MIN_X 1
+#define PS2_MOUSE_MIN_Y 1
+#define PS2_MOUSE_MIN_W 312
+#define PS2_MOUSE_MIN_H 190
+
+#define PS2_MOUSE_CUR_W 8
+#define PS2_MOUSE_CUR_H 6
+
 
 char getPS2StatusRegisterText(){
 	return inportb(PS2_STATUS);
@@ -108,6 +116,13 @@ volatile int clck = 0;
 volatile int mouse_cycle = 0;
 volatile char mouse_byte[5];
 volatile char mousetype = 0;
+unsigned char mousebuffer[6*8];
+
+volatile char forcemouseresample = 1;
+
+void force_mouse_resample(){
+	forcemouseresample = 1;
+}
 
 void irq_mouse(){
 	unsigned char status = inportb(0x64);
@@ -165,46 +180,73 @@ void irq_mouse(){
 		}
 	}
 	
-	if(ccr_x<1){
-		ccr_x = 1;
+	if(ccr_x<PS2_MOUSE_MIN_X){
+		ccr_x = PS2_MOUSE_MIN_X;
 	}
-	if(ccr_y<1){
-		ccr_y = 1;
+	if(ccr_y<PS2_MOUSE_MIN_Y){
+		ccr_y = PS2_MOUSE_MIN_Y;
 	}
-	if(ccr_x>320){
-		ccr_x = 315;
+	if(ccr_x>PS2_MOUSE_MIN_W){
+		ccr_x = PS2_MOUSE_MIN_W;
 	}
-	if(ccr_y>200){
-		ccr_y = 195;
+	if(ccr_y>PS2_MOUSE_MIN_H){
+		ccr_y = PS2_MOUSE_MIN_H;
 	}
-	
-	putpixel(oldx+0,oldy+0,old00z);
-	putpixel(oldx+1,oldy+0,old01z);
-	putpixel(oldx+2,oldy+0,old02z);
-	putpixel(oldx+0,oldy+1,old10z);
-	putpixel(oldx+1,oldy+1,old11z);
-	putpixel(oldx+2,oldy+1,old12z);
-	putpixel(oldx+0,oldy+2,old20z);
-	putpixel(oldx+1,oldy+2,old21z);
-	putpixel(oldx+2,oldy+2,old22z);
-	old00z = getpixel(ccr_x+0,ccr_y+0);
-	old01z = getpixel(ccr_x+1,ccr_y+0);
-	old02z = getpixel(ccr_x+2,ccr_y+0);
-	old10z = getpixel(ccr_x+0,ccr_y+1);
-	old11z = getpixel(ccr_x+1,ccr_y+1);
-	old12z = getpixel(ccr_x+2,ccr_y+1);
-	old20z = getpixel(ccr_x+0,ccr_y+2);
-	old21z = getpixel(ccr_x+1,ccr_y+2);
-	old22z = getpixel(ccr_x+2,ccr_y+2);
-	putpixel(ccr_x+0,ccr_y+0,2);
-	putpixel(ccr_x+0,ccr_y+1,2);
-	putpixel(ccr_x+0,ccr_y+2,2);
-	putpixel(ccr_x+1,ccr_y+0,2);
-	putpixel(ccr_x+1,ccr_y+1,2);
-	putpixel(ccr_x+1,ccr_y+2,2);
-	putpixel(ccr_x+2,ccr_y+0,2);
-	putpixel(ccr_x+2,ccr_y+1,2);
-	putpixel(ccr_x+2,ccr_y+2,2);
+
+	unsigned char mouse[PS2_MOUSE_CUR_H] = {
+	0b11111000,
+	0b11110000,
+	0b11111000,
+	0b11111100,
+	0b10011110,
+	0b00001100
+	};
+
+	// set old buffer back
+	if(mousebuffer[0]!=0x00&&forcemouseresample==0){
+		for(int y = 0 ; y < PS2_MOUSE_CUR_H ; y++){
+			for(int x = 0 ; x < PS2_MOUSE_CUR_W ; x++){
+				putpixel(oldx+x,oldy+y,mousebuffer[(y*PS2_MOUSE_CUR_W)+x]);
+			}
+		}
+	}
+	forcemouseresample = 0;
+
+	// put new buffer
+	for(int y = 0 ; y < PS2_MOUSE_CUR_H ; y++){
+		for(int x = 0 ; x < PS2_MOUSE_CUR_W ; x++){
+			mousebuffer[(y*PS2_MOUSE_CUR_W)+x] = getpixel(ccr_x+x,ccr_y+y);
+		}
+	}
+
+	for(int y = 0 ; y < PS2_MOUSE_CUR_H ; y++){
+		unsigned char mouseline = mouse[y];
+		if(mouseline & 0b10000000){
+			putpixel(ccr_x+0,ccr_y+y,10);
+		}
+		if(mouseline & 0b01000000){
+			putpixel(ccr_x+1,ccr_y+y,10);
+		}
+		if(mouseline & 0b00100000){
+			putpixel(ccr_x+2,ccr_y+y,10);
+		}
+		if(mouseline & 0b00010000){
+			putpixel(ccr_x+3,ccr_y+y,10);
+		}
+		if(mouseline & 0b00001000){
+			putpixel(ccr_x+4,ccr_y+y,10);
+		}
+		if(mouseline & 0b00000100){
+			putpixel(ccr_x+5,ccr_y+y,10);
+		}
+		if(mouseline & 0b00000010){
+			putpixel(ccr_x+6,ccr_y+y,10);
+		}
+		if(mouseline & 0b00000001){
+			putpixel(ccr_x+7,ccr_y+y,10);
+		}
+	}
+
 	oldx = ccr_x;
 	oldy = ccr_y;
 	// EOI
