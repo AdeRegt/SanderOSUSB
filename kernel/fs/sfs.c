@@ -36,7 +36,7 @@ typedef struct{
 
 typedef struct{
 	SFSFileEntry entries[SFS_FILE_TABLE_ENTRIES];
-}__attribute__((packed)) SFSDirectory;
+}__attribute__((packed , aligned (0x100))) SFSDirectory;
 
 SFSBootsector bootsector;
 SFSDirectory filetable;
@@ -101,8 +101,12 @@ void sfs_get_detail(char* path){
 }
 
 void sfs_dir(Device *device,char* path,char *buffer){
+	//void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	sfs_get_detail(path);
 	int counter = 0;
+	if(device->arg5!=512){
+		printf("Illegal sector size");for(;;);
+	}
 	for(int i = 0 ; i < SFS_FILE_TABLE_ENTRIES ; i++){
 		SFSFileEntry fe = filetable.entries[i];
 		int t = 0;
@@ -150,12 +154,11 @@ char sfs_new_file(Device *device,char* path){
 			break;
 		}
 	}
-	writeraw(device,bootsector.offset_first_sectortable + bootsector.sectortablesize,1,&filetable);
+	writeraw(device,bootsector.offset_first_sectortable + bootsector.sectortablesize,1,(unsigned short*)((unsigned long)&filetable));
 	return number;
 }
 
 char sfs_write(Device *device,char* path,char *buffer,int size){
-	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	void* (*writeraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->writeRawSector;
 
 	//
@@ -225,6 +228,9 @@ char sfs_write(Device *device,char* path,char *buffer,int size){
 
 char sfs_exists(Device *device,char* path){
 	//void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
+	if(device->arg5!=512){
+		printf("Illegal size\n");for(;;);
+	}
 	sfs_get_detail(path);
 	unsigned char nameexists = 0;
 	for(int i = 0 ; i < SFS_FILE_TABLE_ENTRIES ; i++){
