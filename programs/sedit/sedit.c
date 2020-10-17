@@ -107,16 +107,17 @@ int main()
 		msg("q is quit , s is save , e is enter new char, < prev char , > next char \n");
 		msg("\n");
 		setForeGroundBackGround(0x04,0x01);
-		for (unsigned long t = 0; t < filesizepointer; t++)
+		for (unsigned long t = 0; t < (filesizepointer+1); t++)
 		{
 			if (t == cursorpos)
 			{
 				setForeGroundBackGround(0x02,0x08);
-			}
-			putch(buffer[t]);
-			if (t == cursorpos)
-			{
+				putch('*');
 				setForeGroundBackGround(0x04,0x01);
+			}
+			else
+			{
+				putch(buffer[t]);
 			}
 		}
 		unsigned char d = getch();
@@ -142,8 +143,22 @@ int main()
 		else if (d == 'e')
 		{
 			clear();
-			msg("Enter net character: ");
-			buffer[cursorpos] = getch();
+			msg("[o]verwrite or [i]nsert\n");
+			unsigned char cmdtype = getch();
+			msg("Enter net character\n");
+			unsigned char chat = getch();
+			if(cmdtype=='o')
+			{
+				buffer[cursorpos] = chat;
+			}
+			else
+			{
+				for(int t = filesizepointer ; t > (cursorpos-1) ; t--){
+					buffer[t+1] = buffer[t];
+				}
+				buffer[cursorpos] = chat;
+				filesizepointer++;
+			}
 		}
 		else if (d == VK_LEFT)
 		{
