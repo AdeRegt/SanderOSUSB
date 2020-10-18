@@ -44,11 +44,11 @@ void msg(const char *ms)
 	f(ms);
 }
 
-void setForeGroundBackGround(unsigned char fg,unsigned char bg)
+void setForeGroundBackGround(unsigned char fg, unsigned char bg)
 {
-	typedef void func(unsigned char,unsigned char);
+	typedef void func(unsigned char, unsigned char);
 	func *f = (func *)F_SETFOREGROUNDBACKGROUND; // putc
-	f(fg,bg);
+	f(fg, bg);
 }
 
 void putch(unsigned char c)
@@ -63,6 +63,21 @@ char choose(char *message, int argcount, char **args)
 	typedef char func(char *, int, char **);
 	func *f = (func *)F_CHOOSE; // putc
 	return f(message, argcount, args);
+}
+
+typedef struct
+{
+	int mouse_x;
+	int mouse_y;
+	int mouse_z;
+	int mousePressed;
+	int keyPressed;
+} InputStatus;
+InputStatus getInputStatus()
+{
+	typedef InputStatus func();
+	func *f = (func *)F_GETINPUTSTATUS; // putc
+	return f();
 }
 
 int main()
@@ -100,73 +115,110 @@ int main()
 	{
 		exit(0);
 	}
+	char textmode = 2; // 1 = overwrite , 2 = insert
 	while (1)
 	{
 		clear();
-		setForeGroundBackGround(0x02,0x08);
-		msg("q is quit , s is save , e is enter new char, < prev char , > next char \n");
+		setForeGroundBackGround(0x02, 0x08);
+		msg("type or press [end] for menu \n");
 		msg("\n");
-		setForeGroundBackGround(0x04,0x01);
-		for (unsigned long t = 0; t < (filesizepointer+1); t++)
+		setForeGroundBackGround(0x04, 0x01);
+		for (unsigned long t = 0; t < (filesizepointer + 1); t++)
 		{
 			if (t == cursorpos)
 			{
-				setForeGroundBackGround(0x02,0x08);
+				setForeGroundBackGround(0x02, 0x08);
 				putch('*');
-				setForeGroundBackGround(0x04,0x01);
+				setForeGroundBackGround(0x04, 0x01);
 			}
 			else
 			{
 				putch(buffer[t]);
 			}
 		}
-		unsigned char d = getch();
-		if (d == 'q')
+
+		volatile unsigned char d = getch();
+		if (d == 1)
 		{
-			exit(0);
-		}
-		else if (d == 's')
-		{
-			if(filenamebuffer==0){
-				clear();
-				msg("you should give up a file name first");
-				getch();
-				exit(0);
-			}
-			typedef char func(char*,unsigned char*,unsigned long);
-			func* f = (func*)F_FWRITE; // fread
-			f(filenamebuffer,(unsigned char*)buffer,(unsigned long)filesizepointer);
-			clear();
-			msg("the file is saved");
-			getch();
-		}
-		else if (d == 'e')
-		{
-			clear();
-			msg("[o]verwrite or [i]nsert\n");
-			unsigned char cmdtype = getch();
-			msg("Enter net character\n");
-			unsigned char chat = getch();
-			if(cmdtype=='o')
+			char *c[3];
+			c[0] = "quit";
+			c[1] = "save";
+			if (textmode == 1)
 			{
-				buffer[cursorpos] = chat;
+				c[2] = "insert";
 			}
 			else
 			{
-				for(int t = filesizepointer ; t > (cursorpos-1) ; t--){
-					buffer[t+1] = buffer[t];
+				c[2] = "overwrite";
+			}
+			c[3] = "cancel";
+			unsigned int t = choose("Mainmenu", 4, c);
+			if (t == 0)
+			{
+				exit(0);
+			}
+			else if (t == 1)
+			{
+				if (filenamebuffer == 0)
+				{
+					clear();
+					msg("you should give up a file name first");
+					getch();
+					exit(0);
 				}
-				buffer[cursorpos] = chat;
-				filesizepointer++;
+				typedef char func(char *, unsigned char *, unsigned long);
+				func *f = (func *)F_FWRITE; // fread
+				f(filenamebuffer, (unsigned char *)buffer, (unsigned long)filesizepointer);
+				clear();
+				msg("the file is saved");
+				getch();
+			}
+			else if (t == 2)
+			{
+				if (textmode == 1)
+				{
+					textmode = 2;
+				}
+				else
+				{
+					textmode = 1;
+				}
 			}
 		}
 		else if (d == VK_LEFT)
 		{
-			cursorpos--;
+			if (cursorpos)
+			{
+				cursorpos--;
+			}
 		}
 		else if (d == VK_RIGHT)
 		{
-			cursorpos++;
+			if (cursorpos < filesizepointer)
+			{
+				cursorpos++;
+			}
+		}
+		else if (d == 0x20)
+		{
+		}
+		else
+		{
+
+			if (textmode == 1)
+			{
+				buffer[cursorpos] = d;
+			}
+			else if (textmode == 2)
+			{
+				for (unsigned int t = filesizepointer; t > (cursorpos - 1); t--)
+				{
+					buffer[t + 1] = buffer[t];
+				}
+				buffer[cursorpos] = d;
+				cursorpos++;
+				filesizepointer++;
+			}
 		}
 	}
 	for (;;)
