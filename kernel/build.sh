@@ -72,9 +72,15 @@ do
 	gcc -T programs/proglinker.ld  -m32 -O2 -ffreestanding -nostdlib programs/base.o programs/`basename $i .c`.o -o programs/`basename $i .c`.bin || exit
 done
 
-if [ -f buildlink.sh ]; then
-    ./buildlink.sh
-fi
+cd programs
+for D in */;
+do
+	echo "Compiling subprogram $D "
+	cd $D
+    bash build.sh
+	cd ..
+done
+cd ..
 
 rm programs/*.o
 

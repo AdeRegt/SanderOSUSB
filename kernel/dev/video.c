@@ -1312,6 +1312,13 @@ void drawchar(unsigned char c, int x, int y, int fgcolor, int bgcolor)
 	
 }
 
+unsigned char u_foreground = 0x04;
+unsigned char u_background = 0x01;
+void setForeGroundBackGround(unsigned char fg,unsigned char bg){
+	u_foreground = fg;
+	u_background = bg;
+}
+
 void putc(char a){
 	if(isgraphics==1){
 		if(cury>27){
@@ -1322,7 +1329,7 @@ void putc(char a){
 		}else if(a==' '){
 			curx++;
 		}else{
-			drawchar(a,curx,cury,0x04,0x01);
+			drawchar(a,curx,cury,u_foreground,u_background);
 			curx++;
 		}
 	}else{

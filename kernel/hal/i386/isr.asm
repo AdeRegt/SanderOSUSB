@@ -59,6 +59,10 @@ mov [keyword],al
 mov al,[keyword]
 cmp al,0
 je .again
+push ax
+mov al,0
+mov [keyword],al
+pop ax
 ret
 
 global mouseirq
