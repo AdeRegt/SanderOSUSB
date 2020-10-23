@@ -43,11 +43,12 @@ Currently the following devices are supported:
 The following devices are on the list to get implemented:
 
 The following filesystems are supported:
-* ISO 9660
-* MBR
-* EFI-MBR
-* EXT2 (very basic)
-* FAT 32
+* ISO 9660 (R)
+* MBR (R)
+* EFI-MBR (R)
+* EXT2 (very basic) (R)
+* FAT 32 (R)
+* SFS (RW)
 
 The following filesystems will be supported:
 * FAT 12
