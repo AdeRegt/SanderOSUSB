@@ -55,12 +55,13 @@ The following filesystems will be supported:
 
 the following executable formats are supported:
 * 32-ELF
+* raw binary at 0x2000
+* BASfile (with basic.bin)
 
 the following executable formats are on the list to get implemented:
 * 32-MZPE
 * 32-MZCOFF
 * Marble
-* Mike-BASIC
 
 To build the kernel, go to the kernel folder and run build.sh
 
