@@ -629,13 +629,19 @@ int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, un
 	cmdfis->counth = (count >> 8) & 0xFF;
  
 	// The below loop waits until the port is no longer busy before issuing a new command
-	while ((port->tfd & (ATA_DEV_BUSY | ATA_DEV_DRQ)) && spin < 1000000)
+	resetTicks();
+	while ((port->tfd & (ATA_DEV_BUSY | ATA_DEV_DRQ)))
 	{
-		spin++;
+		if(getTicks()>5)
+		{
+			spin = 1000000;
+			break;
+		}
 	}
 	if (spin == 1000000)
 	{
-		printf("Port is hung\n");for(;;);
+		#warning sometimes hardware hangs
+		printf("Port is hung\n");
 		return 0;
 	}
  
@@ -650,7 +656,7 @@ int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, un
 			break;
 		if (port->is & HBA_PxIS_TFES)	// Task file error
 		{
-			printf("Read disk error\n");for(;;);
+			printf("Read disk error\n");
 			return 0;
 		}
 		
@@ -659,7 +665,7 @@ int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, un
 	// Check again
 	if (port->is & HBA_PxIS_TFES)
 	{
-		printf("Read disk error\n");for(;;);
+		printf("Read disk error\n");
 		return 0;
 	}
  
@@ -687,7 +693,9 @@ void ahci_atapi_eject_ext(){}
 void ahci_ata_init(HBA_PORT *port,int i){
 	port_rebase(port,i);
 	unsigned char* msg = (unsigned char*) 0x1000;
-	ahci_ata_read(port, 0, 0, 1, (unsigned short *)msg);
+	if(ahci_ata_read(port, 0, 0, 1, (unsigned short *)msg)==0){
+		return;
+	}
 	if(msg[510]==0x55&&msg[511]==0xAA){
 		printf("[AHCI] ATA is bootable\n");
 	}else{
@@ -859,15 +867,13 @@ void ahci_init(int bus,int slot,int function){
 	int i = 0;
 	while (i<33){
 		if (pi & 1){
-			#warning On real hardware, initialisation goes well but no hardware is detected!
-			
 			HBA_PORT *port = (HBA_PORT *)&target->ports[i];
 			unsigned long ssts = port->ssts;
  
 			unsigned char ipm = (ssts >> 8) & 0x0F;
 			unsigned char det = ssts & 0x0F;
 
-			printf("[AHCI] Probing port %i \n",i);
+			printf("[AHCI] Probing port %x \n",i);
 		 
 			if (det != HBA_PORT_DET_PRESENT && ipm != HBA_PORT_IPM_ACTIVE){
 				

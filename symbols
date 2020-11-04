@@ -3,13 +3,13 @@ kernel.bin:     file format elf32-i386
 
 SYMBOL TABLE:
 00100000 l    d  .text	00000000 .text
-0010fec3 l    d  .text.__x86.get_pc_thunk.bx	00000000 .text.__x86.get_pc_thunk.bx
-0010fec7 l    d  .text.__x86.get_pc_thunk.ax	00000000 .text.__x86.get_pc_thunk.ax
-0010fecb l    d  .text.__x86.get_pc_thunk.di	00000000 .text.__x86.get_pc_thunk.di
-0010fecf l    d  .text.__x86.get_pc_thunk.dx	00000000 .text.__x86.get_pc_thunk.dx
-0010fed3 l    d  .text.__x86.get_pc_thunk.bp	00000000 .text.__x86.get_pc_thunk.bp
-0010fed7 l    d  .text.__x86.get_pc_thunk.cx	00000000 .text.__x86.get_pc_thunk.cx
-0010fedb l    d  .text.__x86.get_pc_thunk.si	00000000 .text.__x86.get_pc_thunk.si
+0010ff03 l    d  .text.__x86.get_pc_thunk.bx	00000000 .text.__x86.get_pc_thunk.bx
+0010ff07 l    d  .text.__x86.get_pc_thunk.ax	00000000 .text.__x86.get_pc_thunk.ax
+0010ff0b l    d  .text.__x86.get_pc_thunk.di	00000000 .text.__x86.get_pc_thunk.di
+0010ff0f l    d  .text.__x86.get_pc_thunk.dx	00000000 .text.__x86.get_pc_thunk.dx
+0010ff13 l    d  .text.__x86.get_pc_thunk.bp	00000000 .text.__x86.get_pc_thunk.bp
+0010ff17 l    d  .text.__x86.get_pc_thunk.cx	00000000 .text.__x86.get_pc_thunk.cx
+0010ff1b l    d  .text.__x86.get_pc_thunk.si	00000000 .text.__x86.get_pc_thunk.si
 00110000 l    d  .rodata	00000000 .rodata
 001100fb l    d  .interp	00000000 .interp
 00110110 l    d  .note.gnu.build-id	00000000 .note.gnu.build-id
@@ -18,9 +18,9 @@ SYMBOL TABLE:
 00110148 l    d  .gnu.hash	00000000 .gnu.hash
 00110160 l    d  .rodata.str1.1	00000000 .rodata.str1.1
 00111a44 l    d  .rodata.str1.4	00000000 .rodata.str1.4
-00114568 l    d  .eh_frame	00000000 .eh_frame
-0011a5bc l    d  .rodata.cst4	00000000 .rodata.cst4
-0011a5c0 l    d  .rel.dyn	00000000 .rel.dyn
+001145a0 l    d  .eh_frame	00000000 .eh_frame
+0011a610 l    d  .rodata.cst4	00000000 .rodata.cst4
+0011a614 l    d  .rel.dyn	00000000 .rel.dyn
 0011b000 l    d  .data	00000000 .data
 0011c0ec l    d  .dynamic	00000000 .dynamic
 0011c17c l    d  .got	00000000 .got
@@ -33,8 +33,8 @@ SYMBOL TABLE:
 00000003 l       *ABS*	00000000 FLAGS
 1badb002 l       *ABS*	00000000 MAGIC
 e4524ffb l       *ABS*	00000000 CHECKSUM
-0012f010 l       .bss	00000000 stack_bottom
-00133010 l       .bss	00000000 stack_top
+00137010 l       .bss	00000000 stack_bottom
+0013b010 l       .bss	00000000 stack_top
 00100021 l       .text	00000000 realstart
 0010002c l       .text	00000000 realstart.hang
 0010002f l       .text	00000000 realstart.end
@@ -47,8 +47,8 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 00000000 l    df *ABS*	00000000 usb_stick.c
 00000000 l    df *ABS*	00000000 paging.c
 00000000 l    df *ABS*	00000000 multitasking.c
-00133018 l     O .bss	00000004 regcount
-0013301c l     O .bss	00000004 regnow
+0013b018 l     O .bss	00000004 regcount
+0013b01c l     O .bss	00000004 regnow
 00000000 l    df *ABS*	00000000 interrupts.c
 00000000 l    df *ABS*	00000000 com_port.c
 00000000 l    df *ABS*	00000000 ide.c
@@ -58,10 +58,10 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 00000000 l    df *ABS*	00000000 memory.c
 00000000 l    df *ABS*	00000000 timer.c
 00000000 l    df *ABS*	00000000 video.c
-00133098 l     O .bss	00000004 SCREEN_WIDTH
+0013b098 l     O .bss	00000004 SCREEN_WIDTH
 00106740 l     F .text	0000006b itoa.part.0
-00133094 l     O .bss	00000004 SCREEN_HEIGHT
-00133060 l     O .bss	00000032 buffer.1720
+0013b094 l     O .bss	00000004 SCREEN_HEIGHT
+0013b060 l     O .bss	00000032 buffer.1720
 00110058 l     O .rodata	00000011 Representation.1719
 001100cc l     O .rodata	00000007 width_400
 0011006c l     O .rodata	00000008 height_600
@@ -97,8 +97,8 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 00000000 l    df *ABS*	00000000 iso9660.c
 00000000 l    df *ABS*	00000000 elf.c
 00000000 l    df *ABS*	00000000 vbox.c
-00133100 l     O .bss	00000024 vbox_mouse_phys
-001330e0 l     O .bss	00000004 vbox_mouse
+0013b100 l     O .bss	00000024 vbox_mouse_phys
+0013b0e0 l     O .bss	00000004 vbox_mouse
 00000000 l    df *ABS*	00000000 xhci.c
 00000000 l    df *ABS*	00000000 acpi.c
 00000000 l    df *ABS*	00000000 AHCI.c
@@ -113,7 +113,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 00000000 l    df *ABS*	00000000 
 0011c0ec l     O .dynamic	00000000 _DYNAMIC
 0011c1b4 l     O .got.plt	00000000 _GLOBAL_OFFSET_TABLE_
-0010fed7 g     F .text.__x86.get_pc_thunk.cx	00000000 .hidden __x86.get_pc_thunk.cx
+0010ff17 g     F .text.__x86.get_pc_thunk.cx	00000000 .hidden __x86.get_pc_thunk.cx
 001098d0 g     F .text	00000028 charstoint
 0010c9c0 g     F .text	00000058 acpiCheckHeader
 00101850 g     F .text	0000025d ehci_recieve_bulk
@@ -121,46 +121,46 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 00100650 g     F .text	0000004c soundblaster16_detect
 001033b0 g     F .text	00000057 write_serial
 0010d610 g     F .text	0000002b ahci_ata_read_ext
-00133044 g     O .bss	00000004 cury
+0013b044 g     O .bss	00000004 cury
 00104c00 g     F .text	0000014c sfs_read
 0010a030 g     F .text	000001e9 iso_9660_read
 001093e0 g     F .text	000000e0 init_ps2_mouse
-001330a8 g     O .bss	00000001 old22z
-0010fdf0 g     F .text	00000022 register_ethernet_device
+0013b0a8 g     O .bss	00000001 old22z
+0010fe30 g     F .text	00000022 register_ethernet_device
 0010ede0 g     F .text	0000008e uhci_ring_doorbell
 00107670 g     F .text	000000f0 drawcharraw
 001062c0 g     F .text	0000003c nextMemoryBlockAvailable
-0012cc40 g     O .bss	00000004 PM1a_CNT
+00134c40 g     O .bss	00000004 PM1a_CNT
 00105280 g     F .text	00000337 dumpPCI
-0010fda0 g     F .text	0000004c ethernet_detect
+0010fda0 g     F .text	0000008c ethernet_detect
 0010a6c0 g     F .text	00000038 xhci_stop_codon_to_trb
 00107ba0 g     F .text	000002b0 printf
 00102720 g     F .text	000000d5 usb_stick_read_raw_sector
-0010fedb g     F .text.__x86.get_pc_thunk.si	00000000 .hidden __x86.get_pc_thunk.si
+0010ff1b g     F .text.__x86.get_pc_thunk.si	00000000 .hidden __x86.get_pc_thunk.si
 00104980 g     F .text	000000f1 sfs_new_file
 0010cd10 g     F .text	0000017f acpiEnable
-0012cc44 g     O .bss	00000002 SCI_EN
+00134c44 g     O .bss	00000002 SCI_EN
 00107130 g     F .text	0000026c browseDIR
 00121c00 g     O .bss	00000200 bootsector
-0012c900 g     O .bss	00000140 event_ring_queue
+00134900 g     O .bss	00000140 event_ring_queue
 00102b20 g     F .text	0000009f init_paging
 00104e60 g     F .text	000000bd sfs_exists
 0010f5a0 g     F .text	00000157 init_usb_hid
 0010e7e0 g     F .text	000002af fat_dir
 0010a700 g     F .text	00000044 xhci_trb_enable_slot_to_trb
-00133014 g     O .bss	00000004 pagecount
+0013b014 g     O .bss	00000004 pagecount
 00100410 g     F .text	0000000b inportw
 00106120 g     F .text	0000015f memdump
-0012cc46 g     O .bss	00000002 SLP_EN
-00133150 g     O .bss	00000004 bcbaap
+00134c46 g     O .bss	00000002 SLP_EN
+0013b150 g     O .bss	00000004 bcbaap
 00101b20 g     F .text	00000407 init_ehci_port
 00101ab0 g     F .text	00000061 ehci_send_and_recieve_bulk
-0012c884 g     O .bss	0000001e pathpart
+00134884 g     O .bss	0000001e pathpart
 00101fe0 g     F .text	0000042d init_ehci
 00103650 g     F .text	00000019 resetIDEFire
-0010fecb g     F .text.__x86.get_pc_thunk.di	00000000 .hidden __x86.get_pc_thunk.di
-0012cc48 g     O .bss	00000001 ACPI_DISABLE
-0012cb00 g     O .bss	00000140 command_ring_control
+0010ff0b g     F .text.__x86.get_pc_thunk.di	00000000 .hidden __x86.get_pc_thunk.di
+00134c48 g     O .bss	00000001 ACPI_DISABLE
+00134b00 g     O .bss	00000140 command_ring_control
 001098b0 g     F .text	00000014 raw_write
 0010cf50 g     F .text	00000005 ahci_atapi_eject_ext
 00106300 g     F .text	00000156 malloc_align
@@ -169,7 +169,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 001212e0 g     O .bss	00000006 gp
 00108380 g     F .text	0000002a putpixel
 001065b0 g     F .text	00000015 getTicks
-0010d640 g     F .text	000000b4 ahci_ata_init
+0010d640 g     F .text	000000bc ahci_ata_init
 0010f8d0 g     F .text	00000158 irq_rtl8169
 00102ef0 g     F .text	00000026 fault_handler
 00100980 g     F .text	00000091 usb_device_install
@@ -195,13 +195,13 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 0010d2a0 g     F .text	00000027 ahci_atapi_read_ext
 00108450 g     F .text	00000469 init_graph_vga
 0011c020 g     O .data	00000001 ps2onceagain
-001330b0 g     O .bss	00000001 old00z
+0013b0b0 g     O .bss	00000001 old00z
 00106970 g     F .text	0000008d nextFocus
 001068e0 g     F .text	0000008e previousFocus
 00103e20 g     F .text	00000055 ata_read_raw
 00101040 g     F .text	00000281 ehci_get_device_configuration
 001064a0 g     F .text	00000016 malloc
-00133020 g     O .bss	00000001 issata
+0013b020 g     O .bss	00000001 issata
 00102eb0 g     F .text	00000039 setNormalInt
 001212f0 g     O .bss	00000018 gdt
 00103e80 g     F .text	000001b9 ata_write_sector
@@ -213,66 +213,66 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 0010d700 g     F .text	000001b2 ahci_atapi_init
 0011b040 g     O .data	00000001 u_background
 00108aa0 g     F .text	0000001f getPS2StatusRegisterText
-00133134 g     O .bss	00000004 deviceid
-0010fec7 g     F .text.__x86.get_pc_thunk.ax	00000000 .hidden __x86.get_pc_thunk.ax
+0013b134 g     O .bss	00000004 deviceid
+0010ff07 g     F .text.__x86.get_pc_thunk.ax	00000000 .hidden __x86.get_pc_thunk.ax
 00100a20 g     F .text	0000014f irq_ehci
 00108300 g     F .text	0000002f itoa
-001330c4 g     O .bss	00000004 csr_t
+0013b0c4 g     O .bss	00000004 csr_t
 001025f0 g     F .text	00000053 usb_stick_get_inquiry
 00106a00 g     F .text	0000004d getSelectedItem
 00107760 g     F .text	00000075 drawString
 0011d008 g     O .bss	00000004 portbaseaddress
 001006a0 g     F .text	0000003c soundblaster16_setVolume
-0013314c g     O .bss	00000004 crcr
+0013b14c g     O .bss	00000004 crcr
 00108ac0 g     F .text	00000022 getPS2ReadyToRead
-00133160 g     O .bss	00000004 usbcmd
+0013b160 g     O .bss	00000004 usbcmd
 00104f40 g     F .text	0000019e initialiseSFS
 0011c0c0 g     O .data	00000001 forcemouseresample
 0011d00c g     O .bss	00000004 usbasc_addr
-0012d000 g     O .bss	00000004 USBCMD
+00135000 g     O .bss	00000004 USBCMD
 0010a790 g     F .text	00000052 xhci_trb_set_address_to_trb
 00105230 g     F .text	00000050 getBARaddress
 00121e00 g     O .bss	0000000c pathbuffer
-0012cc4a g     O .bss	00000002 SLP_TYPa
+00134c4a g     O .bss	00000002 SLP_TYPa
 00106c50 g     F .text	00000024 getImageFromBMP
 0010a750 g     F .text	0000003f xhci_trb_disable_slot_to_trb
-00133178 g     O .bss	00000004 tx_pointer
+0013b178 g     O .bss	00000004 tx_pointer
 00108dd0 g     F .text	000004ce irq_mouse
-00133164 g     O .bss	00000004 basebar
+0013b164 g     O .bss	00000004 basebar
 00102d20 g     F .text	00000015 activeTask
 00108b20 g     F .text	00000068 writeToFirstPS2Port
-0012d004 g     O .bss	00000004 SOF
+00135004 g     O .bss	00000004 SOF
 0011b024 g     O .data	00000006 ata1
 00103340 g     F .text	00000040 read_serial
-0012d008 g     O .bss	00000004 PORT02
-0010fecf g     F .text.__x86.get_pc_thunk.dx	00000000 .hidden __x86.get_pc_thunk.dx
-00122300 g     O .bss	00008000 memreg
+00135008 g     O .bss	00000004 PORT02
+0010ff0f g     F .text.__x86.get_pc_thunk.dx	00000000 .hidden __x86.get_pc_thunk.dx
+00122300 g     O .bss	00010000 memreg
 00100610 g     F .text	0000003e soundblaster16_reset
 00106d50 g     F .text	000000e5 message
 0010cf90 g     F .text	0000002b stop_cmd
 00102a60 g     F .text	0000002e paging_clear_directory_pages
 00103240 g     F .text	00000061 gdt_set_gate
-00133048 g     O .bss	00000004 curx
+0013b048 g     O .bss	00000004 curx
 0010f560 g     F .text	00000015 usb_get_keyboard
 001016e0 g     F .text	00000169 ehci_send_bulk
 001012d0 g     F .text	00000196 ehci_set_device_configuration
 0010895d g       .text	00000000 keywait
-0013315c g     O .bss	00000004 usbsts
+0013b15c g     O .bss	00000004 usbsts
 00102bcd g       .text	00000000 enablePaging
 001095f0 g     F .text	00000043 getch
 0010fa30 g     F .text	0000005d rtl_test
 001007f0 g     F .text	00000097 init_soundblaster16
 0010a7f0 g     F .text	00000055 xhci_input_control_conext_to_addr
-001330d0 g     O .bss	00000004 isonameloc
+0013b0d0 g     O .bss	00000004 isonameloc
 00108945 g       .text	00000000 vbirq
 00100250 g     F .text	0000019a kernel_main
-00133050 g     O .bss	00000004 selectId
-001330a9 g     O .bss	00000001 old21z
+0013b050 g     O .bss	00000004 selectId
+0013b0a9 g     O .bss	00000001 old21z
 0010f580 g     F .text	00000019 init_usb_hid_keyboard
 0011c0d4 g     O .data	00000004 isobuffer
 00108c60 g     F .text	00000065 ps2_echo
 0010ee70 g     F .text	00000292 uhci_init_port
-00133174 g     O .bss	00000004 package_recieved_ack
+0013b174 g     O .bss	00000004 package_recieved_ack
 0010ab40 g     F .text	00000125 xhci_disable_slot
 00100c80 g     F .text	00000181 ehci_set_device_address
 0010ca90 g     F .text	0000027e init_acpi
@@ -286,31 +286,31 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 00107e50 g     F .text	00000454 print_bios_char_table
 001089e2 g       .text	00000000 ehciirq
 00104f20 g     F .text	00000019 sfs_get_detail
-00133170 g     O .bss	00000004 package_send_ack
-00133010 g     O .bss	00000001 soundblaster16_irq_fire
+0013b170 g     O .bss	00000004 package_send_ack
+0013b010 g     O .bss	00000001 soundblaster16_irq_fire
 0010f110 g     F .text	0000003d irq_uhci
 00109300 g     F .text	00000056 init_ps2_keyboard
 00106890 g     F .text	0000004a unfocus
 00108db0 g     F .text	00000016 force_mouse_resample
 00100440 g     F .text	0000000e outportb
-00133024 g     O .bss	00000004 ideXirq
+0013b024 g     O .bss	00000004 ideXirq
 00102bbf g       .text	00000000 loadPageDirectory
 00103a20 g     F .text	000002a9 atapi_read_sector
 00102e30 g     F .text	00000040 idt_set_gate
-001330c8 g     O .bss	00000004 deviceint
+0013b0c8 g     O .bss	00000004 deviceint
 0011d010 g     O .bss	00000001 available_ports
 001003f0 g     F .text	0000000a inportl
 0010e580 g     F .text	00000259 fat_read
-00133148 g     O .bss	00000004 doorbel
+0013b148 g     O .bss	00000004 doorbel
 001092a0 g     F .text	00000057 irq_keyboard
-001330b8 g     O .bss	00000004 oldx
-0012d00c g     O .bss	00000004 USBINT
+0013b0b8 g     O .bss	00000004 oldx
+0013500c g     O .bss	00000004 USBINT
 00102f50 g     F .text	000001aa special_handler
 0010f780 g     F .text	00000142 rtl_sendPackage
-0013312c g     O .bss	00000004 interrupter_1
-001330ac g     O .bss	00000001 old11z
+0013b12c g     O .bss	00000004 interrupter_1
+0013b0ac g     O .bss	00000001 old11z
 00103410 g     F .text	000000dd irq_serial
-001330ae g     O .bss	00000001 old02z
+0013b0ae g     O .bss	00000001 old02z
 0011c040 g     O .data	00000080 kbdus
 0011c0c8 g     O .data	00000004 ccr_x
 0011c0e0 g     O .data	00000004 num_of_rx_descriptors
@@ -320,164 +320,164 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 00109660 g     F .text	00000028 getNextFreeDevice
 0011d014 g     O .bss	00000004 usbctr_addr
 0010edb0 g     F .text	00000029 pow
-001330ab g     O .bss	00000001 old12z
+0013b0ab g     O .bss	00000001 old12z
 0010a3e0 g     F .text	00000102 init_vbox
 0011c0d8 g     O .data	00000001 selfloor
 00107490 g     F .text	00000035 freeGui
-0012cc4c g     O .bss	00000004 PM1b_CNT
-0012a300 g     O .bss	00000fa0 _fontbuffer
+00134c4c g     O .bss	00000004 PM1b_CNT
+00132300 g     O .bss	00000fa0 _fontbuffer
 00107960 g     F .text	00000028 drawchar
 00103100 g     F .text	0000013f init_idt
 001075d0 g     F .text	0000009e init_video
-001330bc g     O .bss	00000004 ccr_b
+0013b0bc g     O .bss	00000004 ccr_b
 0010ce90 g     F .text	000000b4 poweroff
-0010fec3 g     F .text.__x86.get_pc_thunk.bx	00000000 .hidden __x86.get_pc_thunk.bx
-0012cc50 g     O .bss	00000001 ACPI_ENABLE
+0010ff03 g     F .text.__x86.get_pc_thunk.bx	00000000 .hidden __x86.get_pc_thunk.bx
+00134c50 g     O .bss	00000001 ACPI_ENABLE
 0010d2d0 g     F .text	00000112 ahci_atapi_eject
 001064f0 g     F .text	00000044 memcmp
 001032b0 g     F .text	0000005d init_gdt
 00108a24 g       .text	00000000 timerirq
 00103d30 g     F .text	000000ef ata_read_sector
 00103800 g     F .text	0000007c ide_wait_for_ready
-0013313c g     O .bss	00000004 erstba
-00133180 g     O .bss	00000004 bar1
+0013b13c g     O .bss	00000004 erstba
+0013b180 g     O .bss	00000004 bar1
 00107990 g     F .text	00000023 setForeGroundBackGround
 00102d40 g     F .text	00000024 killTask
 001066d0 g     F .text	00000068 drawRect
 001097f0 g     F .text	00000057 fread
 00102be0 g     F .text	00000137 irq_multitasking
 0010a850 g     F .text	000000c5 xhci_slot_context_to_addr
-00133040 g     O .bss	00000004 isgraphics
-001330a0 g     O .bss	00000004 mouse_cycle
+0013b040 g     O .bss	00000004 isgraphics
+0013b0a0 g     O .bss	00000004 mouse_cycle
 001008e0 g     F .text	00000049 usb_recieve_bulk
-001330aa g     O .bss	00000001 old20z
+0013b0aa g     O .bss	00000001 old20z
 00103380 g     F .text	0000002f is_transmit_empty
 0011b014 g     O .data	00000006 ata3
 001083b0 g     F .text	00000027 getpixel
-0010fed3 g     F .text.__x86.get_pc_thunk.bp	00000000 .hidden __x86.get_pc_thunk.bp
+0010ff13 g     F .text.__x86.get_pc_thunk.bp	00000000 .hidden __x86.get_pc_thunk.bp
 0010df40 g     F .text	000003e7 detectFilesystemsOnMBR
 001064c0 g     F .text	0000002e memset
 001073a0 g     F .text	000000ea browse
-00133168 g     O .bss	00000001 framelistpointer
+0013b168 g     O .bss	00000001 framelistpointer
 001040a0 g     F .text	00000626 init_ide_device
 0010893d g       .text	00000000 idt_load
-00133140 g     O .bss	00000004 erstsz
+0013b140 g     O .bss	00000004 erstsz
 0011c0c4 g     O .data	00000004 ccr_y
 0011d018 g     O .bss	00000004 usbper_addr
 001089c1 g       .text	00000000 sndirq
-0012d010 g     O .bss	00000004 PORT01
+00135010 g     O .bss	00000004 PORT01
 001094c0 g     F .text	00000094 init_ps2
 00109560 g     F .text	0000008b getInputStatus
 00108979 g       .text	00000000 mouseirq
 0011d01c g     O .bss	00000004 usbcmd_addr
-001330c0 g     O .bss	00000004 ccr_a
+0013b0c0 g     O .bss	00000004 ccr_a
 00103670 g     F .text	00000047 waitForIDEFire
 0011d020 g     O .bss	00000004 usbsts_addr
-0013304c g     O .bss	00000004 vidpnt
+0013b04c g     O .bss	00000004 vidpnt
 0010d150 g     F .text	00000142 ahci_atapi_read
 0010897f g       .text	00000000 uhciirq
 00102800 g     F .text	00000252 usb_stick_init
 001079c0 g     F .text	000001a3 putc
 0011c0d0 g     O .data	00000004 csr_y
 0010d3f0 g     F .text	00000217 ahci_ata_read
-0012bf20 g     O .bss	00000005 mouse_byte
+00133f20 g     O .bss	00000005 mouse_byte
 00108951 g       .text	00000000 serialirq
 00109690 g     F .text	000000b4 dir
 00102a90 g     F .text	00000084 set_paging_frame
 001093a0 g     F .text	0000003c mousewaitb
 00102d70 g     F .text	00000053 createTask
-00133144 g     O .bss	00000004 dnctrl
+0013b144 g     O .bss	00000004 dnctrl
 00106280 g     F .text	00000038 getMemoryBlockUsedCount
 00121320 g     O .bss	00000800 idt
 00100890 g     F .text	00000049 usb_send_bulk
 001035f0 g     F .text	0000005f irq_ide
-0010fe20 g     F .text	00000028 getDefaultEthernetDevice
+0010fe60 g     F .text	00000028 getDefaultEthernetDevice
 001005a0 g     F .text	0000006b irq_snd
 001051c0 g     F .text	00000063 setBARaddress
-001330af g     O .bss	00000001 old01z
-0012bf40 g     O .bss	00000030 mousebuffer
+0013b0af g     O .bss	00000001 old01z
+00133f40 g     O .bss	00000030 mousebuffer
 001036c0 g     F .text	0000013c getIDEError
 00108af0 g     F .text	00000025 getPS2ReadyToWrite
 001034f0 g     F .text	000000b7 init_serial_device
 00109640 g     F .text	00000015 getDeviceCount
 00102490 g     F .text	00000157 usb_stick_send_and_recieve_scsi_command
 00108a03 g       .text	00000000 xhciirq
-00133028 g     O .bss	00000004 mempoint
-0012f008 g     O .bss	00000008 defaultEthernetDevice
-0013302c g     O .bss	00000004 ticks
+0013b028 g     O .bss	00000004 mempoint
+00137008 g     O .bss	00000008 defaultEthernetDevice
+0013b02c g     O .bss	00000004 ticks
 0011b00c g     O .data	00000006 ata4
 0010ac70 g     F .text	00000172 xhci_enable_slot
 0011c0dc g     O .data	00000004 num_of_tx_descriptors
 001089a0 g       .text	00000000 rtl8169irq
-00133158 g     O .bss	00000004 pagesize
+0013b158 g     O .bss	00000004 pagesize
 00102f20 g     F .text	0000002f irq_handler
-0012cc51 g     O .bss	00000001 PM1_CNT_LEN
+00134c51 g     O .bss	00000001 PM1_CNT_LEN
 0010a670 g     F .text	00000048 xhci_seek_end_event_queue
 00101f30 g     F .text	000000a1 ehci_probe
 00109360 g     F .text	0000003c mousewaita
 00103310 g     F .text	0000002c serial_received
 00100930 g     F .text	0000004a usb_send_and_recieve_control
-001330a4 g     O .bss	00000004 clck
+0013b0a4 g     O .bss	00000004 clck
 00106a50 g     F .text	000001f4 show
 0010af10 g     F .text	000000c8 irq_xhci
 00100030 g     F .text	0000021b browser
 00100760 g     F .text	00000084 soundblaster16_playSampleData
-0013309d g     O .bss	00000001 mousetype
-0012d014 g     O .bss	00000004 FRNUM
-001330cc g     O .bss	00000004 dummy
+0013b09d g     O .bss	00000001 mousetype
+00135014 g     O .bss	00000004 FRNUM
+0013b0cc g     O .bss	00000004 dummy
 00121e20 g     O .bss	00000200 tabletable
 00109850 g     F .text	00000058 fwrite
 0011b02c g     O .data	00000004 memman
-0012bf80 g     O .bss	00000898 devices
+00133f80 g     O .bss	00000898 devices
 0010d8c0 g     F .text	00000677 ahci_init
 001074d0 g     F .text	00000015 getFreeGui
 00100420 g     F .text	0000000f outportw
 00108cd0 g     F .text	000000d7 printps2devicetype
 00100e10 g     F .text	0000022c ehci_get_device_descriptor
 0010f3e0 g     F .text	00000050 usb_get_packed_hid
-0012e000 g     O .bss	00001000 framelist
-0010fe80 g     F .text	00000043 sendEthernetPackage
-0012c820 g     O .bss	00000064 whoopsie
-0013317c g     O .bss	00000004 rx_pointer
+00136000 g     O .bss	00001000 framelist
+0010fec0 g     F .text	00000043 sendEthernetPackage
+00134820 g     O .bss	00000064 whoopsie
+0013b17c g     O .bss	00000004 rx_pointer
 00108920 g       .text	00000000 gdt_flush
-001330ad g     O .bss	00000001 old10z
+0013b0ad g     O .bss	00000001 old10z
 0010a650 g     F .text	00000019 getCycleBit
 0010894b g       .text	00000000 ideirq
-00133124 g     O .bss	00000004 event_ring_offset
+0013b124 g     O .bss	00000004 event_ring_offset
 00105150 g     F .text	0000006b pciConfigWriteWord
 00106ff0 g     F .text	00000131 confirm
 00122100 g     O .bss	00000200 filetable
 0010a250 g     F .text	00000155 loadelf
-0012f000 g     O .bss	00000004 USBSTS
+00137000 g     O .bss	00000004 USBSTS
 001026b0 g     F .text	00000065 usb_stick_read_sector
-00133128 g     O .bss	00000004 command_ring_offset
+0013b128 g     O .bss	00000004 command_ring_offset
 001075b0 g     F .text	00000015 isGraphicsMode
 00100010 g     F .text	0000001f _fstart
 0010cf60 g     F .text	0000002b start_cmd
 00103880 g     F .text	0000019f atapi_eject_raw
 0011e000 g     O .bss	00001000 periodic_list
 00108c10 g     F .text	0000004f waitforps2ok
-0013309c g     O .bss	00000001 keyword
-0010fe50 g     F .text	00000029 getEthernetPackage
-0012b2a0 g     O .bss	00000c80 guiobjects
+0013b09c g     O .bss	00000001 keyword
+0010fe90 g     F .text	00000029 getEthernetPackage
+001332a0 g     O .bss	00000c80 guiobjects
 001067b0 g     F .text	000000d2 draw
 00103cd0 g     F .text	00000054 atapi_read_raw
 001083e0 g     F .text	00000063 cls
 0010ea90 g     F .text	00000314 initialiseFAT
-0012cc54 g     O .bss	00000004 SMI_CMD
-00133130 g     O .bss	00000004 iman_addr
+00134c54 g     O .bss	00000004 SMI_CMD
+0013b130 g     O .bss	00000004 iman_addr
 00100400 g     F .text	0000000e outportl
 0010a920 g     F .text	000000c1 xhci_endpoint_context_to_addr
 00106580 g     F .text	00000021 strlen
 0010fa90 g     F .text	0000030d init_rtl
-0012f004 g     O .bss	00000004 FLBSAD
+00137004 g     O .bss	00000004 FLBSAD
 00102e70 g     F .text	00000033 setErrorInt
 001050e0 g     F .text	0000006d pciConfigReadWord
 00120000 g     O .bss	00001000 page_directory
 001065d0 g     F .text	00000019 resetTicks
-00133030 g     O .bss	00000004 clock
-0012c8c0 g     O .bss	00000020 hdr
-0012cc58 g     O .bss	00000002 SLP_TYPb
+0013b030 g     O .bss	00000004 clock
+001348c0 g     O .bss	00000020 hdr
+00134c58 g     O .bss	00000002 SLP_TYPb
 00108a3e g       .text	00000000 irq_common_stub
 001046d0 g     F .text	0000017a init_ide
 001082b0 g     F .text	0000004d convert
@@ -492,16 +492,16 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 0011c0e8 g     O .data	00000004 Rx_Descriptors
 0010ca20 g     F .text	00000061 acpiCheckRSDPtr
 001006e0 g     F .text	00000077 soundblaster16_playSoundData
-00133138 g     O .bss	00000004 rtsoff
-001330b4 g     O .bss	00000004 oldy
-0013316c g     O .bss	00000004 usb_hid_has_keyboard
+0013b138 g     O .bss	00000004 rtsoff
+0013b0b4 g     O .bss	00000004 oldy
+0013b16c g     O .bss	00000004 usb_hid_has_keyboard
 0011b000 g     O .data	0000000c read_cmd
 0011c0e4 g     O .data	00000004 Tx_Descriptors
 00109750 g     F .text	00000095 fexists
 0011c000 g     O .data	00000004 videomemory
 001077e0 g     F .text	00000178 drawButton
 00108a5f g       .text	00000000 isr_common_stub
-00133154 g     O .bss	00000004 config
+0013b154 g     O .bss	00000004 config
 0010cfc0 g     F .text	00000126 port_rebase
 0010f150 g     F .text	0000028b uhci_init
 00106460 g     F .text	00000039 free
