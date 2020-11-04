@@ -220,6 +220,12 @@ void handleECHO(){
 	walkTillEndOfLine();
 }
 
+void handleEXIT(){
+	msg("END OF BASIC");
+	exit(0);
+	for(;;);
+}
+
 void main(){
 	
 	//
@@ -252,9 +258,10 @@ void main(){
 	clear_variables();
 
 	//
-	// Introduce variables
+	// Introduce native functions
 	introduceNativeFunction("rem",(unsigned long)&handleREM,3);
 	introduceNativeFunction("echo",(unsigned long)&handleECHO,4);
+	introduceNativeFunction("exit",(unsigned long)&handleEXIT,4);
 
 	//
 	// Clear the screen
