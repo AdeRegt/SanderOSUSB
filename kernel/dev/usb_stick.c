@@ -6,6 +6,8 @@
 #define USB_STORAGE_SECTOR_SIZE 512
 #define USB_STORAGE_CSW_SIGN 0x53425355
 
+#warning read sector is not working on real hardware and in emulators
+
 unsigned char usb_stick_get_max_lun(USB_DEVICE *device){
 	EhciCMD* commando = (EhciCMD*) malloc_align(sizeof(EhciCMD),0x1FF);
 	commando->bRequest = 0xFE; // get_max_lun

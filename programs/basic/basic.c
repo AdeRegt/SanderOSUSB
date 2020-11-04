@@ -222,7 +222,11 @@ void handleECHO(){
 
 void handleEXIT(){
 	msg("END OF BASIC");
-	exit(0);
+	int mode = 1;
+        __asm__ __volatile__ (
+            "int $0x80"
+            : "+a" (mode)
+            );
 	for(;;);
 }
 

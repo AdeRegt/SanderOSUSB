@@ -850,7 +850,8 @@ void ahci_init(int bus,int slot,int function){
 	printf("[AHCI] Trigger reset\n");
 	target->ghc |= 1;
 	while(1){
-		if(((*(volatile unsigned long*)target->ghc)&1)==0){ // wait untill reset bit has been unset
+		volatile unsigned long tkap = target->ghc;
+		if((tkap&1)==0){ // wait untill reset bit has been unset
 			break;
 		}
 	}
@@ -858,12 +859,15 @@ void ahci_init(int bus,int slot,int function){
 	int i = 0;
 	while (i<33){
 		if (pi & 1){
+			#warning On real hardware, initialisation goes well but no hardware is detected!
 			
 			HBA_PORT *port = (HBA_PORT *)&target->ports[i];
 			unsigned long ssts = port->ssts;
  
 			unsigned char ipm = (ssts >> 8) & 0x0F;
 			unsigned char det = ssts & 0x0F;
+
+			printf("[AHCI] Probing port %i \n",i);
 		 
 			if (det != HBA_PORT_DET_PRESENT && ipm != HBA_PORT_IPM_ACTIVE){
 				
