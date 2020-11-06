@@ -411,11 +411,36 @@ TRB command_ring_control[20] __attribute__ ((aligned (0x100)));
 unsigned long command_ring_offset = 0;
 unsigned long event_ring_offset = 0;
 
+int xhci_wait_for_ready(){
+
+	//
+	// we wait untill the status of USBSTS is ready
+	// or untill a timeout toke place
+
+	//
+	// We are not ready: yet
+	resetTicks();
+	while(1){
+		if(getTicks()>10){ // wait max 10 seconds
+			return 0; // mark as failed
+		}
+		if((((unsigned char*)usbsts)[0]&0x800)==0){
+			break;
+		}
+	}
+
+	//
+	// We are ready!
+	return 1;
+}
+
 unsigned char getCycleBit(){
 	return deviceid!=XHCI_DEVICE_QEMU?0:1;
 }
 
-void xhci_seek_end_event_queue(){
+int xhci_seek_end_event_queue(){
+	event_ring_offset = 0;
+	int eventcount = 0;
 	while(1){
 		TRB* trbres2 = ((TRB*)((unsigned long)(&event_ring_queue)+event_ring_offset));
 		unsigned long completioncode2 = (trbres2->bar3 & 0b111111100000000000000000000000) >> 24;
@@ -423,7 +448,10 @@ void xhci_seek_end_event_queue(){
 			break;
 		}
 		event_ring_offset += 0x10;
+		eventcount++;
 	}
+	printf("[XHCI] Event Ring Control: pointing at event %x \n",eventcount);
+	return eventcount;
 }
 
 void xhci_stop_codon_to_trb(TRB *out){
@@ -607,6 +635,7 @@ int xhci_enable_slot(){
 	TRB* trb = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	xhci_stop_codon_to_trb(trb);
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
+	xhci_wait_for_ready();
 	((unsigned long*)doorbel)[0] = 0;
 	sleep(100);
 	
@@ -621,6 +650,7 @@ int xhci_enable_slot(){
 	}
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	sleep(100);
+	xhci_wait_for_ready();
 	
 	volatile TRB *trbres = ((TRB*)((volatile unsigned long)(&event_ring_queue)+event_ring_offset));
 	volatile unsigned char assignedSloth = (trbres->bar4 & 0b111111100000000000000000000000) >> 24;
@@ -654,6 +684,7 @@ int xhci_noop(){
 	trb->bar4 = (cs==1?0:1);
 	
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
+	xhci_wait_for_ready();
 	((unsigned long*)doorbel)[0] = 0;
 	sleep(10);
 	
@@ -680,17 +711,20 @@ void irq_xhci(){
 	unsigned long xhci_usbsts = ((unsigned long*)usbsts)[0];
 	if(xhci_usbsts&4){
 		printf("[XHCI] Host system error interrupt\n");
-	}
-	if(xhci_usbsts&8){
+	}else if(xhci_usbsts&8){
 		printf("[XHCI] Event interrupt\n");
-	}
-	if(xhci_usbsts&0x10){
+	}else if(xhci_usbsts&0x10){
 		printf("[XHCI] Port interrupt\n");
+	}else{
+		printf("[XHCI] Unknown interrupt\n");
 	}
 	((volatile unsigned long*)&interrupter_1)[0] = 0xCD;
+
+	// acknowledge packages
+	((unsigned long*)usbsts)[0] = xhci_usbsts;
 	
-	((unsigned long*)usbsts)[0] |= 0x8;
-	((unsigned long*)usbsts)[0] |= 0b10000;
+//	((unsigned long*)usbsts)[0] |= 0x8;
+//	((unsigned long*)usbsts)[0] |= 0b10000;
 	unsigned long iman_addr = rtsoff + 0x020;
 	((unsigned long*)iman_addr)[0] |= 1;
 	outportb(0xA0,0x20);
@@ -858,13 +892,13 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				unsigned char nD = (protname & 0x000000FF);
 				printf("[XHCI] Protocolname [%c%c%c%c] \n",nD,nC,nB,nA);
 				unsigned long protid = ((unsigned long*)tx)[3] & 0x0000000F;
-				printf("[XHCI] Porttype %x \n",protid);
+				printf("[XHCI] Porttype [%x] \n",protid);
 				if(protid!=0){
 					printf("[XHCI] XHCI protocol not supported!\n");
 				}
 				unsigned char nE = (fault & 0xFF000000) >> 24;
 				unsigned char nF = (fault & 0x00FF0000) >> 16;
-				printf("[XHCI] Portprotocol %x %x \n",nE,nF);
+				printf("[XHCI] Portprotocol [%x] [%x] \n",nE,nF);
 				unsigned long portrange = ((unsigned long*)tx)[0];
 				unsigned char portrangeoffset = portrange & 0x00FF;
 				unsigned char portrangecount = (portrange & 0xFF00)>>8;
@@ -995,19 +1029,21 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	}
 	btc[0] 	= (unsigned long)bse;
 	btc[1] 	= 0;
-	
+	unsigned long iman_addr = rtsoff + 0x020;
+
 	// setting first interrupt enabled.
-	if(deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU){
-		printf("[XHCI] Setting up First Interrupter\n");
-		unsigned long iman_addr = rtsoff + 0x020;
-		((unsigned long*)iman_addr)[0] |= 0b10; // Interrupt Enable (IE) – RW
-		sleep(50);
-		printf("[XHCI] Use interrupts\n");
-		((unsigned long*)usbcmd)[0] |= 4;
-		sleep(50);
-	}
+	printf("[XHCI] Setting up First Interrupter\n");
+	((unsigned long*)iman_addr)[0] |= 0b10; // Interrupt Enable (IE) – RW
+	sleep(50);
+	printf("[XHCI] Use interrupts\n");
+	((unsigned long*)usbcmd)[0] |= 4;
+	sleep(50);
 	// TELL XHCI TO USE INTERRUPTS
 	
+	if(xhci_seek_end_event_queue()!=0){
+		printf("[XHCI] PANIC: should be 0!\n");
+		return;
+	}
 //
 // Start system
 	printf("[XHCI] Run!\n");
@@ -1017,6 +1053,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	xhci_usbsts = ((unsigned long*)usbsts)[0];
 	printf("[XHCI] System up and running with USBCMD %x and USBSTS %x \n",xhci_usbcmd,xhci_usbsts);
 	
+	xhci_wait_for_ready();
+
 	printf("[XHCI] Checking if portchange happened\n");
 	if(xhci_usbsts & 0b10000){
 		printf("[XHCI] Portchange detected!\n");
@@ -1494,6 +1532,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			disabledevice:
 			printf("[XHCI] Port %x : Disabling port\n",i);
 			xhci_disable_slot(assignedSloth);
+			for(;;);
 		}else{
 			printf("[XHCI] Port %x : No device attached!\n",i);
 		}
