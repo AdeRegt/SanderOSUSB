@@ -3,6 +3,14 @@
 #include "../kernel.h"
 
 //
+// How to run networking on qemu:
+// See main-tread: https://forum.osdev.org/viewtopic.php?f=1&t=30546
+// Requires: sudo apt-get install bridge-utils
+// sudo brctl addbr br0
+// sudo ../../qemu/x86_64-softmmu/qemu-system-x86_64 -netdev tap,id=thor_net0 -device rtl8139,netdev=thor_net0,id=thor_nic0 -kernel ../kernel.bin
+//
+
+//
 // FROM: https://wiki.osdev.org/RTL8169
 // This is a entry in the queue of the recieve and transmit descriptor queue
 struct Descriptor{
