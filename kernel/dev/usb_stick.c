@@ -184,7 +184,7 @@ void usb_stick_read_raw_sector(Device *dxv,unsigned long LBA,unsigned char count
 // On emulator, the value is:
 // subclass= 0x06
 // protocol= 0x50
-void usb_stick_init(USB_DEVICE *device){//unsigned char addr,unsigned char subclass,unsigned char protocol){
+void usb_stick_init(USB_DEVICE *device){
 	printf("[SMSD] Reached USB Mass Storage Device endpoint. subclass=%x protocol=%x \n",device->subclass,device->protocol);
 	if(!(device->subclass==0x02||device->subclass==0x05||device->subclass==0x06)){
 		printf("[SMSD] Unsupported subclass version. Requested 2/5/6, found 0x%x \n",device->subclass);
@@ -235,7 +235,7 @@ void usb_stick_init(USB_DEVICE *device){//unsigned char addr,unsigned char subcl
 	if(USB_STORAGE_ENABLE_SEC){
 		unsigned char* t = usb_stick_read_sector(device,0);
 		if((unsigned long)t==(unsigned long)EHCI_ERROR){
-			printf("[SMSD] An error occured while reading a sector \n");
+			printf("[SMSD] An error occured while reading a sector \n");for(;;);
 			return;
 		}
 		for(int i = 0 ; i < 512 ; i++){printf("%x ",t[i]);}

@@ -814,19 +814,14 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
                 if(cap&(1<<16)){
                     unsigned long baraddrnfo = getBARaddress(bus,slot,function,capabilitypointer_addr+4);
                     printf("[EHCI] BIOS owns controller: A=%x B=%x \n",cap,baraddrnfo);
-                    setBARaddress(bus,slot,function,capabilitypointer_addr,0b0110000000000000000000);
-                    setBARaddress(bus,slot,function,capabilitypointer_addr+4,0);
-                    nognkeer:
-                    sleep(50);
-                    timeout++;
-                    setBARaddress(bus,slot,function,capabilitypointer_addr,0b0110000000000000000000);
-                    setBARaddress(bus,slot,function,capabilitypointer_addr+4,0);
-                    if(timeout<2){
-                        goto nognkeer;
-                    }
-                    unsigned long A = getBARaddress(bus,slot,function,capabilitypointer_addr);
-                    unsigned long B = getBARaddress(bus,slot,function,capabilitypointer_addr+4);
-                    printf("[EHCI] A=%x B=%x \n",A,B);
+                    setBARaddress(bus,slot,function,capabilitypointer_addr,0x1000000);
+                    recheckbios:
+                    sleep(10);
+                    cap = getBARaddress(bus,slot,function,capabilitypointer_addr);
+                    baraddrnfo = getBARaddress(bus,slot,function,capabilitypointer_addr+4);
+                    if(cap&(1<<16)){goto recheckbios;}
+                    if(cap&(1<<24)==0){goto recheckbios;}
+                    
                 }
             }else{
                 printf("[EHCI] Unknown extended cappoint %x : %x \n",cid,cap);

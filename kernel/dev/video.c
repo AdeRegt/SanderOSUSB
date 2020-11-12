@@ -57,14 +57,14 @@ void previousFocus(){
 	for(int i = 0 ;  i < MAXGUIOBJ ; i++){
 		if(guiobjects[i].isActive==1){
 			if(guiobjects[i].isDrawable==1){
-				if(guiobjects[i].isController==1){
+				if(guiobjects[i].isController==1||guiobjects[i].isController==2){
 					if(guiobjects[i].isSelected){
 						guiobjects[i].isSelected = 0;
 						i--;
 						for(int y = i ;  y >-1 ; y--){
 							if(guiobjects[y].isActive==1){
 								if(guiobjects[y].isDrawable==1){
-									if(guiobjects[y].isController==1){
+									if(guiobjects[y].isController==1||guiobjects[y].isController==2){
 										guiobjects[y].isSelected = 1;
 										return;
 									}
@@ -84,14 +84,14 @@ void nextFocus(){
 	for(int i = 0 ;  i < MAXGUIOBJ ; i++){
 		if(guiobjects[i].isActive==1){
 			if(guiobjects[i].isDrawable==1){
-				if(guiobjects[i].isController==1){
+				if(guiobjects[i].isController==1||guiobjects[i].isController==2){
 					if(guiobjects[i].isSelected){
 						guiobjects[i].isSelected = 0;
 						i++;
 						for(int y = i ;  y < MAXGUIOBJ ; y++){
 							if(guiobjects[y].isActive==1){
 								if(guiobjects[y].isDrawable==1){
-									if(guiobjects[y].isController==1){
+									if(guiobjects[y].isController==1||guiobjects[y].isController==2){
 										guiobjects[y].isSelected = 1;
 										return;
 									}
@@ -111,7 +111,7 @@ unsigned long getSelectedItem(){
 	for(int i = 0 ;  i < MAXGUIOBJ ; i++){
 		if(guiobjects[i].isActive==1){
 			if(guiobjects[i].isDrawable==1){
-				if(guiobjects[i].isController==1){
+				if(guiobjects[i].isController==1||guiobjects[i].isController==2){
 					if(guiobjects[i].isSelected){
 						return guiobjects[i].value;
 					}
@@ -127,7 +127,7 @@ unsigned long show(){
 	for(int i = 0 ;  i < MAXGUIOBJ ; i++){
 		if(guiobjects[i].isActive==1){
 			if(guiobjects[i].isDrawable==1){
-				if(guiobjects[i].isController==1){
+				if(guiobjects[i].isController==1||guiobjects[i].isController==2){
 					guiobjects[i].isSelected = 1;
 					break;
 				}
@@ -145,6 +145,23 @@ unsigned long show(){
 				previousFocus();
 			}else if(IS.keyPressed==VK_RIGHT||IS.keyPressed==VK_DOWN){
 				nextFocus();
+			}else{
+				// is it a selectable?
+				for(int i = 0 ;  i < MAXGUIOBJ ; i++){
+					if(guiobjects[i].isActive==1){
+						if(guiobjects[i].isDrawable==1){
+							if(guiobjects[i].isController==2&&guiobjects[i].isSelected==1){
+								unsigned char *t = (unsigned char*)guiobjects[i].value;
+								int z = strlen((char*)t);
+								if(IS.keyPressed=='\b'){
+									t[z-1] = 0;
+								}else if(z<(guiobjects[i].w/8)){
+									t[z] = IS.keyPressed;
+								}
+							}
+						}
+					}
+				}
 			}
 			draw();
 		}
@@ -152,19 +169,21 @@ unsigned long show(){
 			for(int i = 0 ;  i < MAXGUIOBJ ; i++){
 				if(guiobjects[i].isActive==1){
 					if(guiobjects[i].isDrawable==1){
-						if(guiobjects[i].isController==1){
+						if(guiobjects[i].isController==1||guiobjects[i].isController==2){
 							int aX = guiobjects[i].x;
 							int aY = guiobjects[i].y;
 							int bX = aX + guiobjects[i].w;
 							int bY = aY + guiobjects[i].h;
 							if((aX<IS.mouse_x&&bX>IS.mouse_x)&&(aY<IS.mouse_y&&bY>IS.mouse_y)){
-								if(guiobjects[i].isSelected){
+								if(guiobjects[i].isSelected&&guiobjects[i].isController==1){
 									return getSelectedItem();
 								}else{
 									unfocus();
 									guiobjects[i].isSelected = 1;
 									draw();
 								}
+							}else{
+								guiobjects[i].isSelected = 0;
 							}
 						}
 					}
@@ -290,6 +309,45 @@ void draw_bmp(unsigned char* file_buffer, unsigned short offsetX, unsigned short
 			putpixel(offsetX + x, offsetY + y, pixel_buffer[x + width * y]);
 		}
 	}
+}
+
+void drawInputBox(GUIControlObject o){
+	unsigned char background_color = 0x07;
+	unsigned char foreground_color = 0x00;
+	for(int x = 0 ; x < o.w ; x++){
+		for(int y = 0 ; y < o.h ; y++){
+			putpixel(o.x+x,o.y+y,background_color);
+		}
+	}
+	unsigned char* msg = (unsigned char*) o.value;
+	unsigned char deze;
+	int i = 0;
+	int i2 = 0;
+	while((deze = msg[i++])!=0x00){
+		if((o.x+((i2+1)*8))>(o.x+o.w)){
+			o.y += 8;
+			i2 = 0;
+		}
+		if(deze!=' '){
+			drawcharraw(deze,o.x+(i2*8)+1,o.y+1,foreground_color,background_color);
+		}
+		i2++;
+	}
+	if(o.isSelected==0x01){
+		drawcharraw('_',o.x+(i2*8)+1,o.y+1,foreground_color,background_color);
+	}
+}
+
+unsigned char* prompt(char *message,int maxinput){
+	char *okmessage = "OK";
+	unsigned char * result = (unsigned char*)malloc(maxinput);
+	freeGui();
+	addController(1,(unsigned long)&drawRect,10,70,300,100,0,0,0,0);
+	addController(1,(unsigned long)&drawString,20,80,280,100,(unsigned long)message,0,0,0);
+	addController(1,(unsigned long)&drawInputBox,20,100,maxinput*8,10,(unsigned long)result,0,0,2);
+	addController(1,(unsigned long)&drawButton,50,150,50,15,(unsigned long)okmessage,0,0,1);
+	show();
+	return result;
 }
 
 void message(char *message){

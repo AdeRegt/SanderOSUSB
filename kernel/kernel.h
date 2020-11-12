@@ -144,6 +144,7 @@ void cls();
 void draw();
 void draw_bmp(unsigned char* file_buffer, unsigned short offsetX, unsigned short offsetY);
 void addController(unsigned char drawable,unsigned long drawablefunc,unsigned short x,unsigned short y,unsigned short w,unsigned short h,unsigned long value,unsigned long onSelected,unsigned long onFocus,unsigned char controller);
+unsigned char* prompt(char *message,int maxinput);
 void message(char *message);
 char confirm(char *message);
 char choose(char *message,int argcount,char **args);

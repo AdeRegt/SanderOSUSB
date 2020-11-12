@@ -58,6 +58,24 @@ void set_string_variable(unsigned char varname,unsigned char message[MAX_SIZE_ST
 	}
 }
 
+int get_variable_type(unsigned char varname){
+	return TOK_IS_EMPTY;
+}
+
+char* get_string_variable(unsigned char varname){
+	
+}
+
+unsigned long get_variable(unsigned char varname,unsigned char castto){
+	int t = get_variable_type(varname);
+	unsigned long result = 0;
+	if(t==TOK_IS_STRING){
+		result = (unsigned long)get_string_variable(varname);
+	}
+	return result;
+}
+
+
 void clear_variables(){
 
 	//
@@ -216,6 +234,8 @@ void handleECHO(){
 	Token keyword = getNextToken();
 	if(keyword.type==TOK_IS_STRING){
 		msg(keyword.definition);
+	}else if(keyword.type==TOK_IS_VARIABLE){
+		msg(get_variable(keyword.definition[0],TOK_IS_STRING));
 	}
 	walkTillEndOfLine();
 }
