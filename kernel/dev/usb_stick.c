@@ -1,7 +1,7 @@
 #include "../kernel.h"
 
 #define USB_STORAGE_ENABLE_ENQ 1
-#define USB_STORAGE_ENABLE_CAP 0
+#define USB_STORAGE_ENABLE_CAP 1
 #define USB_STORAGE_ENABLE_SEC 1
 #define USB_STORAGE_SECTOR_SIZE 512
 #define USB_STORAGE_CSW_SIGN 0x53425355
@@ -65,12 +65,14 @@ struct rdcap_10_response_t {
 unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut){
 	unsigned long lstatus = usb_send_bulk(device,expectedOut,out);
     if(lstatus==EHCI_ERROR){
+		printf("[SMSD] Sending bulk error\n");
         return (unsigned char*)EHCI_ERROR;
     }
 
 	unsigned char* buffer = malloc(expectedIN);
 	unsigned long t1 = usb_recieve_bulk(device,expectedIN,buffer);
 	if((unsigned long)t1==EHCI_ERROR){
+		printf("[SMSD] Recieving bulk error\n");
 		return (unsigned char *)EHCI_ERROR;
 	}
 
@@ -80,6 +82,7 @@ unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsign
 		unsigned char* cuv = malloc(13);
 		unsigned long t2 = usb_recieve_bulk(device,13,cuv);
 		if((unsigned long)t2==EHCI_ERROR){
+			printf("[SMSD] Recieving command status wrapper error\n");
 			return (unsigned char *)EHCI_ERROR;
 		}
 		csw = (CommandStatusWrapper*) cuv;
@@ -91,6 +94,7 @@ unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsign
 	}
 	printf("[SMSD] Status=%x \n",csw->status);
 	if(csw->status){
+		printf("[SMSD] Status is not 0 \n");
 		return (unsigned char *)EHCI_ERROR;
 	}
 	if(csw->dataResidue){
@@ -145,6 +149,26 @@ unsigned char* usb_stick_get_capacity(USB_DEVICE *device){
 	return bufin;
 }
 
+unsigned char* usb_stick_request_sense(USB_DEVICE *device){
+	unsigned long bufoutsize = 31;
+	unsigned long bufinsize = USB_STORAGE_SECTOR_SIZE; 
+	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
+	bufout->lun = 0;
+	bufout->tag = 1;
+	bufout->sig = 0x43425355;
+	bufout->wcb_len = 6; // 0xA -> 12 6
+	bufout->flags = 0x80;
+	bufout->xfer_len = bufinsize;
+	bufout->cmd[0] = 0x03;// type is 0x12	// 0x03 = REQUEST SENSE
+	bufout->cmd[1] = 0;
+	bufout->cmd[2] = 0;
+	bufout->cmd[3] = 0;
+	bufout->cmd[4] = 252;
+	bufout->cmd[5] = 0;
+	unsigned char* bufin = usb_stick_send_and_recieve_scsi_command(device,(unsigned char*)bufout,bufinsize,bufoutsize);
+	return bufin;
+}
+
 unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
 	unsigned long bufoutsize = 31;
 	unsigned long bufinsize = USB_STORAGE_SECTOR_SIZE; 
@@ -155,11 +179,12 @@ unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
 	bufout->wcb_len = 6; // 0xA -> 12 6
 	bufout->flags = 0x80;
 	bufout->xfer_len = bufinsize;
-	bufout->cmd[0] = 0x08;// type is 0x12
+	bufout->cmd[0] = 0x08;// type is 0x12	// 0x08 = read(6)
 	bufout->cmd[1] = (lba >> 16) & 0xFF;
 	bufout->cmd[2] = (lba >> 8) & 0xFF;
 	bufout->cmd[3] = (lba) & 0xFF;
 	bufout->cmd[4] = 1;
+	bufout->cmd[5] = 0;
 	unsigned char* bufin = usb_stick_send_and_recieve_scsi_command(device,(unsigned char*)bufout,bufinsize,bufoutsize);
 	return bufin;
 }
@@ -235,7 +260,15 @@ void usb_stick_init(USB_DEVICE *device){
 	if(USB_STORAGE_ENABLE_SEC){
 		unsigned char* t = usb_stick_read_sector(device,0);
 		if((unsigned long)t==(unsigned long)EHCI_ERROR){
-			printf("[SMSD] An error occured while reading a sector \n");for(;;);
+			printf("[SMSD] An error occured while reading a sector \n");
+			unsigned char* d = usb_stick_request_sense(device);
+			if((unsigned long)d==(unsigned long)EHCI_ERROR){
+				printf("[SMSD] Error while getting error info\n");
+				for(;;);
+				return;
+			}
+			printf("[SMSD] Error info collected\n");
+			for(;;);
 			return;
 		}
 		for(int i = 0 ; i < 512 ; i++){printf("%x ",t[i]);}
