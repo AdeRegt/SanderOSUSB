@@ -806,7 +806,6 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
         printf("[EHCI] We have capabilitypointers at %x \n",capabilitypointer_addr);
         while(1){
             unsigned long cap = 0;
-            int timeout = 0;
             cap = getBARaddress(bus,slot,function,capabilitypointer_addr);
             unsigned char cid = cap & 0xFF;
             if(cid==0x01){
@@ -820,7 +819,7 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
                     cap = getBARaddress(bus,slot,function,capabilitypointer_addr);
                     baraddrnfo = getBARaddress(bus,slot,function,capabilitypointer_addr+4);
                     if(cap&(1<<16)){goto recheckbios;}
-                    if(cap&(1<<24)==0){goto recheckbios;}
+                    //if((cap&(1<<24))==0){goto recheckbios;}
                 }
             }else{
                 printf("[EHCI] Unknown extended cappoint %x : %x \n",cid,cap);

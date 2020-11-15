@@ -1,5 +1,7 @@
 #include "../kernel.h"
 
+// reference https://www.seagate.com/files/staticfiles/support/docs/manual/Interface%20manuals/100293068j.pdf
+
 #define USB_STORAGE_ENABLE_ENQ 1
 #define USB_STORAGE_ENABLE_CAP 1
 #define USB_STORAGE_ENABLE_SEC 1
@@ -61,6 +63,12 @@ struct rdcap_10_response_t {
 	unsigned long max_lba;
 	unsigned long blk_size;
 } __attribute__ ((packed));
+
+typedef struct {
+	unsigned char key;
+	unsigned char code;
+	unsigned char qualifier;
+}SCSIStatus;
 
 unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut){
 	unsigned long lstatus = usb_send_bulk(device,expectedOut,out);
@@ -169,6 +177,19 @@ unsigned char* usb_stick_request_sense(USB_DEVICE *device){
 	return bufin;
 }
 
+SCSIStatus usb_stick_get_scsi_status(USB_DEVICE *device){
+	SCSIStatus stat;
+	unsigned char* d = usb_stick_request_sense(device);
+	if((unsigned long)d==(unsigned long)EHCI_ERROR){
+		printf("[SMSD] Error while getting error info\n");
+		return stat;
+	}
+	stat.key = d[2]&0b00001111;
+	stat.code = d[12];
+	stat.qualifier = d[13];
+	return stat;
+}
+
 unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
 	unsigned long bufoutsize = 31;
 	unsigned long bufinsize = USB_STORAGE_SECTOR_SIZE; 
@@ -258,17 +279,15 @@ void usb_stick_init(USB_DEVICE *device){
 	}
 	
 	if(USB_STORAGE_ENABLE_SEC){
-		unsigned char* t = usb_stick_read_sector(device,0);
+		sleep(10);
+		unsigned char* t = usb_stick_read_sector(device,0x10);
 		if((unsigned long)t==(unsigned long)EHCI_ERROR){
 			printf("[SMSD] An error occured while reading a sector \n");
-			unsigned char* d = usb_stick_request_sense(device);
-			if((unsigned long)d==(unsigned long)EHCI_ERROR){
-				printf("[SMSD] Error while getting error info\n");
-				for(;;);
-				return;
-			}
+			SCSIStatus d = usb_stick_get_scsi_status(device);
 			printf("[SMSD] Error info collected\n");
-			for(;;);
+			printf("[SMSD] Sense key %x \n",d.key);
+			printf("[SMSD] Additional sense code %x \n",d.code);
+			printf("[SMSD] Additional sense code qualifier %x \n",d.qualifier);
 			return;
 		}
 		for(int i = 0 ; i < 512 ; i++){printf("%x ",t[i]);}
