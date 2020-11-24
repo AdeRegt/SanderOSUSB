@@ -191,20 +191,20 @@ SCSIStatus usb_stick_get_scsi_status(USB_DEVICE *device){
 }
 
 unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
-	unsigned long bufoutsize = 31;//31
+	unsigned long bufoutsize = 31;
 	unsigned long bufinsize = USB_STORAGE_SECTOR_SIZE; 
-	unsigned char opcode = 0x28;//0x08;
+	unsigned char opcode = 0x28;
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	bufout->lun = 0;
 	bufout->tag = 1;
 	bufout->sig = 0x43425355;
-	bufout->wcb_len = 0xA; // 0xA -> 12 6
+	bufout->wcb_len = 0xA;
 	bufout->flags = 0x80;
 	bufout->xfer_len = bufinsize;
-	bufout->cmd[0] = opcode;// type is 0x12	// 0x08 = read(6)
-	bufout->cmd[1] = 0;//(lba >> 16) & 0xFF;
-	bufout->cmd[2] = 0;//(lba >> 8) & 0xFF;
-	bufout->cmd[3] = (lba >> 16) & 0xFF;//(lba) & 0xFF;
+	bufout->cmd[0] = opcode;
+	bufout->cmd[1] = 0;
+	bufout->cmd[2] = 0;
+	bufout->cmd[3] = (lba >> 16) & 0xFF;
 	bufout->cmd[4] = (lba >> 8) & 0xFF;
 	bufout->cmd[5] = (lba) & 0xFF;
 	bufout->cmd[6] = 0;
@@ -310,5 +310,4 @@ void usb_stick_init(USB_DEVICE *device){
 	printf("[USB] Read raw sector code located at %x \n",regdev->readRawSector);
 
 	detectFilesystemsOnMBR(regdev);
-	for(;;);
 }

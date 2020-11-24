@@ -92,11 +92,11 @@ void detectFilesystemsOnMBR(Device* device){
 			regdev->arg4 = device->arg4;
 			regdev->arg5 = device->arg5;
 			initialiseExt2(regdev);
-		}else if(mbrs[i].type==0x0E||mbrs[i].type==0x0C){
+		}else if(mbrs[i].type==0x0E||mbrs[i].type==0x0B||mbrs[i].type==0x0C){
 			printf("[MBRI] FAT filesystem detected\n");
 			Device *regdev = getNextFreeDevice();
 		
-			regdev->readRawSector 	= device->readRawSector;
+			regdev->readRawSector 	= atmp2;
 			
 			regdev->arg1 = device->arg1;
 			regdev->arg2 = mbrs[i].lbastart;
