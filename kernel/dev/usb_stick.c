@@ -3,8 +3,8 @@
 // reference https://www.seagate.com/files/staticfiles/support/docs/manual/Interface%20manuals/100293068j.pdf
 
 #define USB_STORAGE_ENABLE_ENQ 1
-#define USB_STORAGE_ENABLE_CAP 1
-#define USB_STORAGE_ENABLE_SEC 1
+#define USB_STORAGE_ENABLE_CAP 0
+#define USB_STORAGE_ENABLE_SEC 0
 #define USB_STORAGE_SECTOR_SIZE 512
 #define USB_STORAGE_CSW_SIGN 0x53425355
 
@@ -191,21 +191,25 @@ SCSIStatus usb_stick_get_scsi_status(USB_DEVICE *device){
 }
 
 unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
-	unsigned long bufoutsize = 31;
+	unsigned long bufoutsize = 31;//31
 	unsigned long bufinsize = USB_STORAGE_SECTOR_SIZE; 
+	unsigned char opcode = 0x28;//0x08;
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	bufout->lun = 0;
 	bufout->tag = 1;
 	bufout->sig = 0x43425355;
-	bufout->wcb_len = 6; // 0xA -> 12 6
+	bufout->wcb_len = 0xA; // 0xA -> 12 6
 	bufout->flags = 0x80;
 	bufout->xfer_len = bufinsize;
-	bufout->cmd[0] = 0x08;// type is 0x12	// 0x08 = read(6)
-	bufout->cmd[1] = (lba >> 16) & 0xFF;
-	bufout->cmd[2] = (lba >> 8) & 0xFF;
-	bufout->cmd[3] = (lba) & 0xFF;
-	bufout->cmd[4] = 1;
-	bufout->cmd[5] = 0;
+	bufout->cmd[0] = opcode;// type is 0x12	// 0x08 = read(6)
+	bufout->cmd[1] = 0;//(lba >> 16) & 0xFF;
+	bufout->cmd[2] = 0;//(lba >> 8) & 0xFF;
+	bufout->cmd[3] = (lba >> 16) & 0xFF;//(lba) & 0xFF;
+	bufout->cmd[4] = (lba >> 8) & 0xFF;
+	bufout->cmd[5] = (lba) & 0xFF;
+	bufout->cmd[6] = 0;
+	bufout->cmd[7] = 0;
+	bufout->cmd[8] = 1;
 	unsigned char* bufin = usb_stick_send_and_recieve_scsi_command(device,(unsigned char*)bufout,bufinsize,bufoutsize);
 	return bufin;
 }
@@ -280,7 +284,7 @@ void usb_stick_init(USB_DEVICE *device){
 	
 	if(USB_STORAGE_ENABLE_SEC){
 		sleep(10);
-		unsigned char* t = usb_stick_read_sector(device,0x10);
+		unsigned char* t = usb_stick_read_sector(device,0);
 		if((unsigned long)t==(unsigned long)EHCI_ERROR){
 			printf("[SMSD] An error occured while reading a sector \n");
 			SCSIStatus d = usb_stick_get_scsi_status(device);
@@ -288,6 +292,7 @@ void usb_stick_init(USB_DEVICE *device){
 			printf("[SMSD] Sense key %x \n",d.key);
 			printf("[SMSD] Additional sense code %x \n",d.code);
 			printf("[SMSD] Additional sense code qualifier %x \n",d.qualifier);
+			for(;;);
 			return;
 		}
 		for(int i = 0 ; i < 512 ; i++){printf("%x ",t[i]);}
@@ -305,4 +310,5 @@ void usb_stick_init(USB_DEVICE *device){
 	printf("[USB] Read raw sector code located at %x \n",regdev->readRawSector);
 
 	detectFilesystemsOnMBR(regdev);
+	for(;;);
 }

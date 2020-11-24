@@ -13,6 +13,7 @@
 #define TOK_IS_STRING 2
 #define TOK_IS_VARIABLE 3
 #define TOK_IS_LABEL 4
+#define TOK_IS_NUMBER 5
 
 typedef struct {
 	char *name;
@@ -31,7 +32,7 @@ unsigned long cursorpos = 0;
 char *filenamebuffer;
 
 unsigned long integer_variables['Z'-'A'];
-unsigned char string_variables[('8'-'1')*MAX_SIZE_STRING];
+char string_variables[('8'-'1')*MAX_SIZE_STRING];
 unsigned long nests[MAX_SIZE_NEST];
 int nestpointer = 0;
 
@@ -51,7 +52,7 @@ void set_integer_variable(unsigned char varname,unsigned long value){
 	integer_variables[varname-'A'] = value;
 }
 
-void set_string_variable(unsigned char varname,unsigned char message[MAX_SIZE_STRING]){
+void set_string_variable(char varname,char message[MAX_SIZE_STRING]){
 	int offset_string = varname - '1';
 	for(int i = 0 ; i < MAX_SIZE_STRING ; i++){
 		string_variables[offset_string+i] = message[i];
@@ -59,11 +60,15 @@ void set_string_variable(unsigned char varname,unsigned char message[MAX_SIZE_ST
 }
 
 int get_variable_type(unsigned char varname){
+	if((varname=='A'||varname>'A')&&(varname=='Z'||varname<'Z')){return TOK_IS_NUMBER;}
+	if((varname=='a'||varname>'a')&&(varname=='z'||varname<'z')){return TOK_IS_NUMBER;}
+	if(varname=='0'||varname=='1'||varname=='2'||varname=='3'||varname=='4'||varname=='5'||varname=='6'||varname=='7'||varname=='8'||varname=='9'){return TOK_IS_STRING;}
 	return TOK_IS_EMPTY;
 }
 
 char* get_string_variable(unsigned char varname){
-	
+	int offset_string = varname - '1';
+	return (char*)(string_variables+offset_string);
 }
 
 unsigned long get_variable(unsigned char varname,unsigned char castto){
@@ -71,6 +76,8 @@ unsigned long get_variable(unsigned char varname,unsigned char castto){
 	unsigned long result = 0;
 	if(t==TOK_IS_STRING){
 		result = (unsigned long)get_string_variable(varname);
+	}else{
+		error("unknown vartype");
 	}
 	return result;
 }
@@ -235,7 +242,7 @@ void handleECHO(){
 	if(keyword.type==TOK_IS_STRING){
 		msg(keyword.definition);
 	}else if(keyword.type==TOK_IS_VARIABLE){
-		msg(get_variable(keyword.definition[0],TOK_IS_STRING));
+		msg((char*)get_variable(keyword.definition[0],TOK_IS_STRING));
 	}
 	walkTillEndOfLine();
 }
@@ -248,6 +255,18 @@ void handleEXIT(){
             : "+a" (mode)
             );
 	for(;;);
+}
+
+void handleSET(){
+	Token keyword = getNextToken();
+	if(keyword.type!=TOK_IS_VARIABLE){
+		error("SET should have variable first");
+		return;
+	}
+	char def = keyword.definition[0];
+	Token keyword2 = getNextToken();
+	set_string_variable(def,keyword2.definition);
+	msg("OK");
 }
 
 void main(){
@@ -284,12 +303,13 @@ void main(){
 	//
 	// Introduce native functions
 	introduceNativeFunction("rem",(unsigned long)&handleREM,3);
+	introduceNativeFunction("set",(unsigned long)&handleSET,3);
 	introduceNativeFunction("echo",(unsigned long)&handleECHO,4);
 	introduceNativeFunction("exit",(unsigned long)&handleEXIT,4);
 
 	//
 	// Clear the screen
-	cls();
+	//cls();
 
 	//
 	// Then start interpeting
