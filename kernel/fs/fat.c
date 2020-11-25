@@ -287,7 +287,7 @@ void fat_dir(Device *device,char* path,char *buffer){
 void initialiseFAT(Device* device){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	unsigned short* buffer = (unsigned short*) malloc(512);
-	readraw(device,0,1,buffer); 
+	readraw(device,0,1,buffer);
 	fat_BS_t* fat_boot = (fat_BS_t*) buffer;
 	fat_extBS_32_t* fat_boot_ext_32 = (fat_extBS_32_t*) fat_boot->extended_section;
 	printf("[FAT] FAT detected!\n");

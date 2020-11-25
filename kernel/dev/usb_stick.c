@@ -4,7 +4,7 @@
 
 #define USB_STORAGE_ENABLE_ENQ 1
 #define USB_STORAGE_ENABLE_CAP 0
-#define USB_STORAGE_ENABLE_SEC 0
+#define USB_STORAGE_ENABLE_SEC 1
 #define USB_STORAGE_SECTOR_SIZE 512
 #define USB_STORAGE_CSW_SIGN 0x53425355
 
@@ -53,11 +53,6 @@ typedef struct __attribute__ ((packed)) {
 	unsigned long dataResidue;
 	unsigned char status;
 }CommandStatusWrapper;
-
-typedef struct{
-	unsigned char lun;
-	USB_DEVICE *master;
-} EHCI_USBSTICK;
 
 struct rdcap_10_response_t {
 	unsigned long max_lba;
@@ -216,10 +211,10 @@ unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
 
 void usb_stick_read_raw_sector(Device *dxv,unsigned long LBA,unsigned char count,unsigned short *l0cation){
 	printf("READ COMMAND RECIEVED TO READ %x SECTORS FROM %x \n",count,LBA);
-	EHCI_USBSTICK *stick = (EHCI_USBSTICK*) ((unsigned long)dxv->arg1);
+	USB_DEVICE *stick = (USB_DEVICE*) ((unsigned long)dxv->arg1);
 	unsigned char *location = (unsigned char*)l0cation;
 	for(int i = 0 ; i < count ; i++){
-		unsigned char* tak = usb_stick_read_sector(stick->master,dxv->arg2+LBA+i);
+		unsigned char* tak = usb_stick_read_sector(stick,dxv->arg2+LBA+i);
 		if((unsigned long)tak!=EHCI_ERROR){
 			for(int z = 0 ; z < 512 ; z++){
 				location[(i*512)+z] = tak[z];
@@ -300,12 +295,10 @@ void usb_stick_init(USB_DEVICE *device){
 	}
 
 	// setup bootdevice
-	EHCI_USBSTICK *usbdevice = (EHCI_USBSTICK*) malloc(sizeof(EHCI_USBSTICK));
-	usbdevice->master = device;
 
 	Device *regdev = (Device*) malloc(sizeof(Device));
 	regdev->readRawSector = (unsigned long) &usb_stick_read_raw_sector;
-	regdev->arg1 = (unsigned long)usbdevice;
+	regdev->arg1 = (unsigned long)device;
 	regdev->arg5 = 512;
 	printf("[USB] Read raw sector code located at %x \n",regdev->readRawSector);
 
