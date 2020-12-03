@@ -544,14 +544,12 @@ int ahci_atapi_eject(HBA_PORT *port)
 	cmdheader->a = 1;
  
 	// The below loop waits until the port is no longer busy before issuing a new command
-	while ((port->tfd & (ATA_DEV_BUSY | ATA_DEV_DRQ)) && spin < 1000000)
+	while ((port->tfd & (ATA_DEV_BUSY | ATA_DEV_DRQ)) && spin < 9000000)
 	{
 		spin++;
 	}
-	if (spin == 1000000)
-	{
-		return 0;
-	}
+
+	if(spin==9000000){return 0;}
  
 	port->ci = 1<<slot;
 	// Wait for completion
@@ -712,7 +710,6 @@ void ahci_ata_init(HBA_PORT *port,int i){
 	regdev->arg4 = 0;
 	regdev->arg5 = 512;
 	detectFilesystemsOnMBR(regdev);
-	
 }
 
 void ahci_atapi_init(HBA_PORT *port,int i){

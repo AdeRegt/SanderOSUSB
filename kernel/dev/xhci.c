@@ -1032,7 +1032,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	unsigned long iman_addr = rtsoff + 0x020;
 
 	// setting first interrupt enabled.
-	if(deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU){
+//	if(deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU){
 		printf("[XHCI] Setting up First Interrupter\n");
 		((unsigned long*)iman_addr)[0] |= 0b10; // Interrupt Enable (IE) – RW
 		sleep(50);
@@ -1040,7 +1040,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 		((unsigned long*)usbcmd)[0] |= 4;
 		sleep(50);
 		// TELL XHCI TO USE INTERRUPTS
-	}
+//	}
 	
 	if(xhci_seek_end_event_queue()!=0){
 		printf("[XHCI] PANIC: should be 0!\n");

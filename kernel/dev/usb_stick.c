@@ -102,6 +102,7 @@ unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsign
 	}
 	if(csw->dataResidue){
 		printf("[SMSD] Data residu %x \n",csw->dataResidue);
+		for(int i = 0 ; i < 512 ; i++){printf("%x ",buffer[i]);}for(;;);
 		printf("[SMSD] Asking for a re-read\n");
 		buffer = ehci_recieve_bulk(device,csw->dataResidue,malloc(csw->dataResidue));
 		if((unsigned long)buffer==EHCI_ERROR){printf("D");
@@ -186,25 +187,36 @@ SCSIStatus usb_stick_get_scsi_status(USB_DEVICE *device){
 }
 
 unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
+	int mode = 1 ; // 0=6 1=10
 	unsigned long bufoutsize = 31;
 	unsigned long bufinsize = USB_STORAGE_SECTOR_SIZE; 
-	unsigned char opcode = 0x28;
+	unsigned char opcode = mode==1?0x28:8;//0x28;
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	bufout->lun = 0;
 	bufout->tag = 1;
 	bufout->sig = 0x43425355;
-	bufout->wcb_len = 0xA;
+	bufout->wcb_len = mode==1?10:6;//10;
 	bufout->flags = 0x80;
 	bufout->xfer_len = bufinsize;
-	bufout->cmd[0] = opcode;
-	bufout->cmd[1] = 0;
-	bufout->cmd[2] = 0;
-	bufout->cmd[3] = (lba >> 16) & 0xFF;
-	bufout->cmd[4] = (lba >> 8) & 0xFF;
-	bufout->cmd[5] = (lba) & 0xFF;
-	bufout->cmd[6] = 0;
-	bufout->cmd[7] = 0;
-	bufout->cmd[8] = 1;
+	if(mode==1){
+		bufout->cmd[0] = opcode;
+		bufout->cmd[1] = 0;
+		bufout->cmd[2] = 0;
+		bufout->cmd[3] = (lba >> 16) & 0xFF;
+		bufout->cmd[4] = (lba >> 8) & 0xFF;
+		bufout->cmd[5] = (lba) & 0xFF;
+		bufout->cmd[6] = 0;
+		bufout->cmd[7] = 0;
+		bufout->cmd[8] = 1;
+	}else{
+		bufout->cmd[0] = opcode;
+		bufout->cmd[1] = (lba >> 16) & 0xFF;
+		bufout->cmd[2] = (lba >> 8) & 0xFF;
+		bufout->cmd[3] = (lba) & 0xFF;
+		bufout->cmd[4] = 1;
+		bufout->cmd[5] = 0;
+		bufout->cmd[6] = 0;
+	}
 	unsigned char* bufin = usb_stick_send_and_recieve_scsi_command(device,(unsigned char*)bufout,bufinsize,bufoutsize);
 	return bufin;
 }
@@ -287,10 +299,13 @@ void usb_stick_init(USB_DEVICE *device){
 			printf("[SMSD] Sense key %x \n",d.key);
 			printf("[SMSD] Additional sense code %x \n",d.code);
 			printf("[SMSD] Additional sense code qualifier %x \n",d.qualifier);
-			for(;;);
 			return;
 		}
 		for(int i = 0 ; i < 512 ; i++){printf("%x ",t[i]);}
+		if(t[0]==0x55&&t[1]==0x53&&t[2]==0x42&&t[3]==0x53){
+			printf("[SMSD] Known bug rissen: Statuswrapper at begin instead of end\n");
+			return;
+		}
 		printf("[SMSD] Reading testsector succeed\n");
 	}
 
