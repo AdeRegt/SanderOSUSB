@@ -77,7 +77,7 @@ for D in */;
 do
 	echo "Compiling subprogram $D "
 	cd $D
-    bash build.sh
+    bash build.sh || exit
 	cd ..
 done
 cd ..

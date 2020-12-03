@@ -82,14 +82,13 @@ void kernel_main(){
 	init_soundblaster16();
 	printf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
-	//printf("DATA: %s ",dir("A@"));for(;;);
-	//320,200
+	
 	if(init_graph_vga(320, 200, 1)==0) {
-		printf("VGA: failed to set!\n");
-		for(;;);
-		// should wait for user to press a key and then poweroff
+		printf("VGA: failed to set!\nPress any key to reboot\n");
+		getch();
+		poweroff();
 	}
-
+	
 	if(confirm("kernel created by sander de regt, shashwat shagun, johan gericke, daniel mccarthy and pablo narvaja") == 0) {
 		poweroff();
 	};

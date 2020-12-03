@@ -16,6 +16,7 @@ void detectFilesystemsOnMBR(Device* device){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	unsigned long atmp2 = device->readRawSector;
 	unsigned long atmp3 = device->writeRawSector;
+	unsigned long atmp4 = device->arg1;
 
 	unsigned char* msg = (unsigned char*) 0x1000;
 	readraw(device, 0, 1, (unsigned short *)msg);
@@ -92,13 +93,13 @@ void detectFilesystemsOnMBR(Device* device){
 			regdev->arg4 = device->arg4;
 			regdev->arg5 = device->arg5;
 			initialiseExt2(regdev);
-		}else if(mbrs[i].type==0x0E||mbrs[i].type==0x0C){
+		}else if(mbrs[i].type==0x0E||mbrs[i].type==0x0B||mbrs[i].type==0x0C){
 			printf("[MBRI] FAT filesystem detected\n");
 			Device *regdev = getNextFreeDevice();
 		
-			regdev->readRawSector 	= device->readRawSector;
+			regdev->readRawSector 	= atmp2;
 			
-			regdev->arg1 = device->arg1;
+			regdev->arg1 = atmp4;
 			regdev->arg2 = mbrs[i].lbastart;
 			regdev->arg3 = device->arg3;
 			regdev->arg4 = device->arg4;
@@ -110,7 +111,7 @@ void detectFilesystemsOnMBR(Device* device){
 		
 			regdev->readRawSector 	= atmp2;
 			regdev->writeRawSector 	= atmp3;
-			regdev->arg1 = device->arg1;
+			regdev->arg1 = atmp4;
 			regdev->arg2 = mbrs[i].lbastart;
 			regdev->arg3 = device->arg3;
 			regdev->arg4 = device->arg4;

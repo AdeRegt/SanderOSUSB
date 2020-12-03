@@ -3,11 +3,13 @@
 #include "../kernel.h"
 
 void ethernet_detect(int bus,int slot,int function,int device,int vendor){
-    if(device==0x8168&&vendor==0x10ec){ 
+    if((device==0x8168||device==0x8139)&&vendor==0x10ec){ 
         // Sander his RTL8169 driver comes here
         init_rtl(bus,slot,function);
-    }else{
+    }else if(device==0x100e||device==0x153A||device==0x10EA||vendor==0x8086){
         // Johan his E1000 driver comes here
+    }else{
+        printf("[ETH] Unknown ethernet device: device: %x vendor: %x \n",device,vendor);
     }
 }
 

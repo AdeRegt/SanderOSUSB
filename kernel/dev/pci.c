@@ -82,7 +82,7 @@ void pciConfigWriteWord (unsigned char bus, unsigned char slot, unsigned char fu
  
     /* write out the address */
     outportl(PCI_ADDRESS, address);
-    outportl(PCI_DATA+offset,value);
+    outportl(PCI_DATA,value);
 }
 
 void setBARaddress(int bus,int slot,int function,int barNO,unsigned long result){

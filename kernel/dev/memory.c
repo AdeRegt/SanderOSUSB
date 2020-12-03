@@ -5,7 +5,7 @@
 //
 //
 
-#define MEMORY_BLOCK_LIMIT 0x1000
+#define MEMORY_BLOCK_LIMIT 0x2000
 typedef struct {
 	unsigned long from;
 	unsigned long to;

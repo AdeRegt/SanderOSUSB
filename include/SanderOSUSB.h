@@ -1,13 +1,16 @@
 #define STDIO 1
 #define NULL 0
 
-void exit (void){
-	int mode = 1;
-	__asm__ __volatile__ (
-        "int $0x80"
-        : "+a" (mode)
-    	);
-}
+#ifndef D_EXIT
+	#define D_EXIT
+    void exit (void){
+        int mode = 1;
+        __asm__ __volatile__ (
+            "int $0x80"
+            : "+a" (mode)
+            );
+    }
+#endif
 
 void print(const char* message,int to){
 	int mode = 4;
