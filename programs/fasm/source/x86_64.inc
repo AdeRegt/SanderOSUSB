@@ -1,6 +1,6 @@
 
 ; flat assembler core
-; Copyright (c) 1999-2019, Tomasz Grysztar.
+; Copyright (c) 1999-2020, Tomasz Grysztar.
 ; All rights reserved.
 
 simple_instruction_except64:
@@ -697,7 +697,7 @@ mov_instruction:
 	cmp	[operand_size],4
 	jne	invalid_operand_size
 	cmp	[postbyte_register],8
-	jb	mov_reg_creg_store
+	jne	mov_reg_creg_store
 	cmp	[extended_code],20h
 	jne	mov_reg_creg_store
 	mov	al,0F0h
@@ -929,7 +929,7 @@ mov_instruction:
 	cmp	ah,4
 	jne	invalid_operand_size
 	cmp	[postbyte_register],8
-	jb	mov_creg_store
+	jne	mov_creg_store
 	cmp	[extended_code],22h
 	jne	mov_creg_store
 	mov	al,0F0h
@@ -3031,7 +3031,8 @@ jmp_instruction:
 	cmp	al,'('
 	jne	invalid_operand
 	mov	al,[value_type]
-	push	eax [symbol_identifier]
+	push	eax
+	push	[symbol_identifier]
 	cmp	byte [esi],'.'
 	je	invalid_value
 	mov	al,[operand_size]
@@ -3052,7 +3053,8 @@ jmp_instruction:
 	call	mark_relocation
 	stos	word [edi]
       jmp_far_segment:
-	pop	[symbol_identifier] eax
+	pop	[symbol_identifier]
+	pop	eax
 	mov	[value_type],al
 	pop	eax
 	call	mark_relocation
@@ -3674,7 +3676,11 @@ invlpg_instruction:
 	jne	invalid_operand
 	call	get_address
 	jmp	instruction_ready
-mcommit_instruction:
+simple_instruction_f2_0f_01:
+	mov	byte [edi],0F2h
+	inc	edi
+	jmp	simple_instruction_0f_01
+simple_instruction_f3_0f_01:
 	mov	byte [edi],0F3h
 	inc	edi
 	jmp	simple_instruction_0f_01
@@ -6396,7 +6402,8 @@ bndstx_instruction:
 	cmp	al,'('
 	jne	invalid_operand
 	mov	al,[address_sign]
-	push	eax ebx ecx edx [address_symbol]
+	push	eax ebx ecx edx
+	push	[address_symbol]
 	call	get_address_component
 	lods	byte [esi]
 	cmp	al,']'
@@ -6406,7 +6413,8 @@ bndstx_instruction:
 	or	edx,[address_high]
 	jnz	invalid_address
 	mov	[address_register],bh
-	pop	[address_symbol] edx ecx ebx eax
+	pop	[address_symbol]
+	pop	edx ecx ebx eax
 	mov	[address_sign],al
 	or	bl,bl
 	jz	mib_place_index
@@ -7310,9 +7318,9 @@ store_instruction:
 	sub	eax,[current_offset]
 	add	eax,5
 	sub	edx,eax
-	jno	@f
+	jno	address_relative_ok
 	call	recoverable_overflow
-      @@:
+      address_relative_ok:
 	mov	al,101b
 	mov	cl,[postbyte_register]
 	shl	cl,3

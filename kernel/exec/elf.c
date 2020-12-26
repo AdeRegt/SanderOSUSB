@@ -89,7 +89,7 @@ int elf_get_symval(ELFHEADER* header, int table,unsigned int info){
 		// external symbol
 		ELFSECTION strtab = ((ELFSECTION*)((int)header + header->e_shoff))[symtab.sh_link];
 		char *name = (char *)header + strtab.sh_offset + symbol.st_name;
-		printf("ELF: error here! %s \n",name);
+		
 		return -1;
 	}else if(symbol.st_shndx==10234){
 		return symbol.st_value;
@@ -101,6 +101,9 @@ int elf_get_symval(ELFHEADER* header, int table,unsigned int info){
 
 unsigned long loadelf(void * buffer){
 	ELFHEADER * header = (ELFHEADER *)buffer;
+	if(header->e_ident[4]!=1){
+		printf("ELF: Invalid type. Target is 32 bit\n");for(;;);
+	}
 	if(header->e_type==1){
 		int ok = 0;
 		ELFSECTION * sections = (ELFSECTION *)((long)buffer + header->e_shoff);

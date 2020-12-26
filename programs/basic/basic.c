@@ -93,7 +93,7 @@ void clear_variables(){
 
 	//
 	// clear all string variables
-	unsigned char clearstring[MAX_SIZE_STRING];
+	char clearstring[MAX_SIZE_STRING];
 	for(int i = 0 ; i < MAX_SIZE_STRING ; i++){
 		clearstring[i] = 0;
 	}
