@@ -25,20 +25,25 @@ And then run the file **/kernel/build.sh**
 
 ## Suported Devices
 Currently the following devices are supported:
-* IDE - ATA
-* IDE - ATAPI
-* AHCI - ATA
-* AHCI - ATAPI
-* PS/2 keyboard
-* PS/2 mouse
-* PIC
-* PCI
-* ACPI
-* USB - HID - Keyboard
-* USB - Mass Storage Device
-* EHCI - Basic support
-* RTL8169
-* Soundblaster 16
+* :question: unknown
+* :x: not supported
+* :white_check_mark: works
+Devicename|VirtualBox|Qemu|Bochs|Real hardware
+----------|----------|----|-----|-------------
+IDE - ATA|:white_check_mark:|:white_check_mark:|:white_check_mark:|:question:
+IDE - ATAPI|:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:
+AHCI - ATA|:white_check_mark:|:white_check_mark:|:white_check_mark:|:x:
+AHCI - ATAPI|:white_check_mark:|:white_check_mark:|:white_check_mark:|:x:
+PS/2 keyboard|:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:
+PS/2 mouse|:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:
+PIC|:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:
+PCI|:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:
+ACPI|:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:
+USB - HID - Keyboard|:white_check_mark:|:white_check_mark:|:white_check_mark:|:question:
+USB - Mass Storage Device|:white_check_mark:|:white_check_mark:|:white_check_mark:|:x:
+EHCI - Basic support|:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:
+RTL8169|:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:
+Soundblaster 16|:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:
 
 The following devices are on the list to get implemented:
 
