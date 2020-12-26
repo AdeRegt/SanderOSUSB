@@ -33,7 +33,7 @@ Devicename | VirtualBox | Qemu | Bochs | Real hardware
 ----------|---------- | ---- | ----- | -------------
 IDE - ATA | :white_check_mark: | :white_check_mark: | :white_check_mark: | :question:
 IDE - ATAPI | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
-AHCI - ATA | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x:
+AHCI - ATA | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
 AHCI - ATAPI | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x:
 PS/2 keyboard | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
 PS/2 mouse | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
@@ -58,7 +58,6 @@ EFI-MBR | :white_check_mark: | :x:
 EXT2 (very basic) | :white_check_mark: | :x: 
 FAT 32 | :white_check_mark: | :x: 
 SFS | :white_check_mark: | :white_check_mark: 
-VirtualBoxFS | :x: | :x: 
 
 The following filesystems will be supported:
 * FAT 12
