@@ -152,6 +152,7 @@ char *browseDIR(char *path);
 char *browse();
 unsigned long show();
 void freeGui();
+void init_vbox(unsigned long bus, unsigned long slot, unsigned long function);
 
 /** 
  * Initialize GDT

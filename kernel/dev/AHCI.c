@@ -523,17 +523,17 @@ int ahci_atapi_eject(HBA_PORT *port)
 	cmdtbl->prdt_entry[t].i = 1;
 	
 	cmdtbl->acmd[ 0] = 0x1B;
-    	cmdtbl->acmd[ 1] = 0x00;
-    	cmdtbl->acmd[ 2] = 0x00;
-    	cmdtbl->acmd[ 3] = 0x00;
-    	cmdtbl->acmd[ 4] = 0x02;
-    	cmdtbl->acmd[ 5] = 0x00;
-    	cmdtbl->acmd[ 6] = 0x00;
-    	cmdtbl->acmd[ 7] = 0x00;
-    	cmdtbl->acmd[ 8] = 0x00;
-    	cmdtbl->acmd[ 9] = 0x00;
-    	cmdtbl->acmd[10] = 0x00;
-    	cmdtbl->acmd[11] = 0x00;
+	cmdtbl->acmd[ 1] = 0x00;
+	cmdtbl->acmd[ 2] = 0x00;
+	cmdtbl->acmd[ 3] = 0x00;
+	cmdtbl->acmd[ 4] = 0x02;
+	cmdtbl->acmd[ 5] = 0x00;
+	cmdtbl->acmd[ 6] = 0x00;
+	cmdtbl->acmd[ 7] = 0x00;
+	cmdtbl->acmd[ 8] = 0x00;
+	cmdtbl->acmd[ 9] = 0x00;
+	cmdtbl->acmd[10] = 0x00;
+	cmdtbl->acmd[11] = 0x00;
  
 	cmdfis->countl = 1;//count & 0xFF;
 	cmdfis->counth = 0;//(count >> 8) & 0xFF;
@@ -553,6 +553,7 @@ int ahci_atapi_eject(HBA_PORT *port)
  
 	port->ci = 1<<slot;
 	// Wait for completion
+	spin = 0;
 	while (1)
 	{
 		// In some longer duration reads, it may be helpful to spin on the DPS bit 
@@ -563,7 +564,8 @@ int ahci_atapi_eject(HBA_PORT *port)
 		{
 			return 0;
 		}
-		
+		spin++;
+		if(spin>9000000){return 0;}
 	}
  
 	// Check again
@@ -638,7 +640,6 @@ int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, un
 	}
 	if (spin == 1000000)
 	{
-		#warning sometimes hardware hangs
 		printf("Port is hung\n");
 		return 0;
 	}
@@ -852,12 +853,14 @@ void ahci_init(int bus,int slot,int function){
 	}
 	printf("\n");
 	printf("[AHCI] version: %x \n",target->vs);
-	printf("[AHCI] Trigger reset\n");
-	target->ghc |= 1;
-	while(1){
-		volatile unsigned long tkap = target->ghc;
-		if((tkap&1)==0){ // wait untill reset bit has been unset
-			break;
+	if(0){
+		printf("[AHCI] Trigger reset\n");
+		target->ghc |= 1;
+		while(1){
+			volatile unsigned long tkap = target->ghc;
+			if((tkap&1)==0){ // wait untill reset bit has been unset
+				break;
+			}
 		}
 	}
 	unsigned short pi = target->pi;

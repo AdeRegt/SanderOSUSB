@@ -291,10 +291,7 @@ void init_pci(){
 					}
 					printstring("\n");
 					if(vendor==0x80EE){
-						printstring("VBOX: Guestadditions found!!\n");
-						//unsigned long bx = getBARaddress(bus,slot,function,0x10);
-						//unsigned char tx = pciConfigReadWord(bus,slot,function,0x3C)&0xFF;
-						//init_vbox(bx,tx);
+						init_vbox(bus,slot,function);
 					}
 				}
 			}
