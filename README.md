@@ -28,6 +28,7 @@ Currently the following devices are supported:
 * :question: unknown
 * :x: not supported
 * :white_check_mark: works
+
 Devicename | VirtualBox | Qemu | Bochs | Real hardware
 ----------|---------- | ---- | ----- | -------------
 IDE - ATA | :white_check_mark: | :white_check_mark: | :white_check_mark: | :question:
