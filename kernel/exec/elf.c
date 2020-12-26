@@ -86,7 +86,8 @@ void elf_error_message(){
 
 int elf_get_symval(ELFHEADER* header, int table,unsigned int info){
 	if(table==0||info==0){
-		printf("ELF: get_symfal is 0 \n");return 0;
+		printf("ELF: get_symfal is 0 \n");
+		return 0;
 	}
 	ELFSECTION symtab = ((ELFSECTION*)((int)header + header->e_shoff))[table];
 	ELFSYMBOL symbol = ((ELFSYMBOL*)((int)header+symtab.sh_offset))[info];
@@ -95,7 +96,11 @@ int elf_get_symval(ELFHEADER* header, int table,unsigned int info){
 		ELFSECTION strtab = ((ELFSECTION*)((int)header + header->e_shoff))[symtab.sh_link];
 		char *name = (char *)header + strtab.sh_offset + symbol.st_name;
 		if(name){
-			return (unsigned long)elf_error_message;
+			if(memcmp(name,"printf",strlen("printf"))==0){
+				return (unsigned long)printf;
+			}else{
+				return (unsigned long)elf_error_message;
+			}
 		}
 		return -1;
 	}else if(symbol.st_shndx==10234){

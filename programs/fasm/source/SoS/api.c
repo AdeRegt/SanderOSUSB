@@ -40,8 +40,11 @@ int gettimeofday(unsigned long tv, unsigned long tz){
 	return 0;
 }
 
+unsigned long allignsize = 0;
 void *malloc(unsigned long size){
-	return (void *)0x1000;
+	unsigned long allignsizeold = allignsize;
+	allignsize += size;
+	return (void *)(0xE000+allignsizeold);
 }
 
 void free(void *ptr){
