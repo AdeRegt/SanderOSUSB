@@ -54,7 +54,7 @@ The following filesystems will be supported:
 * FAT 12
 
 the following executable formats are supported:
-* 32-ELF
+* 32-ELF (relocation and executable type)
 * raw binary at 0x2000
 * BASfile (with basic.bin)
 
