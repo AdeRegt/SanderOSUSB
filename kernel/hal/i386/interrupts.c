@@ -68,12 +68,24 @@ void irq_handler(){
 extern char keyword;
 extern void browser();
 
+void exit_program_and_wait_for_keypress(){
+	printf("End of program, press any key to return\n");
+	getch();
+	int mode = 1;
+	int status = 0;
+	__asm__ __volatile__ ("int $0x80": "+a" (mode) , "+b" (status));
+}
+
 void special_handler(Register *r){
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
 	if(r->eax==0x01){ // EXIT
-    		printf("\nProgram finished!");
-			r->eip = (unsigned long)browser;
+    		printf("\nProgram finished!\n");
+			if(r->ebx){
+				r->eip = (unsigned long)exit_program_and_wait_for_keypress;
+			}else{
+				r->eip = (unsigned long)browser;
+			}
 	}else if(r->eax==0x03){ // F-READ
 		if(r->ebx==1){ // FROM STDOUT
 			volatile unsigned char kt = ((volatile unsigned char*)&keyword)[0];

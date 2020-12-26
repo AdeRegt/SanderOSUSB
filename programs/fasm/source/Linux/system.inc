@@ -1,6 +1,6 @@
 
 ; flat assembler interface for Linux
-; Copyright (c) 1999-2019, Tomasz Grysztar.
+; Copyright (c) 1999-2020, Tomasz Grysztar.
 ; All rights reserved.
 
 O_ACCMODE  = 0003o
@@ -291,7 +291,7 @@ assembler_error:
 	mov	ebx,[current_line]
 	test	ebx,ebx
 	jz	display_error_message
-	push	dword 0
+	pushd	0
       get_error_lines:
 	mov	eax,[ebx]
 	cmp	byte [eax],0

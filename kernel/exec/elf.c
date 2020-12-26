@@ -27,6 +27,21 @@ typedef struct {
 	Elf32_Half    e_shstrndx;
 } ELFHEADER;
 
+enum ELFSECTIONTYPES {
+	ELFSECTIONTYPES_NULL		= 0,   // Null section
+	ELFSECTIONTYPES_PROGBITS	= 1,   // Program information
+	ELFSECTIONTYPES_SYMTAB		= 2,   // Symbol table
+	ELFSECTIONTYPES_STRTAB		= 3,   // String table
+	ELFSECTIONTYPES_RELA		= 4,   // Relocation (w/ addend)
+	ELFSECTIONTYPES_NOBITS		= 8,   // Not present in file
+	ELFSECTIONTYPES_REL			= 9,   // Relocation (no addend)
+};
+
+enum ELFSECTIONATTRIBUTES {
+	ELFSECTIONATTRIBUTES_WRITE	= 0x01, // Writable section
+	ELFSECTIONATTRIBUTES_ALLOC	= 0x02  // Exists in memory
+};
+
 typedef struct {
 	Elf32_Word sh_name;
 	Elf32_Word sh_type;
@@ -40,13 +55,115 @@ typedef struct {
 	Elf32_Word sh_entsize;
 } ELFSECTION;
 
+enum ELFRELOCATIONTYPE{ // 0xA 0x9 0x4 nog over
+	ELFRELOCATIONTYPE_386_NONE		= 0, // No relocation
+	ELFRELOCATIONTYPE_386_32		= 1, // Symbol + Offset
+	ELFRELOCATIONTYPE_386_PC32		= 2  // Symbol + Offset - Section Offset
+};
+
+typedef struct {
+	Elf32_Addr r_offset;
+	Elf32_Word r_info;
+}ELFRELOCATION;
+
+typedef struct {
+	Elf32_Word		st_name;
+	Elf32_Addr		st_value;
+	Elf32_Word		st_size;
+	unsigned char	st_info;
+	unsigned char	st_other;
+	Elf32_Half		st_shndx;
+} ELFSYMBOL;
+
 int iself(unsigned char* buffer){
 	return buffer[0]==ELFMAG0&&buffer[1]==ELFMAG1&&buffer[2]==ELFMAG2&&buffer[3]==ELFMAG3;
 }
 
+void elf_error_message(){
+	printf("Invalid call\n");
+	for(;;);
+}
+
+int elf_get_symval(ELFHEADER* header, int table,unsigned int info){
+	if(table==0||info==0){
+		printf("ELF: get_symfal is 0 \n");
+		return 0;
+	}
+	ELFSECTION symtab = ((ELFSECTION*)((int)header + header->e_shoff))[table];
+	ELFSYMBOL symbol = ((ELFSYMBOL*)((int)header+symtab.sh_offset))[info];
+	if(symbol.st_shndx==0){
+		// external symbol
+		ELFSECTION strtab = ((ELFSECTION*)((int)header + header->e_shoff))[symtab.sh_link];
+		char *name = (char *)header + strtab.sh_offset + symbol.st_name;
+		if(name){
+			if(memcmp(name,"printf",strlen("printf"))==0){
+				return (unsigned long)printf;
+			}else{
+				return (unsigned long)elf_error_message;
+			}
+		}
+		return -1;
+	}else if(symbol.st_shndx==10234){
+		return symbol.st_value;
+	}else{
+		ELFSECTION target = ((ELFSECTION*)((int)header + header->e_shoff))[symbol.st_shndx];
+		return (int) header + symbol.st_value + target.sh_offset;
+	}
+}
+
 unsigned long loadelf(void * buffer){
 	ELFHEADER * header = (ELFHEADER *)buffer;
-	if(header->e_type==2||header->e_type==3){
+	if(header->e_ident[4]!=1){
+		printf("ELF: Invalid type. Target is 32 bit\n");for(;;);
+	}
+	if(header->e_type==1){
+		int ok = 0;
+		ELFSECTION * sections = (ELFSECTION *)((long)buffer + header->e_shoff);
+		for(unsigned int i = 0 ; i < header->e_shnum ; i++){
+			ELFSECTION section = sections[i];
+			if(section.sh_type==ELFSECTIONTYPES_NOBITS){
+				if(section.sh_size && section.sh_flags & ELFSECTIONATTRIBUTES_ALLOC){
+					void *meminfo = malloc(section.sh_size);
+					section.sh_offset = (int) meminfo - (int) header;
+					printf("ELF: allocated a nobits section of the size %x \n",section.sh_offset);
+				}
+			}else if(section.sh_type==ELFSECTIONTYPES_REL){
+				for(unsigned int j = 0 ; j < (section.sh_size / section.sh_entsize) ; j++){
+					ELFRELOCATION* relocation = (ELFRELOCATION*)(((int)header) + section.sh_offset + (sizeof(ELFRELOCATION)*j));
+					ELFSECTION target = ((ELFSECTION*)((int)header + header->e_shoff))[section.sh_info];
+					int *ref = (int *)(((int) header + target.sh_offset) + relocation->r_offset);
+					int symval = 0;
+					if((relocation->r_info>>8) != 0){
+						symval = elf_get_symval(header,section.sh_link,relocation->r_info >> 8);
+					}
+					if(symval==-1){
+						ok = 0;
+					}
+					if(((unsigned char)relocation->r_info)==ELFRELOCATIONTYPE_386_NONE){
+						// no need to do something
+					}else if(((unsigned char)relocation->r_info)==ELFRELOCATIONTYPE_386_32){
+						*ref = ((symval) + (*ref));
+					}else if(((unsigned char)relocation->r_info)==ELFRELOCATIONTYPE_386_PC32){
+						*ref = ((symval) + (*ref) - ((int)ref));
+					}else{
+						printf("ELF: Unknown relocation type: %x \n",((unsigned char)relocation->r_info));
+						continue;
+					}
+					printf("ELF: Relocating symbol\n");
+				}
+			}else if(section.sh_type==ELFSECTIONTYPES_PROGBITS){
+				if(ok==0){
+					ok = section.sh_offset;
+				}
+			}
+		}
+		printf("ELF: finished loading allocated elf\n");
+		if(ok){
+			return (int)header + ok;
+		}else{
+			for(;;);
+		}
+	}else if(header->e_type==2){
 		ELFSECTION * sections = (ELFSECTION *)((long)buffer + header->e_shoff);
 		for(unsigned int i = 0 ; i < header->e_shnum ; i++){
 			ELFSECTION section = sections[i];
@@ -66,7 +183,7 @@ unsigned long loadelf(void * buffer){
 		printf("ELF: ready at %x \n",header->e_entry);
 		return header->e_entry;
 	}else{
-		printf("ELF: unknown elf type\n");
+		printf("ELF: unknown elf type: %x \n",header->e_type);
 	}
 	return 0;
 }

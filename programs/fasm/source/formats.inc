@@ -1,8 +1,7 @@
 
 ; flat assembler core
-; Copyright (c) 1999-2019, Tomasz Grysztar.
+; Copyright (c) 1999-2020, Tomasz Grysztar.
 ; All rights reserved.
-
 formatter:
 	mov	[current_offset],edi
 	cmp	[output_file],0
@@ -3805,7 +3804,7 @@ format_elf_exe:
 	add	eax,ebp
 	adc	ecx,0
 	mov	[edx+18h],eax
-	mov	[edx+18h+8],ecx
+	mov	[edx+18h+4],ecx
 	jmp	elf_exe_addressing_setup
       setup_elf_exe_labels_type:
 	mov	eax,[code_start]

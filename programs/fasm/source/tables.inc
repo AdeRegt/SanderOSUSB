@@ -1,6 +1,6 @@
 
 ; flat assembler core
-; Copyright (c) 1999-2019, Tomasz Grysztar.
+; Copyright (c) 1999-2020, Tomasz Grysztar.
 ; All rights reserved.
 
 include_variable db 'INCLUDE',0
@@ -1746,6 +1746,8 @@ instructions_6:
  dw ssse3_instruction-instruction_handler
  db 'pslldq',111b
  dw pslldq_instruction-instruction_handler
+ db 'psmash',0FFh
+ dw simple_instruction_f3_0f_01-instruction_handler
  db 'psrldq',011b
  dw pslldq_instruction-instruction_handler
  db 'psubsb',0E8h
@@ -2151,6 +2153,8 @@ instructions_7:
  dw insertq_instruction-instruction_handler
  db 'invlpga',0DFh
  dw invlpga_instruction-instruction_handler
+ db 'invlpgb',0FEh
+ dw simple_instruction_0f_01-instruction_handler
  db 'invpcid',82h
  dw vmx_inv_instruction-instruction_handler
  db 'invvpid',81h
@@ -2170,7 +2174,7 @@ instructions_7:
  db 'loopnzw',0E0h
  dw loop_instruction_16bit-instruction_handler
  db 'mcommit',0FAh
- dw mcommit_instruction-instruction_handler
+ dw simple_instruction_f3_0f_01-instruction_handler
  db 'monitor',0C8h
  dw monitor_instruction-instruction_handler
  db 'movddup',12h
@@ -2283,6 +2287,8 @@ instructions_7:
  dw simple_extended_instruction-instruction_handler
  db 'sysretq',07h
  dw simple_extended_instruction_64bit-instruction_handler
+ db 'tlbsync',0FFh
+ dw simple_instruction_0f_01-instruction_handler
  db 'ucomisd',2Eh
  dw comisd_instruction-instruction_handler
  db 'ucomiss',2Eh
@@ -2805,7 +2811,7 @@ instructions_8:
  db 'vfmsubss',6Eh
  dw fma4_instruction_ss-instruction_handler
  db 'vldmxcsr',10b
- dw vldmxcsr_instruction-instruction_handler
+ dw vstmxcsr_instruction-instruction_handler
  db 'vmlaunch',0C2h
  dw simple_instruction_0f_01-instruction_handler
  db 'vmovddup',12h
@@ -3067,7 +3073,7 @@ instructions_8:
  db 'vrsqrtss',52h
  dw avx_ss_instruction_noevex-instruction_handler
  db 'vstmxcsr',11b
- dw vldmxcsr_instruction-instruction_handler
+ dw vstmxcsr_instruction-instruction_handler
  db 'vucomisd',2Eh
  dw avx_comisd_instruction-instruction_handler
  db 'vucomiss',2Eh
@@ -3141,6 +3147,12 @@ instructions_9:
  dw basic_mmx_instruction-instruction_handler
  db 'punpcklwd',61h
  dw basic_mmx_instruction-instruction_handler
+ db 'pvalidate',0FFh
+ dw simple_instruction_f2_0f_01-instruction_handler
+ db 'rmpadjust',0FEh
+ dw simple_instruction_f3_0f_01-instruction_handler
+ db 'rmpupdate',0FEh
+ dw simple_instruction_f2_0f_01-instruction_handler
  db 'sha1nexte',0C8h
  dw sse4_instruction_38-instruction_handler
  db 'sha1rnds4',0CCh
