@@ -49,12 +49,15 @@ Soundblaster 16 | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 The following devices are on the list to get implemented:
 
 The following filesystems are supported:
-* ISO 9660 (R)
-* MBR (R)
-* EFI-MBR (R)
-* EXT2 (very basic) (R)
-* FAT 32 (R)
-* SFS (RW)
+
+Filesystemname | Read | Write
+-------------- | ---- | -----
+ISO 9660 | :white_check_mark: | :x: 
+* MBR | :white_check_mark: | :x: 
+* EFI-MBR | :white_check_mark: | :x: 
+* EXT2 (very basic) | :white_check_mark: | :x: 
+* FAT 32 | :white_check_mark: | :x: 
+* SFS | :white_check_mark: | :white_check_mark: 
 
 The following filesystems will be supported:
 * FAT 12
