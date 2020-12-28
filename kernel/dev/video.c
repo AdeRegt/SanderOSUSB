@@ -391,22 +391,48 @@ char confirm(char *message){
 
 char *browse(){
 	char *result = (char *)malloc(200);
+	again:
 	for(int i = 0 ; i < 200 ; i++){
 		result[i] = 0x00;
 	}
 	int pnt = 0;
 	char *sigma = (char *)browseDIR("@");
+	if(sigma[0]=='@'||sigma[0]=='^'){
+		goto again;
+	}
 	result[pnt++] = sigma[0];
 	result[pnt++] = '@';
 	result[pnt] = 0;
+	char *taf;
 	while(1){
-		char *taf = (char *)browseDIR(result);
+		pt:
+		taf = (char *)browseDIR(result);
 
 		if(taf[0]==0){
 			message("Directory does not exists");
 			result[0] = '@';
 			result[1] = '\0';
 			result[2] = '\0';
+			pnt = 0;
+			goto again;
+		}
+		if(taf[0]=='^'){
+			// one DIR up
+			printf("In %s %x \n",result,pnt);
+			nogeens:
+			if(!(result[pnt]=='/'||result[pnt]=='@')){
+				result[pnt] = 0x00;
+				pnt--;
+				goto nogeens;
+			}
+			if(result[pnt]=='/'){
+				result[pnt]=0x00;
+			}
+			goto pt;
+		}
+		if(taf[0]=='@'){
+			// to ROOT
+			goto again;
 		}
 		if(pnt!=2){
 			result[pnt++] = '/';
@@ -440,6 +466,8 @@ char *browseDIR(char *path){
 	addController(1,(unsigned long)&drawRect,10,70,300,100,0,0,0,0);
 	addController(1,(unsigned long)&drawString,20,100,280,100,(unsigned long)message,0,0,0);
 	addController(1,(unsigned long)&drawString,20,120,280,100,(unsigned long)path,0,0,0);
+	addController(1,(unsigned long)&drawButton,50,80,25,15,(unsigned long)"@",0,0,1);
+	addController(1,(unsigned long)&drawButton,80,80,25,15,(unsigned long)"^",0,0,1);
 	int i = 0;
 	int t = 22;
 	int r = 140;
