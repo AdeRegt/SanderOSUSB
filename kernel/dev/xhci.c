@@ -624,7 +624,9 @@ unsigned int xhci_disable_slot(unsigned long assignedSloth){
 int xhci_enable_slot(){
 	xhci_seek_end_event_queue();
 	TRB* trb2 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
+	memset(trb2,0x00,sizeof(TRB));
 	XHCI_TRB_ENABLE_SLOT enable_slot;
+	memset(&enable_slot,0x00,sizeof(XHCI_TRB_ENABLE_SLOT));
 	enable_slot.cyclebit = getCycleBit();
 	enable_slot.trbtype = 9;
 	enable_slot.slottype = 0;
@@ -657,6 +659,7 @@ int xhci_enable_slot(){
 	volatile unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
 	if(completioncode!=1){
 		{
+			printf("[XHCI] 1=%x 2=%x 3=%x 4=%x \n",trbres->bar1,trbres->bar2,trbres->bar3,trbres->bar4);for(;;);
 			printf("[XHCI] Device slot assignation failed with %x \n",completioncode);
 			return -1;
 		}
@@ -780,6 +783,10 @@ unsigned char xhci_send_message(USB_DEVICE* device,TRB setup,TRB data,TRB end){
 // offset intell xhci 0x47C
 void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	printf("[XHCI] entering xhci driver....\n");
+	#ifdef DISABLE_USB
+	printf("[XHCI] XHCI disabled by programmer\n");
+	return;
+	#endif
 	unsigned long usbint = getBARaddress(bus,slot,function,0x3C) & 0x000000FF;
 	setNormalInt(usbint,(unsigned long)xhciirq);
 //	
@@ -1032,7 +1039,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	unsigned long iman_addr = rtsoff + 0x020;
 
 	// setting first interrupt enabled.
-//	if(deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU){
+	if(deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU){
 		printf("[XHCI] Setting up First Interrupter\n");
 		((unsigned long*)iman_addr)[0] |= 0b10; // Interrupt Enable (IE) – RW
 		sleep(50);
@@ -1040,7 +1047,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 		((unsigned long*)usbcmd)[0] |= 4;
 		sleep(50);
 		// TELL XHCI TO USE INTERRUPTS
-//	}
+	}
 	
 	if(xhci_seek_end_event_queue()!=0){
 		printf("[XHCI] PANIC: should be 0!\n");
@@ -1061,19 +1068,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	if(xhci_usbsts & 0b10000){
 		printf("[XHCI] Portchange detected!\n");
 	}
-	sleep(100);
 	
-	//
-	// Doing a test of the ring except for qemu which miserably fails for it
-	if(deviceid!=XHCI_DEVICE_QEMU){
-		printf("[XHCI] Sending NOOP to check ring\n");
-		unsigned char nope = xhci_noop();
-		if(nope!=1){
-			printf("[XHCI] NOOP does not work (expecting %x found %x)\n",1,nope);
-			return;
-		}
-		printf("[XHCI] Ring works like expected\n");
-	}
 	printf("[XHCI] Probing ports....\n");
 	//
 	// First, see which ports are available

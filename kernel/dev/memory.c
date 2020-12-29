@@ -193,3 +193,31 @@ int strlen(char *str){
 	return count;
 }
 
+ArrayListElement* createArrayList(void *initialitem){
+	ArrayListElement *element = (ArrayListElement*)malloc(sizeof(ArrayListElement));
+	element->locationToItem = initialitem;
+	return element; 
+}
+
+void appendElementToExistingArrayList(ArrayListElement* original,ArrayListElement* extraitem){
+	extraitem->previous = original;
+	original->next = extraitem;
+}
+
+ArrayListElement* appendToExistingArrayList(ArrayListElement* list,void *item){
+	ArrayListElement *newelement = createArrayList(item);
+	appendElementToExistingArrayList(list,newelement);
+	return newelement;
+}
+
+void foreach(ArrayListElement* list,unsigned long functionpointer){
+	ArrayListElement *next = list;
+	void* (*each)(void*) = (void*)functionpointer;
+	while(1){
+		each(next->locationToItem);
+		if(next->next==0){
+			break;
+		}
+		next = (ArrayListElement *)next->next;
+	}
+}

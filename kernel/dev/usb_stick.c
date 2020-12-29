@@ -3,8 +3,9 @@
 // reference https://www.seagate.com/files/staticfiles/support/docs/manual/Interface%20manuals/100293068j.pdf
 
 #define USB_STORAGE_ENABLE_ENQ 1
-#define USB_STORAGE_ENABLE_CAP 0
+#define USB_STORAGE_ENABLE_CAP 1
 #define USB_STORAGE_ENABLE_SEC 1
+#define USB_STORAGE_ENABLE_SEN 1
 #define USB_STORAGE_SECTOR_SIZE 512
 #define USB_STORAGE_CSW_SIGN 0x53425355
 
@@ -114,13 +115,13 @@ unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsign
 
 unsigned char* usb_stick_get_inquiry(USB_DEVICE *device){
 	unsigned char bufoutsize = 31;
-	unsigned char bufinsize = sizeof(struct cdbres_inquiry);
+	unsigned char bufinsize = 96;//36;//sizeof(struct cdbres_inquiry);
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	// 55 53 42 43 e7 3 0 0 24 0 0 0 80 0 c 12 0 0 0 24 0 0 0 0 0 0 0 0 0 0 0
 	bufout->lun = 0;
 	bufout->tag = 1;
 	bufout->sig = 0x43425355;
-	bufout->wcb_len = 6; // 0xA -> 12
+	bufout->wcb_len = 10;//6; // 0xA -> 12
 	bufout->flags = 0x80;
 	bufout->xfer_len = bufinsize; // 0x8 -> 36
 	bufout->cmd[0] = 0x12;// type is 0x12
@@ -135,14 +136,14 @@ unsigned char* usb_stick_get_inquiry(USB_DEVICE *device){
 
 unsigned char* usb_stick_get_capacity(USB_DEVICE *device){
 	unsigned char bufoutsize = 31;
-	unsigned char bufinsize = 36;
+	unsigned char bufinsize = 8;
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	bufout->lun = 0;
 	bufout->tag = 1;
 	bufout->sig = 0x43425355;
-	bufout->wcb_len = 6; // 0xA -> 12
+	bufout->wcb_len = 10;//6; // 0xA -> 12 maybe 10?
 	bufout->flags = 0x80;
-	bufout->xfer_len = 36; // 0x8 -> 36
+	bufout->xfer_len = bufinsize; // 0x8 -> 36
 	bufout->cmd[0] = 0x25;// type is 0x12
 	bufout->cmd[1] = 0;
 	bufout->cmd[2] = 0;
@@ -155,7 +156,7 @@ unsigned char* usb_stick_get_capacity(USB_DEVICE *device){
 
 unsigned char* usb_stick_request_sense(USB_DEVICE *device){
 	unsigned long bufoutsize = 31;
-	unsigned long bufinsize = USB_STORAGE_SECTOR_SIZE; 
+	unsigned long bufinsize = 252; 
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	bufout->lun = 0;
 	bufout->tag = 1;
@@ -167,7 +168,7 @@ unsigned char* usb_stick_request_sense(USB_DEVICE *device){
 	bufout->cmd[1] = 0;
 	bufout->cmd[2] = 0;
 	bufout->cmd[3] = 0;
-	bufout->cmd[4] = 252;
+	bufout->cmd[4] = bufinsize;
 	bufout->cmd[5] = 0;
 	unsigned char* bufin = usb_stick_send_and_recieve_scsi_command(device,(unsigned char*)bufout,bufinsize,bufoutsize);
 	return bufin;
@@ -187,36 +188,26 @@ SCSIStatus usb_stick_get_scsi_status(USB_DEVICE *device){
 }
 
 unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
-	int mode = 1 ; // 0=6 1=10
 	unsigned long bufoutsize = 31;
 	unsigned long bufinsize = USB_STORAGE_SECTOR_SIZE; 
-	unsigned char opcode = mode==1?0x28:8;//0x28;
+	unsigned char opcode = 0x28;
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	bufout->lun = 0;
-	bufout->tag = 1;
+	bufout->tag = 5;
 	bufout->sig = 0x43425355;
-	bufout->wcb_len = mode==1?10:6;//10;
+	bufout->wcb_len = 10;//10;
 	bufout->flags = 0x80;
 	bufout->xfer_len = bufinsize;
-	if(mode==1){
-		bufout->cmd[0] = opcode;
-		bufout->cmd[1] = 0;
-		bufout->cmd[2] = 0;
-		bufout->cmd[3] = (lba >> 16) & 0xFF;
-		bufout->cmd[4] = (lba >> 8) & 0xFF;
-		bufout->cmd[5] = (lba) & 0xFF;
-		bufout->cmd[6] = 0;
-		bufout->cmd[7] = 0;
-		bufout->cmd[8] = 1;
-	}else{
-		bufout->cmd[0] = opcode;
-		bufout->cmd[1] = (lba >> 16) & 0xFF;
-		bufout->cmd[2] = (lba >> 8) & 0xFF;
-		bufout->cmd[3] = (lba) & 0xFF;
-		bufout->cmd[4] = 1;
-		bufout->cmd[5] = 0;
-		bufout->cmd[6] = 0;
-	}
+	bufout->cmd[0] = opcode;
+	bufout->cmd[1] = 0;
+	bufout->cmd[2] = 0;
+	bufout->cmd[3] = (lba >> 16) & 0xFF;
+	bufout->cmd[4] = (lba >> 8) & 0xFF;
+	bufout->cmd[5] = (lba) & 0xFF;
+	bufout->cmd[6] = 0;
+	bufout->cmd[7] = 0;
+	bufout->cmd[8] = 1;
+	bufout->cmd[9] = 0;
 	unsigned char* bufin = usb_stick_send_and_recieve_scsi_command(device,(unsigned char*)bufout,bufinsize,bufoutsize);
 	return bufin;
 }
@@ -276,6 +267,15 @@ void usb_stick_init(USB_DEVICE *device){
 		);
 	}
 
+	// request sense
+	if(USB_STORAGE_ENABLE_SEN){
+		unsigned char* sense_raw = usb_stick_request_sense(device);
+		if((unsigned long)sense_raw==(unsigned long)EHCI_ERROR){
+			printf("[SMSD] An error occured while getting sense info \n");for(;;);
+			return;
+		}
+	}
+
 	// get capacity
 	if(USB_STORAGE_ENABLE_CAP){
 		unsigned char* capacity_raw = usb_stick_get_capacity(device);
@@ -298,15 +298,16 @@ void usb_stick_init(USB_DEVICE *device){
 			printf("[SMSD] Error info collected\n");
 			printf("[SMSD] Sense key %x \n",d.key);
 			printf("[SMSD] Additional sense code %x \n",d.code);
-			printf("[SMSD] Additional sense code qualifier %x \n",d.qualifier);
+			printf("[SMSD] Additional sense code qualifier %x \n",d.qualifier);for(;;);
 			return;
 		}
 		for(int i = 0 ; i < 512 ; i++){printf("%x ",t[i]);}
 		if(t[0]==0x55&&t[1]==0x53&&t[2]==0x42&&t[3]==0x53){
 			printf("[SMSD] Known bug rissen: Statuswrapper at begin instead of end\n");
+			for(;;);
 			return;
 		}
-		printf("[SMSD] Reading testsector succeed\n");
+		printf("[SMSD] Reading testsector succeed\n");for(;;);
 	}
 
 	// setup bootdevice

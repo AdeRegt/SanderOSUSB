@@ -417,3 +417,9 @@ unsigned long usb_send_bulk(USB_DEVICE *device,unsigned long count,void *buffer)
 unsigned long usb_recieve_bulk(USB_DEVICE *device,unsigned long count,void *commando);
 void *usb_send_and_recieve_control(USB_DEVICE *device,void *commando,void *buffer);
 void usb_device_install(USB_DEVICE *device);
+
+typedef struct {
+	void *next;
+	void *previous;
+	void *locationToItem;
+}ArrayListElement;
