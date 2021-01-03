@@ -650,6 +650,7 @@ int xhci_enable_slot(){
 			break;
 		}
 	}
+	sleep(100);
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	sleep(100);
 	xhci_wait_for_ready();
@@ -729,7 +730,7 @@ void irq_xhci(){
 //	((unsigned long*)usbsts)[0] |= 0x8;
 //	((unsigned long*)usbsts)[0] |= 0b10000;
 	unsigned long iman_addr = rtsoff + 0x020;
-	((unsigned long*)iman_addr)[0] |= 1;
+	((unsigned long*)iman_addr)[0] |= 0b11;
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
 }
@@ -1041,7 +1042,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	// setting first interrupt enabled.
 	if(deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU){
 		printf("[XHCI] Setting up First Interrupter\n");
-		((unsigned long*)iman_addr)[0] |= 0b10; // Interrupt Enable (IE) – RW
+		((unsigned long*)iman_addr)[0] |= 0b11; // Interrupt Enable (IE) – RW
 		sleep(50);
 		printf("[XHCI] Use interrupts\n");
 		((unsigned long*)usbcmd)[0] |= 4;

@@ -55,10 +55,54 @@ void browser(){
 	}
 }
 
-void kernel_main(){
+GRUBStatus grubstatus;
+GRUBStatus getGrubStatus(){
+	return grubstatus;
+}
+
+void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 	init_video();
 	printstring("Welcome to the Sanderslando Kernel!!\n");
 	printstring("Loading core components...\n");
+	if(magic==0x2BADB002){
+		printf("[GRUB] Multiboot compliant bootloader!\n");
+		unsigned char* cmdline = (unsigned char*) grub->cmdline;
+		printf("[GRUB] CMDLINE \"%s\" \n",cmdline);
+		unsigned char token[50];
+		int got = 0;
+		again:
+			for(int i = 0 ; i < 50 ; i++){
+				token[i] = 0x00;
+			}
+			int z = 0;
+			unsigned char t = 0x00;
+			while(1){
+				t = cmdline[got];
+				if(t==0x00){
+					break;
+				}
+				if(t==' '){
+					got++;
+					break;
+				}
+				token[z++] = t;
+				if(z==50){
+					break;
+				}
+				got++;
+			}
+			char *ett = "usb";
+			if(memcmp((char*)&token,ett,strlen(ett))==0){
+				grubstatus.usb = 1;
+			}
+			ett = "keyboard";
+			if(memcmp((char*)&token,ett,strlen(ett))==0){
+				grubstatus.keyboard = 1;
+			}
+			if(z!=0&&t!=0x00){
+				goto again;
+			}
+	}
 	printstring("=> Global Description Table...\n");
 	init_gdt();
 	printstring("=> Interrupt Description Table...\n");

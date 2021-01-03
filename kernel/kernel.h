@@ -1,6 +1,43 @@
 #include "stdarg.h"
 #define ATAPI_SECTOR_SIZE 2048
 
+
+
+typedef struct
+{
+	unsigned long flags;
+	unsigned long mem_lower;
+	unsigned long mem_upper;
+	unsigned long boot_device;
+	unsigned long cmdline;
+	unsigned long mods_count;
+	unsigned long mods_addr;
+	unsigned long num;
+	unsigned long size;
+	unsigned long addr;
+	unsigned long shndx;
+	unsigned long mmap_length;
+	unsigned long mmap_addr;
+	unsigned long drives_length;
+	unsigned long drives_addr;
+	unsigned long config_table;
+	unsigned long boot_loader_name;
+	unsigned long apm_table;
+	unsigned long vbe_control_info;
+	unsigned long vbe_mode_info;
+	unsigned long vbe_mode;
+	unsigned long vbe_interface_seg;
+	unsigned long vbe_interface_off;
+	unsigned long vbe_interface_len;
+}GRUBMultiboot ;
+
+typedef struct{
+	unsigned char keyboard;
+	unsigned char usb;
+}GRUBStatus;
+
+GRUBStatus getGrubStatus();
+
 /**
  * printf own implementation
  **/
@@ -48,7 +85,7 @@ void outportl(unsigned short _port, unsigned long _data);
 /**
  * Entry point of the kernel
  **/
-void kernel_main();
+void kernel_main(GRUBMultiboot *grub, unsigned long magic);
 
 /**
  * empty loop that sleeps for 'ms' miliseconds

@@ -304,10 +304,9 @@ void usb_stick_init(USB_DEVICE *device){
 		for(int i = 0 ; i < 512 ; i++){printf("%x ",t[i]);}
 		if(t[0]==0x55&&t[1]==0x53&&t[2]==0x42&&t[3]==0x53){
 			printf("[SMSD] Known bug rissen: Statuswrapper at begin instead of end\n");
-			for(;;);
 			return;
 		}
-		printf("[SMSD] Reading testsector succeed\n");for(;;);
+		printf("[SMSD] Reading testsector succeed\n");
 	}
 
 	// setup bootdevice
