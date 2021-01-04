@@ -408,7 +408,7 @@ char *browse(){
 		pt:
 		taf = (char *)browseDIR(result);
 
-		if(taf[0]==0){
+		if(taf==0||taf[0]==0){
 			message("Directory does not exists");
 			result[0] = '@';
 			result[1] = '\0';
@@ -460,6 +460,9 @@ char *browseDIR(char *path){
 	freeGui();
 	char *message = "PLEASE PICK A FILE";
 	char *filesystemtext = dir(path);
+	if(filesystemtext==0){
+		return "";
+	}
 	if(filesystemtext[0]==0x00){
 		return filesystemtext;
 	}

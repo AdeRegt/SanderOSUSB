@@ -294,7 +294,6 @@ void initialiseSFS(Device *device){
 	printf("[SFS] Read raw sector code located at %x \n",device->readRawSector);
 	unsigned char* bootsecloc = (unsigned char*)&bootsector;
 	readraw(device,0,1,(unsigned short*)bootsecloc);
-	for(int i = 0 ; i < 512 ; i++){printf("%x ",bootsecloc[i]);}
 	if(bootsector.signature!=0xCD){
 		printf("[SFS] Invalid SFS bootsector\n");
 		return;

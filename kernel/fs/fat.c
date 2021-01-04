@@ -156,7 +156,7 @@ void fat_read(Device *device,char* path,char *buffer){
 			first_sector_of_cluster = ((newsect - 2) * fat_boot->sectors_per_cluster) + first_data_sector;
 			readraw(device,first_sector_of_cluster,1,fatbuffer);
 		}else{
-			printf("CANNOT FIND DIR\n");
+			printf("FAT: CANNOT FIND DIR\n");
 			for(;;);
 		}
 		
@@ -254,7 +254,7 @@ void fat_dir(Device *device,char* path,char *buffer){
 			first_sector_of_cluster = ((newsect - 2) * fat_boot->sectors_per_cluster) + first_data_sector;
 			readraw(device,first_sector_of_cluster,1,fatbuffer);
 		}else{
-			printf("CANNOT FIND DIR\n");
+			printf("FAT: CANNOT FIND DIR\n");
 			for(;;);
 		}
 		
