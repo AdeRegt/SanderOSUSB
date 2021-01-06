@@ -544,12 +544,12 @@ int ahci_atapi_eject(HBA_PORT *port)
 	cmdheader->a = 1;
  
 	// The below loop waits until the port is no longer busy before issuing a new command
-	while ((port->tfd & (ATA_DEV_BUSY | ATA_DEV_DRQ)) && spin < 9000000)
+	while ((port->tfd & (ATA_DEV_BUSY | ATA_DEV_DRQ)) && spin < 500000)
 	{
 		spin++;
 	}
 
-	if(spin==9000000){return 0;}
+	if(spin==500000){return 0;}
  
 	port->ci = 1<<slot;
 	// Wait for completion
@@ -565,7 +565,7 @@ int ahci_atapi_eject(HBA_PORT *port)
 			return 0;
 		}
 		spin++;
-		if(spin>9000000){return 0;}
+		if(spin>500000){return 0;}
 	}
  
 	// Check again

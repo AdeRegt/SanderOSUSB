@@ -23,10 +23,12 @@ char* dir(char* path){
 	if(path[0]=='@'){
 		int t = 0; 
 		for(int i = 0 ; i < deviceint ; i++){
-			if(t!=0){
-				whoopsie[t++] = ';';
+			if(devices[i].dir!=0){
+				if(t!=0){
+					whoopsie[t++] = ';';
+				}
+				whoopsie[t++] = 'A'+i;
 			}
-			whoopsie[t++] = 'A'+i;
 		}
 		whoopsie[t++] = 0x00;
 	}else if(path[1]=='@'){

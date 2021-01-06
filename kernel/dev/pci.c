@@ -233,7 +233,7 @@ void init_pci(){
 							printstring(" Access controller");
 						}else if(sublca==0x02){
 							printstring(" SSA controller");
-						}else if(sublca==0x03){
+						}else if(sublca==0x03&&getGrubStatus().usb==0){
 							printstring(" USB controller, ");
 							if(subsub==0x00){
 								printstring("UHCI [USB 1]\n");

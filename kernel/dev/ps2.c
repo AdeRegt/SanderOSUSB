@@ -387,11 +387,13 @@ void init_ps2(){
 		printstring("<<PS2ECHO FAILED>>");
 		for(;;);
 	}
-	if(init_ps2_mouse()){
-		printstring("PS2: mouse enabled!\n");
-	}else{
-		printstring("PS2: mouse disabled!\n");
-		for(;;);
+	if(getGrubStatus().keyboard==0){
+		if(init_ps2_mouse()){
+			printstring("PS2: mouse enabled!\n");
+		}else{
+			printstring("PS2: mouse disabled!\n");
+			for(;;);
+		}
 	}
 	if(init_ps2_keyboard()){
 		printstring("PS2: keyboard enabled!\n");

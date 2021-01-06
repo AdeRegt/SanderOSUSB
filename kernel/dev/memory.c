@@ -7,8 +7,9 @@
 
 #define MEMORY_BLOCK_LIMIT 0x2000
 typedef struct {
-	unsigned long from;
-	unsigned long to;
+	void *from;
+	void *to;
+	unsigned char used;
 }MemoryBlock;
 
 MemoryBlock memreg[MEMORY_BLOCK_LIMIT];
@@ -18,6 +19,7 @@ int mempoint = 0;
 
 extern int curx;
 extern int cury;
+extern void *endKernelMemory;
 
 void memdump(unsigned long location){
 	unsigned char* buffer = (unsigned char*) location;
@@ -58,109 +60,108 @@ void memdump(unsigned long location){
 	}
 }
 
-unsigned char getMemoryBlockUsedCount(){
-	unsigned char count = 0;
-	for(int i = 0 ; i < MEMORY_BLOCK_LIMIT ; i++){
-		MemoryBlock *mb = (MemoryBlock*) (&memreg)+(sizeof(MemoryBlock)*i);
-		if(!(mb->from==0&&mb->to==0)){
-			count++;
-		}
-	}
-	return count;
+void memswapentries(int pointA,int pointB){
+	void *buffrom = memreg[pointA].from;
+	void *bufto = memreg[pointA].to;
+	unsigned char bufuse = memreg[pointA].used;
+	memreg[pointA].from = memreg[pointB].from;
+	memreg[pointA].to = memreg[pointB].to;
+	memreg[pointA].used = memreg[pointB].used;
+	memreg[pointB].from = buffrom;
+	memreg[pointB].to = bufto;
+	memreg[pointB].used = bufuse;
 }
 
-MemoryBlock *nextMemoryBlockAvailable(){
-	for(int i = 0 ; i < MEMORY_BLOCK_LIMIT ; i++){
-		MemoryBlock *mb = (MemoryBlock*) (&memreg)+(sizeof(MemoryBlock)*i);
-		if(mb->from==0&&mb->to==0){
-			return mb;
+/**
+ * Structures everything from high to low
+ */
+void memcleanup(){
+	int foundsomething = 1;
+	while(foundsomething){
+		foundsomething = 0;
+		for(int i1 = 1 ; i1 < MEMORY_BLOCK_LIMIT ; i1++){
+			int i0 = i1-1;
+			MemoryBlock blockA = memreg[i0];
+			MemoryBlock blockB = memreg[i1];
+			if(blockA.from<blockB.from){
+				memswapentries(i0,i1);
+				foundsomething = 1;
+			}
 		}
 	}
-	return 0;
 }
 
 void *malloc_align(unsigned long size,unsigned long tag){
-	MemoryBlock *memblck = nextMemoryBlockAvailable();
-	if(((unsigned long)memblck)==0){
-		printf("[PANIC] Out of memory (passed limit of %x ) !!!\n",MEMORY_BLOCK_LIMIT);
-		for(;;);
-	}
-
-	unsigned long teller = 0;
-	if(tag==0&&getMemoryBlockUsedCount()!=0){
-		unsigned long tw = 0;
-		for(int i = 0 ; i < MEMORY_BLOCK_LIMIT ; i++){
-			MemoryBlock bl = memreg[i];
-			if(bl.from==0&&bl.to==0){
-				continue;
+	// from high to low....
+	memcleanup();
+	// check for some space in already existing terretories...
+	int found_something = -1;
+	for(int i1 = 0 ; i1 < MEMORY_BLOCK_LIMIT ; i1++){
+		if(memreg[i1].used==0&&memreg[i1].from!=0&&memreg[i1].to!=0){
+			unsigned int sizeofblock = memreg[i1].to-memreg[i1].from;
+			if(sizeofblock==size&&(((unsigned long)memreg[i1].from)&tag)==0){
+				// perfect fit... yay!
+				found_something = i1;
 			}
-			if(tw!=0&&tw!=bl.from){
-				unsigned long df = 0;
-				if(tw<bl.from){
-					df = bl.from-tw;
-				}else{
-					df = tw-bl.from;
+		}
+	}
+	// do we have to assign a new block?
+	if(found_something==-1){
+		if(memreg[MEMORY_BLOCK_LIMIT-1].used==0&&memreg[MEMORY_BLOCK_LIMIT-1].from==0&&memreg[MEMORY_BLOCK_LIMIT-1].to==0){
+			// get highest address
+			int highestlocation = (int)memreg[0].to;
+			// if not pressent, take default address
+			if(highestlocation==0){
+				highestlocation = (int)&endKernelMemory;
+			}
+			// match alignment
+			while(1){
+				if((highestlocation&tag)==0){
+					break;
 				}
-				if(df>size){
-					teller = tw;
+				highestlocation++;
+			}
+			// find latest spot
+			for(int i1 = 0 ; i1 < MEMORY_BLOCK_LIMIT ; i1++){
+				if(memreg[i1].used==0&&memreg[i1].from==0&&memreg[i1].to==0){
+					memreg[i1].from = (void*)highestlocation;
+					memreg[i1].to = (void*)(highestlocation+size);
+					found_something = i1;
 					break;
 				}
 			}
-			tw = bl.to;
 		}
 	}
-	if(teller==0){
-		// alligning stuff make things more difficult. 
-		// so for now, we do the easy way
-		for(int i = 0 ; i < MEMORY_BLOCK_LIMIT ; i++){
-			MemoryBlock bl = memreg[i];
-			if(bl.from==0&&bl.to==0){
-				continue;
-			}
-			if(teller<bl.to){
-				teller = bl.to;
-			}
-		}
+	// if still nothing is found...
+	if(found_something==-1){
+		printf("[MEM] Out of memory\n");
+		for(;;);
 	}
-
-	if(teller==0){
-		teller = 0x30000;
+	// mark as used
+	memreg[found_something].used = 1;
+	// cleanup
+	for(unsigned int i = 0 ; i < size ; i++){
+		((unsigned char*)(memreg[found_something].from))[i] = 0;
 	}
-
-	while(1){
-		unsigned long Y = teller&tag;
-		if(Y==0){
-			break;
-		}
-		teller++;
-	}
-
-	memblck->from = teller;
-	memblck->to = teller + size;
-
-	for(unsigned long i = memblck->from ; i < memblck->to ; i++){
-		((unsigned char*)(memblck->from+i))[0] = 0;
-	}
-
-	//printf("[MEM] Allocated memory: FROM=%x TO=%x SIZE=%x\n",memblck->from,memblck->to,size);
-	return (void *)memblck->from;
+	// release
+	return memreg[found_something].from;
 }
 
 void free(void *loc){
 	for(int i = 0 ; i < MEMORY_BLOCK_LIMIT ; i++){
 		MemoryBlock *mb = (MemoryBlock*) (&memreg)+(sizeof(MemoryBlock)*i);
-		if(mb->from==(unsigned long)loc){
-			mb->from = 0;
-			mb->to = 0;
+		if(mb->from==loc){
+			mb->used = 0;
+			memset(mb->from,0,mb->to-mb->from);
 		}
 	}
+	memcleanup();
 }
 
 void *malloc(unsigned long size){
 	return malloc_align(size,0);
 }
 
- 
 void *memset(void *str, int c, int n){
 	for(int t = 0 ; t < n ; t++){
 		// why do we ask for an int and
@@ -193,3 +194,31 @@ int strlen(char *str){
 	return count;
 }
 
+ArrayListElement* createArrayList(void *initialitem){
+	ArrayListElement *element = (ArrayListElement*)malloc(sizeof(ArrayListElement));
+	element->locationToItem = initialitem;
+	return element; 
+}
+
+void appendElementToExistingArrayList(ArrayListElement* original,ArrayListElement* extraitem){
+	extraitem->previous = original;
+	original->next = extraitem;
+}
+
+ArrayListElement* appendToExistingArrayList(ArrayListElement* list,void *item){
+	ArrayListElement *newelement = createArrayList(item);
+	appendElementToExistingArrayList(list,newelement);
+	return newelement;
+}
+
+void foreach(ArrayListElement* list,unsigned long functionpointer){
+	ArrayListElement *next = list;
+	void* (*each)(void*) = (void*)functionpointer;
+	while(1){
+		each(next->locationToItem);
+		if(next->next==0){
+			break;
+		}
+		next = (ArrayListElement *)next->next;
+	}
+}
