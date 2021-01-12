@@ -410,6 +410,8 @@ TRB event_ring_queue[20] __attribute__ ((aligned (0x100)));
 TRB command_ring_control[20] __attribute__ ((aligned (0x100)));
 unsigned long command_ring_offset = 0;
 unsigned long event_ring_offset = 0;
+unsigned char uses_context_64 = 0;
+unsigned long btc[20] __attribute__ ((aligned (0x100)));
 
 int xhci_wait_for_ready(){
 
@@ -438,6 +440,26 @@ unsigned char getCycleBit(){
 	return deviceid!=XHCI_DEVICE_QEMU?0:1;
 }
 
+void xhci_dump_event_ring(){
+	int local_event_ring_offset = 0;
+	while(1){
+		TRB* trbres = ((TRB*)((unsigned long)(&event_ring_queue)+local_event_ring_offset));
+		unsigned long completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
+		unsigned long trbtype = (trbres->bar4 & 0b000000000000001111110000000000) >> 10;
+		if(completioncode==0){
+			break;
+		}
+		if(trbtype==0x22){
+			printf("[XHCI] Port change event\n");
+		}else if(trbtype==0x21){
+			printf("[XHCI] Command completion event\n");
+		}else{
+			printf("[XHCI] Unknown TRB_type=%x \n",trbtype);
+		}
+		local_event_ring_offset += 0x10;
+	}
+}
+
 int xhci_seek_end_event_queue(){
 	event_ring_offset = 0;
 	int eventcount = 0;
@@ -452,6 +474,60 @@ int xhci_seek_end_event_queue(){
 	}
 	printf("[XHCI] Event Ring Control: pointing at event %x \n",eventcount);
 	return eventcount;
+}
+
+TRB* xhci_get_last_event(){
+	int t_event_ring_offset = 0;
+	TRB* trbres2 = 0;
+	TRB* trbres3 = 0;
+	while(1){
+		trbres2 = ((TRB*)((unsigned long)(&event_ring_queue)+t_event_ring_offset));
+		unsigned long completioncode2 = (trbres2->bar3 & 0b111111100000000000000000000000) >> 24;
+		if(completioncode2==0){
+			break;
+		}
+		trbres3 = trbres2;
+		t_event_ring_offset += 0x10;
+	}
+	return trbres3;
+}
+
+int xhci_ring_and_wait(int number){
+	int stot = xhci_seek_end_event_queue();
+	((volatile unsigned long*)&interrupter_1)[0] = 0;
+	
+	// doorbell
+	((unsigned long*)doorbel)[number] = 0;
+	sleep(100);
+	
+	// wait
+	while(1){
+		volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
+		if(r&1){
+			break;
+		}
+		if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
+			break;
+		}
+	}
+	
+	sleep(100);
+	((volatile unsigned long*)&interrupter_1)[0] = 0;
+	stot = stot + 1;
+	while(1){
+		sleep(10);
+		if(xhci_seek_end_event_queue()==stot){
+			break;
+		}
+	}
+	
+	
+	// RESULTS
+	volatile TRB *trbres2 = xhci_get_last_event();
+	unsigned long completioncode2 = (trbres2->bar3 & 0b111111100000000000000000000000) >> 24;
+	
+	event_ring_offset += 0x10;
+	return completioncode2;
 }
 
 void xhci_stop_codon_to_trb(TRB *out){
@@ -540,7 +616,6 @@ void xhci_endpoint_context_to_addr(XHCI_ENDPOINT_CONTEXT *in, unsigned long *out
 
 int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char bsr){
 	// Address Device Command BSR1
-	xhci_seek_end_event_queue();
 	TRB* trb = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	XHCI_TRB_SET_ADDRESS set_address;
 	set_address.input_context = (unsigned long) t;
@@ -555,32 +630,8 @@ int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char 
 	// stop codon
 	TRB *trb6 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	xhci_stop_codon_to_trb(trb6);
-	((volatile unsigned long*)&interrupter_1)[0] = 0;
-	
-	// doorbell
-	((unsigned long*)doorbel)[0] = 0;
-	sleep(100);
-	
-	// wait
-	while(1){
-		volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
-		if(r&1){
-			break;
-		}
-		if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
-			break;
-		}
-	}
-	
-	sleep(100);
-	((volatile unsigned long*)&interrupter_1)[0] = 0;
-	
-	// RESULTS
-	TRB* trbres2 = ((TRB*)((unsigned long)(&event_ring_queue)+event_ring_offset));
-	unsigned long completioncode2 = (trbres2->bar3 & 0b111111100000000000000000000000) >> 24;
-	
-	event_ring_offset += 0x10;
-	return completioncode2;
+	command_ring_offset += 0x10;
+	return xhci_ring_and_wait(0);
 }
 
 unsigned int xhci_disable_slot(unsigned long assignedSloth){
@@ -622,24 +673,27 @@ unsigned int xhci_disable_slot(unsigned long assignedSloth){
 }
 
 int xhci_enable_slot(){
-	xhci_seek_end_event_queue();
+	unsigned char cs = 0;
+	int stot = xhci_seek_end_event_queue();
 	TRB* trb2 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
-	memset(trb2,0x00,sizeof(TRB));
-	XHCI_TRB_ENABLE_SLOT enable_slot;
-	memset(&enable_slot,0x00,sizeof(XHCI_TRB_ENABLE_SLOT));
-	enable_slot.cyclebit = getCycleBit();
-	enable_slot.trbtype = 9;
-	enable_slot.slottype = 0;
-	xhci_trb_enable_slot_to_trb(enable_slot,trb2);
+	trb2->bar1 = 0;
+	trb2->bar2 = 0;
+	trb2->bar3 = 0;
+	trb2->bar4 = (9<<10) | cs; // 9 for enable slot command
+	trb2->bar4 |= (1<<16); // slottype 1
 	
 	command_ring_offset += 0x10;
 	
 	TRB* trb = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
-	xhci_stop_codon_to_trb(trb);
+	trb->bar1 = 0;
+	trb->bar2 = 0;
+	trb->bar3 = 0;
+	trb->bar4 = (cs==1?0:1);
+	
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	xhci_wait_for_ready();
 	((unsigned long*)doorbel)[0] = 0;
-	sleep(100);
+	sleep(10);
 	
 	while(1){
 		volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
@@ -650,29 +704,30 @@ int xhci_enable_slot(){
 			break;
 		}
 	}
-	sleep(100);
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
-	sleep(100);
-	xhci_wait_for_ready();
-	
-	volatile TRB *trbres = ((TRB*)((volatile unsigned long)(&event_ring_queue)+event_ring_offset));
-	volatile unsigned char assignedSloth = (trbres->bar4 & 0b111111100000000000000000000000) >> 24;
-	volatile unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
-	if(completioncode!=1){
-		{
-			printf("[XHCI] 1=%x 2=%x 3=%x 4=%x \n",trbres->bar1,trbres->bar2,trbres->bar3,trbres->bar4);for(;;);
-			printf("[XHCI] Device slot assignation failed with %x \n",completioncode);
-			return -1;
+	sleep(10);
+	stot = stot + 1;
+	while(1){
+		sleep(10);
+		if(xhci_seek_end_event_queue()==stot){
+			break;
 		}
 	}
 	
+	volatile TRB *trbres = xhci_get_last_event();
+	volatile unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
+	volatile unsigned char assignedSloth = (trbres->bar4 & 0b111111100000000000000000000000) >> 24;
+	xhci_seek_end_event_queue();
 	event_ring_offset += 0x10;
+	if(completioncode!=1){
+		return -1;
+	}
 	return assignedSloth;
 }
 
 int xhci_noop(){
 	unsigned char cs = 0;
-	xhci_seek_end_event_queue();
+	int stot = xhci_seek_end_event_queue();
 	TRB* trb2 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	trb2->bar1 = 0;
 	trb2->bar2 = 0;
@@ -703,8 +758,15 @@ int xhci_noop(){
 	}
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	sleep(10);
+	stot = stot + 1;
+	while(1){
+		sleep(10);
+		if(xhci_seek_end_event_queue()==stot){
+			break;
+		}
+	}
 	
-	volatile TRB *trbres = ((TRB*)((volatile unsigned long)(&event_ring_queue)+event_ring_offset));
+	volatile TRB *trbres = xhci_get_last_event();
 	volatile unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
 	
 	event_ring_offset += 0x10;
@@ -781,344 +843,54 @@ unsigned char xhci_send_message(USB_DEVICE* device,TRB setup,TRB data,TRB end){
 	return completioncode;
 }
 
-// offset intell xhci 0x47C
-void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
-	printf("[XHCI] entering xhci driver....\n");
-	#ifdef DISABLE_USB
-	printf("[XHCI] XHCI disabled by programmer\n");
-	return;
-	#endif
-	unsigned long usbint = getBARaddress(bus,slot,function,0x3C) & 0x000000FF;
-	setNormalInt(usbint,(unsigned long)xhciirq);
-//	
-//	GETTING BASIC INFO
-	deviceid = (getBARaddress(bus,slot,function,0) & 0xFFFF0000) >> 16;
-	unsigned long ccr = (getBARaddress(bus,slot,function,0x08) & 0b11111111111111111111111100000000) >> 8;
-	unsigned long bar = getBARaddress(bus,slot,function,0x10);
-	unsigned long sbrn = (getBARaddress(bus,slot,function,0x60) & 0x0000FF);
-	
-	printf("[XHCI] START=%x \n",bar);
-	while(1){
-		if((bar&0xFF)>0x80){
-			bar++;
-		}else{
-			bar--;
-		}
-		if((bar&0xFF)==00){
-			break;
-		}
-	}
-	printf("[XHCI] HALT=%x SEGM=%x \n",bar,((unsigned char*)bar)[0]);
-	
-//
-// Calculating base address
-	basebar = bar+((unsigned char*)bar)[0];
-	if(deviceid==0x22B5){
-		printf("[XHCI] INTELL XHCI CONTROLLER\n");
-	}else if(deviceid==XHCI_DEVICE_QEMU){
-		printf("[XHCI] QEMU XHCI CONTROLLER\n");
-	}else if(deviceid==XHCI_DEVICE_BOCHS){
-		printf("[XHCI] BOCHS XHCI CONTROLLER\n");
-	}else if(deviceid==0x1E31){
-		printf("[XHCI] VIRTUALBOX XHCI CONTROLLER\n");
-	}else{
-		printf("[XHCI] UNKNOWN XHCI CONTROLLER %x \n",deviceid);
-	}
-	printf("[XHCI] Serial Bus Release Number Register %x \n",sbrn);
-	printf("[XHCI] Class Code Register %x \n",ccr);
-	if(!(ccr==0x0C0330&&(sbrn==0x30||sbrn==0x31))){
-		printf("[XHCI] Incompatible device!\n");
-		return;
-	}
-	unsigned long hciversionaddr = bar+2;
-	unsigned long hciversion = ((unsigned long*)hciversionaddr)[0];
-	printf("[XHCI] hciversion %x \n",hciversion);
-	unsigned long capdb = bar+0x14;
-	unsigned long hciparamadr = bar+0x04;
-	unsigned long hciparam1 = ((unsigned long*)hciparamadr)[0];
-	unsigned long hciparamadr2 = bar+0x08;
-	unsigned long hciparam2 = ((unsigned long*)hciparamadr2)[0];
-	unsigned long portcount = hciparam1>>24;
-	unsigned long hccparams1adr = bar+0x10;
-	unsigned long hccparams1 = ((unsigned long*)hccparams1adr)[0];
-	printf("[XHCI] hccparams1 %x \n",hccparams1);
-	printf("[XHCI] hccparams2 %x \n",hciparam2);
-	unsigned long maxscratchpad = (hciparam2 & 0xFBE00000)>>21;
-	printf("[XHCI] Scratchpad %x \n",maxscratchpad);
-	//unsigned char uses_bandwith_nego = 0;
-	unsigned char uses_context_64 = 0;
-	if(hccparams1&1){
-		printf("[XHCI] has 64-bit Addressing Capability\n");
-	}
-	if(hccparams1&2){
-		printf("[XHCI] has bandwith negociation Capability\n");
-		//uses_bandwith_nego = 1;
-	}
-	if(hccparams1&4){
-		printf("[XHCI] has 64bit context size datastructures Capability\n");
-		uses_context_64 = 1;
-	}
-	if(hccparams1&0xFFFF0000){
-		unsigned long extcappoint = bar+((hccparams1&0xFFFF0000)>>14);
-		printf("[XHCI] has xHCI Extended Capabilities Pointer ( %x : %x )\n",extcappoint,(hccparams1&0xFFFF0000)>>14);
-		int offsetx = 0;
-		for(int i = 0 ; i < 20 ; i++){
-			unsigned long tx = extcappoint+offsetx;
-			unsigned long fault = ((unsigned long*)tx)[0];
-			unsigned char capid = fault & 0x00FF;
-			unsigned char capof = (fault & 0xFF00)>>8;
-			if(capid==0){
-				break;
-			}
-			printf("[XHCI] capid=%x capof=%x \n",capid,capof);
-			if(capid==1){
-				printf("[XHCI] Legacy extended capability found!\n");
-				if(fault&0x1010000){
-					printf("[XHCI] Owner specified!\n");
-					if(fault&0x10000){
-						printf("[XHCI] Currently, BIOS owns XHCI controller\n");
-						printf("[XHCI] Grabbing the controlls\n");
-						((unsigned long*)tx)[0] |= 0x1000000;
-						tryagain:
-						fault = ((volatile unsigned long*)tx)[0];
-						if(fault&0x10000){
-							goto tryagain;
-						}
-					}
-					if(fault&0x1000000){
-						printf("[XHCI] Currently, We own the XHCI controller\n");
-					}
-				}else{
-					printf("[XHCI] No owner specified!\n");
-				}
-			}else if(capid==2){
-				printf("[XHCI] Supported Protocol\n");
-				unsigned long protname = ((unsigned long*)tx)[1];
-				unsigned char nA = (protname & 0xFF000000) >> 24;
-				unsigned char nB = (protname & 0x00FF0000) >> 16;
-				unsigned char nC = (protname & 0x0000FF00) >> 8;
-				unsigned char nD = (protname & 0x000000FF);
-				printf("[XHCI] Protocolname [%c%c%c%c] \n",nD,nC,nB,nA);
-				unsigned long protid = ((unsigned long*)tx)[3] & 0x0000000F;
-				printf("[XHCI] Porttype [%x] \n",protid);
-				if(protid!=0){
-					printf("[XHCI] XHCI protocol not supported!\n");
-				}
-				unsigned char nE = (fault & 0xFF000000) >> 24;
-				unsigned char nF = (fault & 0x00FF0000) >> 16;
-				printf("[XHCI] Portprotocol [%x] [%x] \n",nE,nF);
-				unsigned long portrange = ((unsigned long*)tx)[0];
-				unsigned char portrangeoffset = portrange & 0x00FF;
-				unsigned char portrangecount = (portrange & 0xFF00)>>8;
-				printf("[XHCI] Portrange offset=%x count=%x \n",portrangeoffset,portrangecount);
-			}
-			offsetx += (capof*sizeof(unsigned long));
-			if(capof==0){
-				break;
-			}
-		}
-	}
-	
-	while(1){
-		if((rtsoff&0xFF)>0x80){rtsoff++;}else{rtsoff--;}
-		if((rtsoff&0xFF)==00){
-			break;
-		}
-	}
-	unsigned long rtsoffa = bar+0x18;
-	rtsoff = bar+(((unsigned long*)rtsoffa)[0]&0xFFFFFFE0);
-	iman_addr = rtsoff + 0x020;
-	
-	printf("[XHCI] Runtime offset %x (BAR: %x)\n",rtsoff,bar);
-	printf("[XHCI] portcount %x \n",portcount);
-	doorbel = bar+((unsigned long*)capdb)[0];
-	printf("[XHCI] doorbell offset %x \n",doorbel);
-	
-	printf("[XHCI] basebar=%x \n",basebar);
-//
-// Calculating other addresses
-	usbcmd = basebar;
-	usbsts = basebar+0x04;
-	pagesize = basebar+0x08;
-	config = basebar+0x38;
-	bcbaap = basebar+0x30;
-	crcr   = basebar+0x18;
-	dnctrl = basebar+0x14;
-	
-	printf("[XHCI] default value CONFIG %x \n",((unsigned long*)config)[0]);
-	printf("[XHCI] default value BCBAAP %x \n",((unsigned long*)bcbaap)[0]);
-	printf("[XHCI] default value CRCR   %x \n",((unsigned long*)crcr)[0]);
-	
-	unsigned long xhci_usbcmd = ((unsigned long*)usbcmd)[0];
-	unsigned long xhci_usbsts = ((unsigned long*)usbsts)[0];
-	unsigned long xhci_pagesize = ((unsigned long*)pagesize)[0];
-	printf("[XHCI] pagesize %x \n",xhci_pagesize);
-//
-// Stopping controller when running
-	if((xhci_usbcmd & 1)==1){
-		printf("[XHCI] controller already running! (%x)\n",xhci_usbcmd);
-		// ask controller to stop
-		resetTicks();
-		((unsigned long*)usbcmd)[0] &= ~1;
-		while(getTicks()<5);
-		xhci_usbcmd = ((unsigned long*)usbcmd)[0];
-		xhci_usbsts = ((unsigned long*)usbsts)[0];
-		if((xhci_usbsts & 1)==1&&(xhci_usbcmd & 1)==0){
-			printf("[XHCI] stopping of hostcontroller succeed\n");
-		}else{
-			printf("[XHCI] failed to halt hostcontroller %x %x \n",xhci_usbcmd,xhci_usbsts);
-		}
-	}
-	
-//
-// Lets reset!
-	printf("[XHCI] Resetting XHCI \n");
-	resetTicks();
-	((unsigned long*)usbcmd)[0] |= 2;
-	while(getTicks()<5);
-	xhci_usbcmd = ((unsigned long*)usbcmd)[0];
-	xhci_usbsts = ((unsigned long*)usbsts)[0];
-	printf("[XHCI] Reset XHCI finished with USBCMD %x and USBSTS %x \n",xhci_usbcmd,xhci_usbsts);
-	
-	//
-	// setting config
-	((unsigned long*)config)[0] |= 10;
-//
-// Setup default parameters
-	// TELL XHCI TO REPORT EVERYTHING
-	((unsigned long*)dnctrl)[0] |= 0b1111111111111111;
-	
-	// setting up interrupter management register
-	
-	// setting up "Event Ring Segment Table"
-	printf("[XHCI] Setting up Event Ring Segment Table\n");
-	unsigned long rsb1[20]  __attribute__ ((aligned (0x100)));
-	unsigned long rsb2 = ((unsigned long)&rsb1)+4;
-	unsigned long rsb3 = ((unsigned long)&rsb1)+8;
-	
-	((unsigned long*)&rsb1)[0] = ((unsigned long)&event_ring_queue); 	// pointer to event ring queue 0x41400
-	((unsigned long*)rsb2)[0] = 0;
-	((unsigned long*)rsb3)[0] |= 16;	// size of ring segment (minimal length)
-	
-	// setting up "Event Ring Segment Table Size Register (ERSTSZ)"
-	printf("[XHCI] Setting up Event Ring Segment Size Register\n");
-	unsigned long erstsz_addr = rtsoff + 0x028;
-	((unsigned long*)erstsz_addr)[0] |= 1; // keep only 1 open
-	
-	// setting up "Event Ring Dequeue Pointer Register (ERDP)"
-	printf("[XHCI] Setting up Event Ring Dequeue Pointer Register\n");
-	unsigned long erdp_addr = rtsoff + 0x038;
-	((unsigned long*)erdp_addr)[0] = ((unsigned long)&event_ring_queue); // set addr of event ring dequeue pointer register
-	((unsigned long*)erdp_addr)[0] &= ~0b1000; // clear bit 3
-	((unsigned long*)erdp_addr)[1] = 0; // clear 64bit
-	
-	// setting up "Event Ring Segment Table Base Address Register (ERSTBA)"
-	printf("[XHCI] Setting up Event Ring Segment Table Bse Address Register\n");
-	unsigned long erstba_addr = rtsoff + 0x030;
-	((unsigned long*)erstba_addr)[0] = (unsigned long)&rsb1; 	// table at 0x1000 for now
-	((unsigned long*)erstba_addr)[1] = 0; 	// sending 0 to make sure...
-	
-	// setting up "Command Ring Control Register (CRCR)"
-	printf("[XHCI] Setting up Command Ring Control Register\n");
-	((unsigned long*)crcr)[0] |= ((unsigned long)&command_ring_control);
-	((unsigned long*)crcr)[1] = 0;
-	
-	// DCBAAP
-	printf("[XHCI] Setting up DCBAAP\n");
-	unsigned long btc[20] __attribute__ ((aligned (0x100)));
-	((unsigned long*)bcbaap)[0] |= (unsigned long)&btc;
-	((unsigned long*)bcbaap)[1] = 0;
-	
-	printf("[XHCI] Setting up scratchpad buffer \n");
-	unsigned long* bse = (unsigned long*)malloc_align(maxscratchpad*sizeof(unsigned long),0xFF);
-	for(unsigned int i = 0 ; i < 2 ; i++){
-		unsigned long spbl = (unsigned long)malloc_align(1 << ((__builtin_ffs(xhci_pagesize) - 1) + 12),0xFFF);
-		bse[i] = spbl;
-	}
-	btc[0] 	= (unsigned long)bse;
-	btc[1] 	= 0;
-	unsigned long iman_addr = rtsoff + 0x020;
-
-	// setting first interrupt enabled.
-	if(deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU){
-		printf("[XHCI] Setting up First Interrupter\n");
-		((unsigned long*)iman_addr)[0] |= 0b11; // Interrupt Enable (IE) – RW
-		sleep(50);
-		printf("[XHCI] Use interrupts\n");
-		((unsigned long*)usbcmd)[0] |= 4;
-		sleep(50);
-		// TELL XHCI TO USE INTERRUPTS
-	}
-	
-	if(xhci_seek_end_event_queue()!=0){
-		printf("[XHCI] PANIC: should be 0!\n");
-		return;
-	}
-//
-// Start system
-	printf("[XHCI] Run!\n");
-	((unsigned long*)usbcmd)[0] |= 1;
-	
-	xhci_usbcmd = ((unsigned long*)usbcmd)[0];
-	xhci_usbsts = ((unsigned long*)usbsts)[0];
-	printf("[XHCI] System up and running with USBCMD %x and USBSTS %x \n",xhci_usbcmd,xhci_usbsts);
-	
-	xhci_wait_for_ready();
-
-	printf("[XHCI] Checking if portchange happened\n");
-	if(xhci_usbsts & 0b10000){
-		printf("[XHCI] Portchange detected!\n");
-	}
-	
-	printf("[XHCI] Probing ports....\n");
-	//
-	// First, see which ports are available
-	// USB3.0 will say automatically he is there.
-	// USB2.0 should be activated manually
-	//
-	// After this we should initialise it by getting its port number from the ring
-	unsigned int att = 0;
-	for(unsigned int i = 0 ; i < 10 ; i++){//5
-		unsigned long map = basebar + 0x400 + (i*0x10);
+void xhci_probe_port(int i){
+	unsigned long map = basebar + 0x400 + (i*0x10);
 		unsigned long val = ((unsigned long*)map)[0];
 		if(val&3){ // USB 3.0 does everything themselves
-			printf("[XHCI] Port %x has a USB3.0 connection (%x)\n",i,val);
-			att++;
+			printf("[XHCI] Port %x : Port has a USB3.0 connection (%x)\n",i,val);
 		}else{ // USB 2.0 however doesnt...
 			((unsigned long*)map)[0] = 0b1000010000; // activate power and reset port
 			resetTicks();
 			while(getTicks()<5);
 			val = ((unsigned long*)map)[0];
 			if(val&3){
-				printf("[XHCI] Port %x has a USB2.0 connection (%x)\n",i,val);
-				att++;
+				printf("[XHCI] Port %x : Port has a USB2.0 connection (%x)\n",i,val);
 			}
 		}
 		
 		
 		if(val==0){
-			break;
+			return;
 		}
 		
 		if(val&3){
-			printf("[XHCI] Port %x is initialising....\n",i);
+			printf("[XHCI] Port %x : Port is initialising....\n",i);
 		
 			// detecting speed....
 			unsigned long speed = (val >> 10) & 0b000000000000000000000000000111;
 			unsigned long devicespeed = 0;// 8 64 512
 			if(speed==XHCI_SPEED_SUPER){
-				printf("[XHCI] Port %x : port is a superspeed port\n",i);
+				printf("[XHCI] Port %x : Port is a superspeed port\n",i);
 				devicespeed = 512;
 			}else if(speed==XHCI_SPEED_HI){
-				printf("[XHCI] Port %x : port is a highspeed port\n",i);
+				printf("[XHCI] Port %x : Port is a highspeed port\n",i);
 				devicespeed = 64;
 			}else if(speed==XHCI_SPEED_FULL){
-				printf("[XHCI] Port %x : port is a fullspeed port\n",i);
+				printf("[XHCI] Port %x : Port is a fullspeed port\n",i);
 				devicespeed = 64;
 			}else if(speed==XHCI_SPEED_LOW){
-				printf("[XHCI] Port %x : port is a lowspeed port\n",i);
+				printf("[XHCI] Port %x : Port is a lowspeed port\n",i);
 				devicespeed = 8;
 			}
+
+			if(val & 0x20000){
+				printf("[XHCI] Port %x : Status changed since last visit\n",i);
+			}
+
+			if(val & 0x40000000){
+				printf("[XHCI] Port %x : Device is removable\n",i);
+			}
+
 			
 			//
 			//
@@ -1132,6 +904,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				printf("[XHCI] Port %x : Assignation of device slot failed!\n",i);
 				goto disabledevice;
 			}
+			printf("[XHCI] Port %x : Device device slot: %x \n",i,assignedSloth);
 			
 			//
 			//
@@ -1142,7 +915,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			printf("[XHCI] Port %x : Device Slot Initialisation BSR1 \n",i);
 			
 			TRB *local_ring_control = (TRB*)malloc_align(sizeof(TRB)*20,0xFF);//[20] __attribute__ ((aligned (0x100)));
-			printf("[XHCI] Port %x : local ring at %x \n",i,local_ring_control);
+			printf("[XHCI] Port %x : Local ring at %x \n",i,local_ring_control);
 			unsigned char offsetA = uses_context_64==0?32:64;
 			unsigned char offsetB = uses_context_64==0?64:128;
 	
@@ -1229,7 +1002,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			for(int i = 0 ; i < 10 ; i++){
 				TRB *checkbit2 = ((TRB*)((unsigned long)(device->localring)+(i*0x10)));
 				if(checkbitset!=(checkbit2->bar4&1)){
-					printf("[XHCI] empty localring is not empty at all!\n");
+					printf("[XHCI] empty localring is not empty at all!\n");for(;;);
 					goto disabledevice;
 				}
 			}
@@ -1237,7 +1010,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 
 			//
 			// and test
-			if(1){
+			if(0){
 				printf("[XHCI] Port %x : NOOP ring control\n",device->portnumber);
 				((volatile unsigned long*)&interrupter_1)[0] = 0;
 				TRB *trbx = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
@@ -1246,9 +1019,9 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				trbx->bar3 = 0;
 				trbx->bar4 = (checkbitset==1?0:1) | (8<<10);
 				device->localringoffset += 0x10;
-				xhci_seek_end_event_queue();
+				int stot = xhci_seek_end_event_queue();
 			
-				((unsigned long*)doorbel)[assignedSloth] = 1;
+				((unsigned long*)doorbel)[assignedSloth] = 0;
 				sleep(100);
 				
 				while(1){
@@ -1263,10 +1036,18 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				sleep(100);
 				((volatile unsigned long*)&interrupter_1)[0] = 0;
 				sleep(100);
+				stot = stot + 1;
+				while(1){
+					sleep(10);
+					if(xhci_seek_end_event_queue()==stot){
+						break;
+					}
+				}
 				
-				TRB *trbres = ((TRB*)((volatile unsigned long)(&event_ring_queue)+event_ring_offset));
+				TRB *trbres = xhci_get_last_event();
 				//TRB *trbres = ((TRB*)((volatile unsigned long)(event_ring_queue)+event_ring_offset));
 				unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
+				printf("[XHCI] Port %x : NOOP completioncode is %x \n",device->portnumber,completioncode);
 				if(completioncode!=1){
 					printf("[XHCI] Port %x : NOOP completioncode is not 1 but %x \n",device->portnumber,completioncode);
 					goto disabledevice;
@@ -1306,7 +1087,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			dc1->bar2 |= (8 << 16); // wlength=0 // 0x80000
 			dc1->bar3 |= 8; // trbtransferlength
 			dc1->bar3 |= (0 << 22); // interrupetertrager
-			dc1->bar4 |= (checkbitset==1?0:1); // cyclebit =1
+			dc1->bar4 |= 1; // cyclebit =1
 			dc1->bar4 |= (00<<5); // ioc=0
 			dc1->bar4 |= (0<<6); // idt=1
 			dc1->bar4 |= (2<<10); // trbtype
@@ -1326,34 +1107,18 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			dc2->bar1 = (unsigned long)&devicedescriptor;
 			dc2->bar2 = 0b00000000000000000000000000000000;
 			dc2->bar3 = 0b00000000000000000000000000001000;
-			dc2->bar4 = (checkbitset==1?0:1) | 0b00000000000000010000110000000000; // 0b00000000000000010000110000000001
+			dc2->bar4 = 1 | 0b00000000000000010000110000000000; // 0b00000000000000010000110000000001
 			device->localringoffset+=0x10;
 			
 			volatile TRB *dc3 = ((volatile TRB*)((volatile unsigned long)(device->localring)+device->localringoffset));
 			dc3->bar1 = 0;
 			dc3->bar2 = 0;
 			dc3->bar3 = 0;
-			dc3->bar4 = (checkbitset==1?0:1) | (4<<10) | 0x20 | (1 << 16); // 1 | (4<<10) | 0x20 | (1 << 16);
+			dc3->bar4 = 1 | (4<<10) | 0x20 | (1 << 16); // 1 | (4<<10) | 0x20 | (1 << 16);
 			device->localringoffset+=0x10;
-			xhci_seek_end_event_queue();
-			
-			((volatile unsigned long*)doorbel)[assignedSloth] = 1;
-			sleep(100);
-			
-			while(1){
-				volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
-				if(r&1){
-					break;
-				}
-				if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
-					break;
-				}
-			}
-			sleep(100);
-			((volatile unsigned long*)&interrupter_1)[0] = 0;
-			
-			TRB *trbres = ((TRB*)((unsigned long)(&event_ring_queue)+event_ring_offset));
-			unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
+
+			unsigned char completioncode = xhci_ring_and_wait(assignedSloth);
+			printf("[XHCI] Port %x : complection code is %x \n",device->portnumber,completioncode);for(;;);
 			if(completioncode!=1){
 				printf("[XHCI] Port %x : completioncode is not 1 but %x\n",device->portnumber,completioncode);
 				goto disabledevice;
@@ -1525,15 +1290,328 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			
 			printf("[XHCI] Port %x : Finished installing port\n",i);
 			
-			continue;
+			return;
 			
 			disabledevice:
 			printf("[XHCI] Port %x : Disabling port\n",i);
 			xhci_disable_slot(assignedSloth);
+			for(;;);
 		}else{
 			printf("[XHCI] Port %x : No device attached!\n",i);
 		}
+}
+
+void xhci_probe_ports(){
+	printf("[XHCI] Probing ports....\n");
+	//
+	// First, see which ports are available
+	// USB3.0 will say automatically he is there.
+	// USB2.0 should be activated manually
+	//
+	// After this we should initialise it by getting its port number from the ring
+	for(unsigned int i = 0 ; i < 10 ; i++){
+		xhci_probe_port(i);
 	}
+}
+
+// offset intell xhci 0x47C
+void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
+	printf("[XHCI] entering xhci driver....\n");
+	#ifdef DISABLE_USB
+	printf("[XHCI] XHCI disabled by programmer\n");
+	return;
+	#endif
+	unsigned long usbint = getBARaddress(bus,slot,function,0x3C) & 0x000000FF;
+	setNormalInt(usbint,(unsigned long)xhciirq);
+
+	//	
+	//	GETTING BASIC INFO
+	deviceid = (getBARaddress(bus,slot,function,0) & 0xFFFF0000) >> 16;
+	unsigned long ccr = (getBARaddress(bus,slot,function,0x08) & 0b11111111111111111111111100000000) >> 8;
+	unsigned long bar = getBARaddress(bus,slot,function,0x10);
+	unsigned long sbrn = (getBARaddress(bus,slot,function,0x60) & 0x0000FF);
+	
+	printf("[XHCI] START=%x \n",bar);
+	while(1){
+		if((bar&0xFF)>0x80){
+			bar++;
+		}else{
+			bar--;
+		}
+		if((bar&0xFF)==00){
+			break;
+		}
+	}
+	printf("[XHCI] HALT=%x SEGM=%x \n",bar,((unsigned char*)bar)[0]);
+	
+//
+// Calculating base address
+	basebar = bar+((unsigned char*)bar)[0];
+	if(deviceid==0x22B5){
+		printf("[XHCI] INTELL XHCI CONTROLLER\n");
+	}else if(deviceid==XHCI_DEVICE_QEMU){
+		printf("[XHCI] QEMU XHCI CONTROLLER\n");
+	}else if(deviceid==XHCI_DEVICE_BOCHS){
+		printf("[XHCI] BOCHS XHCI CONTROLLER\n");
+	}else if(deviceid==0x1E31){
+		printf("[XHCI] VIRTUALBOX XHCI CONTROLLER\n");
+	}else{
+		printf("[XHCI] UNKNOWN XHCI CONTROLLER %x \n",deviceid);
+	}
+	printf("[XHCI] Serial Bus Release Number Register %x \n",sbrn);
+	printf("[XHCI] Class Code Register %x \n",ccr);
+	if(!(ccr==0x0C0330&&(sbrn==0x30||sbrn==0x31))){
+		printf("[XHCI] Incompatible device!\n");getch();
+		return;
+	}
+	unsigned long hciversionaddr = bar+2;
+	unsigned long hciversion = ((unsigned long*)hciversionaddr)[0];
+	printf("[XHCI] hciversion %x \n",hciversion);
+	unsigned long capdb = bar+0x14;
+	unsigned long hciparamadr = bar+0x04;
+	unsigned long hciparam1 = ((unsigned long*)hciparamadr)[0];
+	unsigned long hciparamadr2 = bar+0x08;
+	unsigned long hciparam2 = ((unsigned long*)hciparamadr2)[0];
+	unsigned long portcount = hciparam1>>24;
+	unsigned long hccparams1adr = bar+0x10;
+	unsigned long hccparams1 = ((unsigned long*)hccparams1adr)[0];
+	printf("[XHCI] hccparams1 %x \n",hccparams1);
+	printf("[XHCI] hccparams2 %x \n",hciparam2);
+	unsigned long maxscratchpad = (hciparam2 & 0xFBE00000)>>21;
+	printf("[XHCI] Scratchpad %x \n",maxscratchpad);
+	//unsigned char uses_bandwith_nego = 0;
+	if(hccparams1&1){
+		printf("[XHCI] has 64-bit Addressing Capability\n");
+	}
+	if(hccparams1&2){
+		printf("[XHCI] has bandwith negociation Capability\n");
+		//uses_bandwith_nego = 1;
+	}
+	if(hccparams1&4){
+		printf("[XHCI] has 64bit context size datastructures Capability\n");
+		uses_context_64 = 1;
+	}
+	if(hccparams1&0xFFFF0000){
+		unsigned long extcappoint = bar+((hccparams1&0xFFFF0000)>>14);
+		printf("[XHCI] has xHCI Extended Capabilities Pointer ( %x : %x )\n",extcappoint,(hccparams1&0xFFFF0000)>>14);
+		int offsetx = 0;
+		for(int i = 0 ; i < 20 ; i++){
+			unsigned long tx = extcappoint+offsetx;
+			unsigned long fault = ((unsigned long*)tx)[0];
+			unsigned char capid = fault & 0x00FF;
+			unsigned char capof = (fault & 0xFF00)>>8;
+			if(capid==0){
+				break;
+			}
+			printf("[XHCI] capid=%x capof=%x \n",capid,capof);
+			if(capid==1){
+				printf("[XHCI] Legacy extended capability found!\n");
+				if(fault&0x1010000){
+					printf("[XHCI] Owner specified!\n");
+					if(fault&0x10000){
+						printf("[XHCI] Currently, BIOS owns XHCI controller\n");
+						printf("[XHCI] Grabbing the controlls\n");
+						((unsigned long*)tx)[0] |= 0x1000000;
+						tryagain:
+						fault = ((volatile unsigned long*)tx)[0];
+						if(fault&0x10000){
+							goto tryagain;
+						}
+					}
+					if(fault&0x1000000){
+						printf("[XHCI] Currently, We own the XHCI controller\n");
+					}
+				}else{
+					printf("[XHCI] No owner specified!\n");
+				}
+			}else if(capid==2){
+				printf("[XHCI] Supported Protocol\n");
+				unsigned long protname = ((unsigned long*)tx)[1];
+				unsigned char nA = (protname & 0xFF000000) >> 24;
+				unsigned char nB = (protname & 0x00FF0000) >> 16;
+				unsigned char nC = (protname & 0x0000FF00) >> 8;
+				unsigned char nD = (protname & 0x000000FF);
+				printf("[XHCI] Protocolname [%c%c%c%c] \n",nD,nC,nB,nA);
+				unsigned long protid = ((unsigned long*)tx)[3] & 0x0000000F;
+				printf("[XHCI] Porttype [%x] \n",protid);
+				if(protid!=0){
+					printf("[XHCI] XHCI protocol not supported!\n");
+				}
+				unsigned char nE = (fault & 0xFF000000) >> 24;
+				unsigned char nF = (fault & 0x00FF0000) >> 16;
+				printf("[XHCI] Portprotocol [%x] [%x] \n",nE,nF);
+				unsigned long portrange = ((unsigned long*)tx)[0];
+				unsigned char portrangeoffset = portrange & 0x00FF;
+				unsigned char portrangecount = (portrange & 0xFF00)>>8;
+				printf("[XHCI] Portrange offset=%x count=%x \n",portrangeoffset,portrangecount);
+			}
+			offsetx += (capof*sizeof(unsigned long));
+			if(capof==0){
+				break;
+			}
+		}
+	}
+	
+	while(1){
+		if((rtsoff&0xFF)>0x80){rtsoff++;}else{rtsoff--;}
+		if((rtsoff&0xFF)==00){
+			break;
+		}
+	}
+	unsigned long rtsoffa = bar+0x18;
+	rtsoff = bar+(((unsigned long*)rtsoffa)[0]&0xFFFFFFE0);
+	iman_addr = rtsoff + 0x020;
+	
+	printf("[XHCI] Runtime offset %x (BAR: %x)\n",rtsoff,bar);
+	printf("[XHCI] portcount %x \n",portcount);
+	doorbel = bar+((unsigned long*)capdb)[0];
+	printf("[XHCI] doorbell offset %x \n",doorbel);
+	
+	printf("[XHCI] basebar=%x \n",basebar);
+
+	//
+	// Calculating other addresses
+	usbcmd = basebar;
+	usbsts = basebar+0x04;
+	pagesize = basebar+0x08;
+	config = basebar+0x38;
+	bcbaap = basebar+0x30;
+	crcr   = basebar+0x18;
+	dnctrl = basebar+0x14;
+	
+	printf("[XHCI] default value CONFIG %x \n",((unsigned long*)config)[0]);
+	printf("[XHCI] default value BCBAAP %x \n",((unsigned long*)bcbaap)[0]);
+	printf("[XHCI] default value CRCR   %x \n",((unsigned long*)crcr)[0]);
+	
+	unsigned long xhci_usbcmd = ((unsigned long*)usbcmd)[0];
+	unsigned long xhci_usbsts = ((unsigned long*)usbsts)[0];
+	unsigned long xhci_pagesize = ((unsigned long*)pagesize)[0];
+	printf("[XHCI] pagesize %x defcmd %x defsts %x \n",xhci_pagesize,xhci_usbcmd,xhci_usbsts);
+//
+// Stopping controller when running
+	if((xhci_usbcmd & 1)==1){
+		printf("[XHCI] controller already running! (%x)\n",xhci_usbcmd);
+		// ask controller to stop
+		resetTicks();
+		((unsigned long*)usbcmd)[0] &= ~1;
+		while(getTicks()<5);
+		xhci_usbcmd = ((unsigned long*)usbcmd)[0];
+		xhci_usbsts = ((unsigned long*)usbsts)[0];
+		if((xhci_usbsts & 1)==1&&(xhci_usbcmd & 1)==0){
+			printf("[XHCI] stopping of hostcontroller succeed\n");
+		}else{
+			printf("[XHCI] failed to halt hostcontroller %x %x \n",xhci_usbcmd,xhci_usbsts);
+		}
+	}
+	
+	//
+	// Lets reset!
+	printf("[XHCI] Resetting XHCI \n");
+	resetTicks();
+	((unsigned long*)usbcmd)[0] |= 2;
+	xhci_wait_for_ready();//while(getTicks()<5);
+	xhci_usbcmd = ((unsigned long*)usbcmd)[0];
+	xhci_usbsts = ((unsigned long*)usbsts)[0];
+	printf("[XHCI] Reset XHCI finished with USBCMD %x and USBSTS %x \n",xhci_usbcmd,xhci_usbsts);
+	
+	//
+	// setting config
+	((unsigned long*)config)[0] |= 2; // device slots to be used
+//
+// Setup default parameters
+	// TELL XHCI TO REPORT EVERYTHING
+	((unsigned long*)dnctrl)[0] |= 0b1111111111111111;
+	
+	// setting up interrupter management register
+	
+	// setting up "Event Ring Segment Table"
+	printf("[XHCI] Setting up Event Ring Segment Table\n");
+	unsigned long rsb1[20]  __attribute__ ((aligned (0x100)));
+	unsigned long rsb2 = ((unsigned long)&rsb1)+4;
+	unsigned long rsb3 = ((unsigned long)&rsb1)+8;
+	
+	((unsigned long*)&rsb1)[0] = ((unsigned long)&event_ring_queue); 	// pointer to event ring queue 0x41400
+	((unsigned long*)rsb2)[0] = 0;
+	((unsigned long*)rsb3)[0] |= 16;	// size of ring segment (minimal length)
+	
+	// setting up "Event Ring Segment Table Size Register (ERSTSZ)"
+	printf("[XHCI] Setting up Event Ring Segment Size Register\n");
+	unsigned long erstsz_addr = rtsoff + 0x028;
+	((unsigned long*)erstsz_addr)[0] |= 1; // keep only 1 open
+	
+	// setting up "Event Ring Dequeue Pointer Register (ERDP)"
+	printf("[XHCI] Setting up Event Ring Dequeue Pointer Register\n");
+	unsigned long erdp_addr = rtsoff + 0x038;
+	((unsigned long*)erdp_addr)[0] = ((unsigned long)&event_ring_queue); // set addr of event ring dequeue pointer register
+	((unsigned long*)erdp_addr)[0] &= ~0b1000; // clear bit 3
+	((unsigned long*)erdp_addr)[1] = 0; // clear 64bit
+	
+	// setting up "Event Ring Segment Table Base Address Register (ERSTBA)"
+	printf("[XHCI] Setting up Event Ring Segment Table Base Address Register\n");
+	unsigned long erstba_addr = rtsoff + 0x030;
+	((unsigned long*)erstba_addr)[0] = (unsigned long)&rsb1; 	// table at 0x1000 for now
+	((unsigned long*)erstba_addr)[1] = 0; 	// sending 0 to make sure...
+	
+	// setting up "Command Ring Control Register (CRCR)"
+	printf("[XHCI] Setting up Command Ring Control Register\n");
+	((unsigned long*)crcr)[0] |= ((unsigned long)&command_ring_control);
+	((unsigned long*)crcr)[1] = 0;
+	
+	// DCBAAP
+	printf("[XHCI] Setting up DCBAAP\n");
+	((unsigned long*)bcbaap)[0] |= (unsigned long)&btc;
+	((unsigned long*)bcbaap)[1] = 0;
+	
+	printf("[XHCI] Setting up scratchpad buffer \n");
+	unsigned long* bse = (unsigned long*)malloc_align(maxscratchpad*sizeof(unsigned long),0xFF);
+	for(unsigned int i = 0 ; i < 2 ; i++){
+		unsigned long spbl = (unsigned long)malloc_align(1 << ((__builtin_ffs(xhci_pagesize) - 1) + 12),0xFFF);
+		bse[i] = spbl;
+	}
+	btc[0] 	= (unsigned long)bse;
+	btc[1] 	= 0;
+	unsigned long iman_addr = rtsoff + 0x020;
+
+	// setting first interrupt enabled.
+	if(deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU){
+		printf("[XHCI] Setting up First Interrupter\n");
+		((unsigned long*)iman_addr)[0] |= 0b11; // Interrupt Enable (IE) – RW
+		sleep(50);
+		printf("[XHCI] Use interrupts\n");
+		((unsigned long*)usbcmd)[0] |= 4;
+		sleep(50);
+		// TELL XHCI TO USE INTERRUPTS
+	}
+	
+	if(xhci_seek_end_event_queue()!=0){
+		printf("[XHCI] PANIC: should be 0!\n");
+		return;
+	}
+	//
+	// Start system
+	printf("[XHCI] Run!\n");
+	((unsigned long*)usbcmd)[0] |= 1;
+	
+	xhci_usbcmd = ((unsigned long*)usbcmd)[0];
+	xhci_usbsts = ((unsigned long*)usbsts)[0];
+	printf("[XHCI] System up and running with USBCMD %x and USBSTS %x \n",xhci_usbcmd,xhci_usbsts);
+	
+	xhci_wait_for_ready();
+
+	int nope = xhci_noop();
+	printf("[XHCI] nope status is %x \n",nope);
+	if(nope==0){
+		printf("[XHCI] something goes wrong with the event queue!\n");
+		return;
+	}
+	xhci_dump_event_ring();
+
+	printf("[XHCI] Checking if portchange happened\n");
+	if(xhci_usbsts & 0b10000){
+		printf("[XHCI] Portchange detected!\n");
+	}
+	
+	xhci_probe_ports();
 	
 	if(((unsigned long*)crcr)[0]==0x8){
 		printf("[XHCI] circulair command ring is running\n");

@@ -115,13 +115,13 @@ unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsign
 
 unsigned char* usb_stick_get_inquiry(USB_DEVICE *device){
 	unsigned char bufoutsize = 31;
-	unsigned char bufinsize = 96;//36;//sizeof(struct cdbres_inquiry);
+	unsigned char bufinsize = 96;//96 36;//sizeof(struct cdbres_inquiry);
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	// 55 53 42 43 e7 3 0 0 24 0 0 0 80 0 c 12 0 0 0 24 0 0 0 0 0 0 0 0 0 0 0
 	bufout->lun = 0;
 	bufout->tag = 1;
 	bufout->sig = 0x43425355;
-	bufout->wcb_len = 10;//6; // 0xA -> 12
+	bufout->wcb_len = 0xA;//6; // 0xA -> 12
 	bufout->flags = 0x80;
 	bufout->xfer_len = bufinsize; // 0x8 -> 36
 	bufout->cmd[0] = 0x12;// type is 0x12
@@ -265,6 +265,7 @@ void usb_stick_init(USB_DEVICE *device){
 			inc->product[0],inc->product[1],inc->product[2],inc->product[3],inc->product[4],inc->product[5],inc->product[6],inc->product[7],inc->product[8],inc->product[9],inc->product[10],inc->product[11],inc->product[12],inc->product[13],inc->product[14],inc->product[15],
 			inc->rev[0],inc->rev[1],inc->rev[2]
 		);
+		printf("[SMSD] Inquiry succesfull\n");
 	}
 
 	// request sense
@@ -274,6 +275,7 @@ void usb_stick_init(USB_DEVICE *device){
 			printf("[SMSD] An error occured while getting sense info \n");for(;;);
 			return;
 		}
+		printf("[SMSD] Sense succesfull\n");
 	}
 
 	// get capacity

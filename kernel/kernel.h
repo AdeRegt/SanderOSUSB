@@ -460,3 +460,7 @@ typedef struct {
 	void *previous;
 	void *locationToItem;
 }ArrayListElement;
+
+#define PATH_MAX 100
+char *getcwd();
+void setcwd(char *t);

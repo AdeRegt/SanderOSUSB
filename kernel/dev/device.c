@@ -4,6 +4,18 @@
 
 Device devices['Z'-'A'];
 int deviceint = 0;
+char *cwd;
+char *getcwd(){
+	if(cwd==NULL){
+		cwd = malloc(PATH_MAX);
+		cwd[0] = '@';
+	}
+	return cwd;
+}
+
+void setcwd(char *t){
+	cwd = t;
+}
 
 int getDeviceCount(){
 	return deviceint;
@@ -15,7 +27,7 @@ Device *getNextFreeDevice(){
 	return (Device *)&devices[now];
 }
 
-char whoopsie[100];
+char whoopsie[PATH_MAX];
 char* dir(char* path){
 	for(int i = 0 ; i < 100 ; i++){
 		whoopsie[i] = 0x00;

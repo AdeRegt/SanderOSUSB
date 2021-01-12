@@ -87,6 +87,9 @@ void memcleanup(){
 				memswapentries(i0,i1);
 				foundsomething = 1;
 			}
+			if(blockA.from==0&&blockB.from==0){
+				break;
+			}
 		}
 	}
 }
