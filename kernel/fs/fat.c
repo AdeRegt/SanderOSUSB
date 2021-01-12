@@ -342,6 +342,9 @@ void initialiseFAT(Device* device){
 		if(eersteteken==0xE5){
 			continue;
 		}
+		if(offset>512){
+			break;
+		}
 		printf("[FAT] found file: ");
 		for(unsigned int i = 0 ; i < 11 ; i++){
 			printf("%c",currentdir->name[i]);
