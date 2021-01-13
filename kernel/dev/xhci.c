@@ -1002,7 +1002,7 @@ void xhci_probe_port(int i){
 			for(int i = 0 ; i < 10 ; i++){
 				TRB *checkbit2 = ((TRB*)((unsigned long)(device->localring)+(i*0x10)));
 				if(checkbitset!=(checkbit2->bar4&1)){
-					printf("[XHCI] empty localring is not empty at all!\n");for(;;);
+					printf("[XHCI] empty localring is not empty at all!\n");
 					goto disabledevice;
 				}
 			}
@@ -1010,43 +1010,16 @@ void xhci_probe_port(int i){
 
 			//
 			// and test
-			if(0){
+			if(1){
 				printf("[XHCI] Port %x : NOOP ring control\n",device->portnumber);
 				((volatile unsigned long*)&interrupter_1)[0] = 0;
 				TRB *trbx = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 				trbx->bar1 = 0;
 				trbx->bar2 = 0;
 				trbx->bar3 = 0;
-				trbx->bar4 = (checkbitset==1?0:1) | (8<<10);
+				trbx->bar4 = 1 | (8<<10);
 				device->localringoffset += 0x10;
-				int stot = xhci_seek_end_event_queue();
-			
-				((unsigned long*)doorbel)[assignedSloth] = 0;
-				sleep(100);
-				
-				while(1){
-					volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
-					if(r&1){
-						break;
-					}
-					if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
-						break;
-					}
-				}
-				sleep(100);
-				((volatile unsigned long*)&interrupter_1)[0] = 0;
-				sleep(100);
-				stot = stot + 1;
-				while(1){
-					sleep(10);
-					if(xhci_seek_end_event_queue()==stot){
-						break;
-					}
-				}
-				
-				TRB *trbres = xhci_get_last_event();
-				//TRB *trbres = ((TRB*)((volatile unsigned long)(event_ring_queue)+event_ring_offset));
-				unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
+				unsigned char completioncode = xhci_ring_and_wait(assignedSloth);
 				printf("[XHCI] Port %x : NOOP completioncode is %x \n",device->portnumber,completioncode);
 				if(completioncode!=1){
 					printf("[XHCI] Port %x : NOOP completioncode is not 1 but %x \n",device->portnumber,completioncode);
@@ -1118,7 +1091,7 @@ void xhci_probe_port(int i){
 			device->localringoffset+=0x10;
 
 			unsigned char completioncode = xhci_ring_and_wait(assignedSloth);
-			printf("[XHCI] Port %x : complection code is %x \n",device->portnumber,completioncode);for(;;);
+			printf("[XHCI] Port %x : complection code is %x \n",device->portnumber,completioncode);
 			if(completioncode!=1){
 				printf("[XHCI] Port %x : completioncode is not 1 but %x\n",device->portnumber,completioncode);
 				goto disabledevice;
@@ -1295,7 +1268,6 @@ void xhci_probe_port(int i){
 			disabledevice:
 			printf("[XHCI] Port %x : Disabling port\n",i);
 			xhci_disable_slot(assignedSloth);
-			for(;;);
 		}else{
 			printf("[XHCI] Port %x : No device attached!\n",i);
 		}
