@@ -1354,6 +1354,9 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	//unsigned char uses_bandwith_nego = 0;
 	if(hccparams1&1){
 		printf("[XHCI] has 64-bit Addressing Capability\n");
+	}else{
+		printf("[XHCI] does not have 64bit addressing\n");
+		return;
 	}
 	if(hccparams1&2){
 		printf("[XHCI] has bandwith negociation Capability\n");
