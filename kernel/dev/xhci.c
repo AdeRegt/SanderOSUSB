@@ -1333,7 +1333,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	printf("[XHCI] Serial Bus Release Number Register %x \n",sbrn);
 	printf("[XHCI] Class Code Register %x \n",ccr);
 	if(!(ccr==0x0C0330&&(sbrn==0x30||sbrn==0x31))){
-		printf("[XHCI] Incompatible device!\n");getch();
+		printf("[XHCI] Incompatible device!\n");
 		return;
 	}
 	unsigned long hciversionaddr = bar+2;
@@ -1362,6 +1362,9 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	if(hccparams1&4){
 		printf("[XHCI] has 64bit context size datastructures Capability\n");
 		uses_context_64 = 1;
+	}else{
+		printf("[XHCI] does not have 64bit context size datastructure\n");
+		return;
 	}
 	if(hccparams1&0xFFFF0000){
 		unsigned long extcappoint = bar+((hccparams1&0xFFFF0000)>>14);
@@ -1535,10 +1538,10 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	((unsigned long*)bcbaap)[1] = 0;
 	
 	printf("[XHCI] Setting up scratchpad buffer \n");
-	unsigned long* bse = (unsigned long*)malloc_align(maxscratchpad*sizeof(unsigned long),0xFF);
+	unsigned long* bse = (unsigned long*)malloc_align(maxscratchpad*sizeof(unsigned long),0x1FFFFF);
+	unsigned long scratchaddr = (unsigned long)malloc_align(1 << ((__builtin_ffs(xhci_pagesize) - 1) + 12),0x1FFFFF);
 	for(unsigned int i = 0 ; i < 2 ; i++){
-		unsigned long spbl = (unsigned long)malloc_align(1 << ((__builtin_ffs(xhci_pagesize) - 1) + 12),0xFFF);
-		bse[i] = spbl;
+		bse[i] = scratchaddr;
 	}
 	btc[0] 	= (unsigned long)bse;
 	btc[1] 	= 0;
