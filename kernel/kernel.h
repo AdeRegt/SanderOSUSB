@@ -1,4 +1,6 @@
+#ifndef _EFILIB_INCLUDE_
 #include "stdarg.h"
+#endif
 #define ATAPI_SECTOR_SIZE 2048
 
 
