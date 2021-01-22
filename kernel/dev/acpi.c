@@ -55,6 +55,10 @@ int acpiCheckHeader(unsigned int *ptr, char *sig){
 }
 
 unsigned int acpiCheckRSDPtr(unsigned int *ptr){
+	#ifdef __x86_64__
+	printf("[ACPI] Ignoring function with pointer %x \n",ptr);
+	return 0;
+	#else
 	char *sig = "RSD PTR ";
 	struct RSDPtr *rsdp = (struct RSDPtr *) ptr;
 	char *bptr;
@@ -74,9 +78,13 @@ unsigned int acpiCheckRSDPtr(unsigned int *ptr){
       		}
 	}
 	return 0;
+	#endif
 }
 
 void init_acpi(){
+	#ifdef __x86_64__
+	return;
+	#else
 	unsigned int *addr;
 	unsigned int *rsdp;
 	for (addr = (unsigned int *) 0x000E0000; (int) addr<0x00100000; addr += 0x10/sizeof(addr)){
@@ -163,9 +171,13 @@ void init_acpi(){
       		printf("ACPI: no valid FACP present.\n");
 	}
 	for(;;);
+	#endif
 }
 
 int acpiEnable(void){
+	#ifdef __x86_64__
+	return 0;
+	#else
 	// check if acpi is enabled
 	if ( (inportw((unsigned int) PM1a_CNT) &SCI_EN) == 0 ){
 		// check if acpi can be enabled
@@ -199,6 +211,7 @@ int acpiEnable(void){
       		printf("ACPI: acpi was already enabled.\n");
       		return 0;
    	}
+	#endif
 }
 
 
@@ -206,9 +219,9 @@ void poweroff(){
 	if (SCI_EN == 0)
       		return;
 	if(acpiEnable()==0){
-		outportw((unsigned int) PM1a_CNT, SLP_TYPa | SLP_EN );
+		outportw((pointer) PM1a_CNT, SLP_TYPa | SLP_EN );
 		if ( PM1b_CNT != 0 )
-      			outportw((unsigned int) PM1b_CNT, SLP_TYPb | SLP_EN );
+      			outportw((pointer) PM1b_CNT, SLP_TYPb | SLP_EN );
       		printf("ACPI: Panic! unable to turn off");
       		for(;;);
 	}else{

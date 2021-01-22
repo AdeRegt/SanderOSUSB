@@ -39,6 +39,24 @@ typedef struct{
 }GRUBStatus;
 
 GRUBStatus getGrubStatus();
+void setVideoMode(int a);
+#ifdef __x86_64__
+void uefi_print(char e);
+#endif 
+
+/* Types for `void *' pointers.  */
+typedef __INTPTR_TYPE__ pointer;
+#ifndef _GCC_STDINT_H
+typedef unsigned char uint8_t;
+typedef unsigned short int uint16_t;
+typedef unsigned int uint32_t;
+#if __WORDSIZE == 64
+typedef unsigned long int uint64_t;
+#else
+__extension__ typedef unsigned long long int uint64_t;
+#endif
+#endif
+
 
 /**
  * printf own implementation
@@ -77,12 +95,12 @@ void outportw(unsigned short _port, unsigned short _data);
 /**
  * reads 8 bytes data to the specified output port
  **/
-unsigned long inportl(unsigned short _port);
+uint32_t inportl(unsigned short _port);
 
 /**
  * write 8 bytes data to the specified output port
  **/
-void outportl(unsigned short _port, unsigned long _data);
+void outportl(unsigned short _port, uint32_t _data);
 
 /**
  * Entry point of the kernel

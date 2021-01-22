@@ -61,9 +61,10 @@ GRUBStatus getGrubStatus(){
 }
 
 void kernel_main(GRUBMultiboot *grub, unsigned long magic){
+	printf("Kernel arived at place\n");
 	init_video();
-	printstring("Welcome to the Sanderslando Kernel!!\n");
-	printstring("Loading core components...\n");
+	printf("Welcome to the Sanderslando Kernel!!\n");
+	printf("Loading core components...\n");
 	if(magic==0x2BADB002){
 		printf("[GRUB] Multiboot compliant bootloader!\n");
 		unsigned char* cmdline = (unsigned char*) grub->cmdline;
@@ -103,6 +104,9 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 				goto again;
 			}
 	}
+	#ifdef __x86_64__
+	printf("Skipping not needed elements\n");
+	#else
 	printstring("=> Global Description Table...\n");
 	init_gdt();
 	printstring("=> Interrupt Description Table...\n");
@@ -116,14 +120,17 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 	init_multitasking();
 	printstring("=> PS2...\n");
 	init_ps2();
+	#endif
 	printstring("=> PCI...\n");
 	init_pci();
 	printstring("=> Serial ports...\n");
 	init_serial();
 	printstring("=> APCI...\n");
 	init_acpi();
+	#ifndef __x86_64__
 	printstring("=> Soundblaster...\n");
 	init_soundblaster16();
+	#endif
 	printf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
 	printf("The system is compiled at %s %s \n",__DATE__,__TIME__);

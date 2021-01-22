@@ -552,6 +552,10 @@ int isGraphicsMode(){
 	return isgraphics;
 }
 
+void setVideoMode(int a){
+	isgraphics = a;
+}
+
 void init_video(){
 	// set cursor shape
 	outportb(0x3D4, 0x0A);
@@ -562,8 +566,10 @@ void init_video(){
 	vidpnt = 0;
 	curx = 0;
 	cury = 0;
-	isgraphics = 0;
+	#ifndef __x86_64__
+	setVideoMode(0);
 	video_load_font();
+	#endif
 }
 
 void printstring(char* message){
@@ -1409,7 +1415,9 @@ void setForeGroundBackGround(unsigned char fg,unsigned char bg){
 }
 
 void putc(char a){
-	if(isgraphics==1){
+	if(isgraphics==2){
+		uefi_print(a);
+	}else if(isgraphics==1){
 		if(cury>27){
 			curx = 0;
 		}else if(curx==40||a=='\n'){

@@ -85,6 +85,10 @@ void elf_error_message(){
 }
 
 int elf_get_symval(ELFHEADER* header, int table,unsigned int info){
+#ifdef __x86_64__
+	printf("Not supported with 64bits! %x %x %x \n",header,table,info);
+	return 0;
+#else
 	if(table==0||info==0){
 		printf("ELF: get_symfal is 0 \n");
 		return 0;
@@ -109,12 +113,19 @@ int elf_get_symval(ELFHEADER* header, int table,unsigned int info){
 		ELFSECTION target = ((ELFSECTION*)((int)header + header->e_shoff))[symbol.st_shndx];
 		return (int) header + symbol.st_value + target.sh_offset;
 	}
+#endif
 }
 
 unsigned long loadelf(void * buffer){
+#ifdef __x86_64__
+	printf("ELF: not implemented yet!\n");
+	printf("ELF: cannot load elf at buffer %x \n",buffer);
+	return 0;
+#else
 	ELFHEADER * header = (ELFHEADER *)buffer;
 	if(header->e_ident[4]!=1){
-		printf("ELF: Invalid type. Target is 32 bit\n");for(;;);
+		printf("ELF: Invalid type. Target is 32 bit\n");
+		return 0;
 	}
 	if(header->e_type==1){
 		int ok = 0;
@@ -186,4 +197,5 @@ unsigned long loadelf(void * buffer){
 		printf("ELF: unknown elf type: %x \n",header->e_type);
 	}
 	return 0;
+#endif
 }

@@ -19,7 +19,11 @@ int mempoint = 0;
 
 extern int curx;
 extern int cury;
+#ifdef __x86_64__
+void *endKernelMemory = (void*)0x1000;
+#else
 extern void *endKernelMemory;
+#endif
 
 void memdump(unsigned long location){
 	unsigned char* buffer = (unsigned char*) location;
@@ -112,10 +116,10 @@ void *malloc_align(unsigned long size,unsigned long tag){
 	if(found_something==-1){
 		if(memreg[MEMORY_BLOCK_LIMIT-1].used==0&&memreg[MEMORY_BLOCK_LIMIT-1].from==0&&memreg[MEMORY_BLOCK_LIMIT-1].to==0){
 			// get highest address
-			int highestlocation = (int)memreg[0].to;
+			pointer highestlocation = (pointer)memreg[0].to;
 			// if not pressent, take default address
 			if(highestlocation==0){
-				highestlocation = (int)&endKernelMemory;
+				highestlocation = (pointer)&endKernelMemory;
 			}
 			// match alignment
 			while(1){
@@ -165,6 +169,7 @@ void *malloc(unsigned long size){
 	return malloc_align(size,0);
 }
 
+#ifndef __x86_64__
 void *memset(void *str, int c, int n){
 	for(int t = 0 ; t < n ; t++){
 		// why do we ask for an int and
@@ -173,6 +178,7 @@ void *memset(void *str, int c, int n){
 	}
 	return str;
 }
+#endif
 
 int memcmp(char *str1,  char *str2, int n){
 	for(int i = 0 ; i < n ; i++){
@@ -183,11 +189,13 @@ int memcmp(char *str1,  char *str2, int n){
 	return 0;
 }
 
+#ifndef __x86_64__
 void memcpy( char *from,  char *to, int n){
 	for(int i = 0 ; i < n ; i++){
 		to[i] = from[i];
 	}
 }
+#endif
 
 int strlen(char *str){
 	int count = 0;

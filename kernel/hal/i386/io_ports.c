@@ -1,15 +1,16 @@
 // I always thought that I need to include headers where I defined the functions
 // in the header but this made me realize that is not necesary.
 // Is it better for compilation time tho?
+#include "../../kernel.h"
 
 
-unsigned long inportl (unsigned short _port){
-    unsigned long rv;
+uint32_t inportl (unsigned short _port){
+    uint32_t rv;
     __asm__ __volatile__ ("inl %1, %0" : "=a" (rv) : "dN" (_port));
     return rv;
 }
 
-void outportl (unsigned short _port, unsigned long _data){
+void outportl (unsigned short _port, uint32_t _data){
     __asm__ __volatile__ ("outl %1, %0" : : "dN" (_port), "a" (_data));
 }
 
