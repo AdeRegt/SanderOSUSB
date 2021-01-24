@@ -106,6 +106,8 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 	}
 	#ifdef __x86_64__
 	printf("Skipping not needed elements\n");
+	printf("=> Initialise idt...\n");
+	init_idt();
 	#else
 	printstring("=> Global Description Table...\n");
 	init_gdt();
@@ -121,7 +123,7 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 	printstring("=> PS2...\n");
 	init_ps2();
 	#endif
-	printstring("=> PCI...\n");
+	printstring("=> PCI...\n");for(;;);
 	init_pci();
 	printstring("=> Serial ports...\n");
 	init_serial();

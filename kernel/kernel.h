@@ -223,10 +223,15 @@ void init_gdt();
  * NOTE: is it Interrup descritpor table?
  * https://en.wikipedia.org/wiki/Interrupt_descriptor_table
  **/
+#define MAX_INTERRUPTS 256
+#define OFFSET_NORMAL_INT 0x20
 void init_idt();
 void idt_set_gate(unsigned char num, unsigned long base, unsigned short sel, unsigned char flags);
 void setErrorInt(unsigned char num,unsigned long base);
 void setNormalInt(unsigned char num,unsigned long base);
+#ifdef __x86_64__
+extern uint16_t getCSValue();
+#endif 
 
 
 ////////

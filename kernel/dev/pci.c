@@ -105,6 +105,7 @@ void init_pci(){
 	for(int bus = 0 ; bus < 256 ; bus++){
 		for(int slot = 0 ; slot < 32 ; slot++){
 			for(int function = 0 ; function <= 7 ; function++){
+				printf("PCI: checking %x %x %x \n",bus,slot,function);
 				unsigned short vendor = pciConfigReadWord(bus,slot,function,0);
 				unsigned short device = pciConfigReadWord(bus,slot,function,2);
 				if(vendor != 0xFFFF){

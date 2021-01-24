@@ -1,5 +1,8 @@
 #! /bin/bash
 # compile stub
+echo "Assambling ASM files"
+nasm -felf64 hal/x64/isr.asm -o isr.o || exit
+
 echo "Compiling C files"
 gcc stub/x64/uefi/uefi.c -c -fno-stack-protector -fpic -fshort-wchar -mno-red-zone -I /usr/include/efi -I /usr/include/efi/x86_64  -std=gnu99 -ffreestanding -O2 -Wall -Wextra -DEFI_FUNCTION_WRAPPER -o uefi.o || exit
 gcc -c kernel.c -m64 -o kernel.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
@@ -34,7 +37,7 @@ gcc -c dev/ethernet.c -m64 -o ethernet.o -std=gnu99 -ffreestanding -O2 -Wall -We
 gcc -c exec/program.c -m64 -o program.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 
 echo "Linking O files"
-ld uefi.o kernel.o io_ports.o interrupts.o usb.o ehci.o ehci_stick.o com_port.o ide.o sfs.o pci.o memory.o timer.o video.o ps2.o device.o iso9660.o elf.o vbox.o xhci.o acpi.o ahci.o mbr.o ext.o fat.o math.o uhci.o xhci_hid.o RTL8169.o ethernet.o  /usr/lib/crt0-efi-x86_64.o -nostdlib -znocombreloc -T /usr/lib/elf_x86_64_efi.lds -shared -Bsymbolic -L /usr/lib -l:libgnuefi.a -l:libefi.a -o sanderosusbefi.so || exit
+ld uefi.o kernel.o io_ports.o interrupts.o isr.o usb.o ehci.o ehci_stick.o com_port.o ide.o sfs.o pci.o memory.o timer.o video.o ps2.o device.o iso9660.o elf.o vbox.o xhci.o acpi.o ahci.o mbr.o ext.o fat.o math.o uhci.o xhci_hid.o RTL8169.o ethernet.o  /usr/lib/crt0-efi-x86_64.o -nostdlib -znocombreloc -T /usr/lib/elf_x86_64_efi.lds -shared -Bsymbolic -L /usr/lib -l:libgnuefi.a -l:libefi.a -o sanderosusbefi.so || exit
 
 echo "Adapting Executable"
 objcopy -j .text -j .sdata -j .data -j .dynamic -j .dynsym -j .rel -j .rela -j .reloc --target=efi-app-x86_64 sanderosusbefi.so sanderosusb.efi || exit
