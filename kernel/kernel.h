@@ -115,6 +115,8 @@ int strlen(char *str);
 int memcmp( char *str1, char *str2, int size);
 void memcpy( char *str1,  char *str2, int size);
 
+void cpuid_get_details();
+
 // BLOCKDEVICE
 //void init_blockdevice();
 //void introduceDevice(unsigned char type,unsigned long pointertodevice,unsigned long readsector,unsigned long writesector,unsigned long eject,unsigned long framesize,unsigned char* name);

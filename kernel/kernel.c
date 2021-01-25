@@ -63,6 +63,7 @@ GRUBStatus getGrubStatus(){
 void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 	init_video();
 	printstring("Welcome to the Sanderslando Kernel!!\n");
+	cpuid_get_details();
 	printstring("Loading core components...\n");
 	if(magic==0x2BADB002){
 		printf("[GRUB] Multiboot compliant bootloader!\n");
