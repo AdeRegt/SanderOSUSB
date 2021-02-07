@@ -7,11 +7,16 @@ SanderOSUSB is a 32bit single tasking monolythic kernel that is supposed to run 
 For compiling you need the following programs:
 - gcc
 - nasm
-- xorriso
+- xorriso (grub)
+- smallerc (pxe)
 
 ``` sudo apt install gcc nasm xorriso ```
 
-And then run the file **/kernel/build.sh**
+And then run the file ``` /kernel/build.sh [ARGS]``` to generate kernel file
+Where:
+- empty : only generates a kernel.bin file
+- --grub : generates a grub-iso image
+- --pxe : generates a pxe image
 
 ## Runing the OS
 - install qemu
@@ -71,8 +76,6 @@ the following executable formats are on the list to get implemented:
 * 32-MZPE
 * 32-MZCOFF
 * Marble
-
-To build the kernel, go to the kernel folder and run build.sh
 
 ## Directories
 * boot: Grub bin folder
