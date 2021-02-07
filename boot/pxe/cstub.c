@@ -27,13 +27,47 @@ typedef struct {
 	Elf32_Half    e_shstrndx;
 } ELFHEADER;
 
+typedef struct {
+	Elf32_Word sh_name;
+	Elf32_Word sh_type;
+	Elf32_Word sh_flags;
+	Elf32_Addr sh_addr;
+	Elf32_Off  sh_offset;
+	Elf32_Word sh_size;
+	Elf32_Word sh_link;
+	Elf32_Word sh_info;
+	Elf32_Word sh_addralign;
+	Elf32_Word sh_entsize;
+} ELFSECTION;
+
 unsigned char x = 0;
 unsigned char y = 0;
 
 void putch(char d){
-    int ptr = ((y*25)+x)*2;
+    if(d=='\n'){
+        x = 0;
+        y++;
+        return;
+    }
+    int ptr = ((y*80)+x)*2;
     ((unsigned char*)0xb8000)[ptr] = d;
     ((unsigned char*)0xb8000)[ptr+1] = 0x60;
+    x++;
+    if(x==80){
+        x = 0;
+        y++;
+    }
+}
+
+void printstring(char *message){
+    int i = 0;
+    while(1){
+        char deze = message[i++];
+        if(deze==0x00){
+            break;
+        }
+        putch(deze);
+    }
 }
 
 void kernelpreloader(){
@@ -50,9 +84,20 @@ void kernelpreloader(){
        }
        elfaddr++;
    }
+   printstring("Found ELF header\n");
    ELFHEADER * header = (ELFHEADER *)elfaddr;
-   if(header->e_type==1){
-       
+   ELFSECTION * sections = (ELFSECTION *)((long)elfaddr + header->e_shoff);
+   for(unsigned int i = 0 ; i < header->e_shnum ; i++){
+        ELFSECTION section = sections[i];
+        if(section.sh_addr){
+            if(section.sh_type==1){
+                for(unsigned int e = 0 ; e < section.sh_size ; e++){
+                    ((char*)section.sh_addr)[e] = ((char*)elfaddr + section.sh_offset)[e];
+                }
+            }
+        }
    }
+   void *(*foo)() = (void *)header->e_entry;
+   foo();
    for(;;);
 }

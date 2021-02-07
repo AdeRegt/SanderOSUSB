@@ -4,8 +4,8 @@
 ;
 ; prepare env
 ; (this should not be nessecary so it is been removed)
-;mov ax, 07C0h
-;mov ds, ax
+mov ax, 0
+mov ds, ax
 
 ; enable A20 line
 mov ax,2401h
