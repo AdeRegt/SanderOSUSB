@@ -8,7 +8,7 @@ For compiling you need the following programs:
 - gcc
 - nasm
 - xorriso (grub)
-- smallerc (pxe)
+- smallerc (pxe : alexfru/SmallerC)
 
 ``` sudo apt install gcc nasm xorriso ```
 
