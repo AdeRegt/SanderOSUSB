@@ -85,14 +85,38 @@ cd ..
 
 rm programs/*.o
 
-echo "Build ISO"
-rm cdrom.iso
-mkdir mnt
-mkdir mnt/prgs
-cp programs/*.bin mnt/prgs
-mkdir mnt/boot
-mkdir mnt/boot/grub
-cp kernel.bin mnt/kernel.bin
-cp boot/grub/grub.cfg mnt/boot/grub/grub.cfg
-grub-mkrescue -o cdrom.iso mnt
-rm -rf mnt
+#
+# check what to do as output format
+# possible options:
+# - do nothing
+# - grub
+# - pxe
+if [ $# -eq 0 ]
+	then
+		exit
+fi 
+
+if [ "$1" = "--grub" ]
+	then
+		echo "Build ISO"
+		rm cdrom.iso
+		mkdir mnt
+		mkdir mnt/prgs
+		cp programs/*.bin mnt/prgs
+		mkdir mnt/boot
+		mkdir mnt/boot/grub
+		cp kernel.bin mnt/kernel.bin
+		cp boot/grub/grub.cfg mnt/boot/grub/grub.cfg
+		grub-mkrescue -o cdrom.iso mnt
+		rm -rf mnt
+fi
+
+if [ "$1" = "--pxe" ]
+	then
+		cd boot/pxe 
+		~/Downloads/smlrc -seg32 cstub.c cstub.asm
+		nasm -fbin pxe_entry_point.asm -o pxestub.bin 
+		cat pxestub.bin ../../kernel.bin > pxeentry.bin
+		cp pxeentry.bin ../../SanderOSUSB.0
+		exit
+fi
