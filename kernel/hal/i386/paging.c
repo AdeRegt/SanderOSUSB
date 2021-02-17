@@ -14,13 +14,13 @@ void paging_clear_directory_pages(){
     }
 }
 
-unsigned int pagecount = 0; 
+unsigned int pagecount = 0;
 
 void set_paging_frame(unsigned long addr){
     unsigned long addr2 = addr;
     addr2 -= (addr2 & 0xFFF);
     printf("[PAGING] Create page for %x \n",addr2);
-    long *first_page_table = malloc_align(PAGE_DIRECTORY_SIZE*sizeof(unsigned long),4096);
+    unsigned long *first_page_table = malloc_align(PAGE_DIRECTORY_SIZE*sizeof(unsigned long),4096);
     for(int i = 0 ; i < PAGE_DIRECTORY_SIZE ; i++){
         first_page_table[i] = (addr2+(i * 0x1000))  | 0x3;
     }
@@ -34,15 +34,19 @@ void init_paging(){
 
     //
     // minimal setup, create one pagedir with linear address 1:1
-    set_paging_frame(0);
+    unsigned long addr = 0;
+    printf("[PAGING] start addr = %x \n",addr); // 0
+    for(int i = 0 ; i < 8 ; i++){
+        set_paging_frame(addr);
+        addr += PAGE_DIRECTORY_SIZE * 4096;
+    }
+    printf("[PAGING] end addr = %x \n",addr); // 2800000
 
     printf("[PAGING] Tell CPU where page tables are\n");
     loadPageDirectory(page_directory);
 
     printf("[PAGING] Tell CPU to use paging\n");
-    #ifdef ENABLE_PAGING
-    enablePaging();
-    #endif
+    // enablePaging();
 
     printf("[PAGING] Paging is enabled\n");
 }

@@ -94,7 +94,6 @@ void init_acpi(){
 			goto success;
 		}
 	}
-	return;
 	success:
 	printf("ACPI: ACPI pressent at %x \n",rsdp);
 	if(acpiCheckHeader(rsdp, "RSDT") == 0){

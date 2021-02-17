@@ -40,37 +40,84 @@ typedef struct {
 	Elf32_Word sh_entsize;
 } ELFSECTION;
 
-unsigned char x = 0;
-unsigned char y = 0;
+// unsigned char x = 0;
+// unsigned char y = 0;
 
-void putch(char d){
-    if(d=='\n'){
-        x = 0;
-        y++;
-        return;
-    }
-    int ptr = ((y*80)+x)*2;
-    ((unsigned char*)0xb8000)[ptr] = d;
-    ((unsigned char*)0xb8000)[ptr+1] = 0x60;
-    x++;
-    if(x==80){
-        x = 0;
-        y++;
+// void putch(char d){
+//     if(d=='\n'){
+//         x = 0;
+//         y++;
+//         return;
+//     }
+//     int ptr = ((y*80)+x)*2;
+//     ((unsigned char*)0xb8000)[ptr] = d;
+//     ((unsigned char*)0xb8000)[ptr+1] = 0x60;
+//     x++;
+//     if(x==80){
+//         x = 0;
+//         y++;
+//     }
+// }
+
+// void printstring(char *message){
+//     int i = 0;
+//     while(1){
+//         char deze = message[i++];
+//         if(deze==0x00){
+//             break;
+//         }
+//         putch(deze);
+//     }
+// }
+
+// char *convert(unsigned int num, int base) 
+// { 
+// 	static char Representation[]= "0123456789ABCDEF";
+// 	static char buffer[50]; 
+// 	char *ptr; 
+	
+// 	ptr = &buffer[49]; 
+// 	*ptr = '\0'; 
+	
+// 	do 
+// 	{ 
+// 		*--ptr = Representation[num%base]; 
+// 		num /= base; 
+// 	}while(num != 0); 
+	
+// 	return(ptr); 
+// }
+
+void relocate(unsigned long elfaddr,ELFSECTION section){
+    // printstring("Loading ");
+    // printstring(convert(section.sh_addr,16));
+    // printstring(" with size ");
+    // printstring(convert(section.sh_size,16));
+    // printstring(" at offset ");
+    // printstring(convert(section.sh_offset,16));
+    // printstring(" \n");
+    Elf32_Word e = 0;
+    Elf32_Off oldaddr = 0;
+    Elf32_Off newaddr = 0;
+    unsigned char byteold = 0;
+    onceagain:
+    oldaddr = elfaddr + section.sh_offset + e;
+    newaddr = section.sh_addr + e;
+    byteold = ((unsigned char*)oldaddr)[0];
+    ((unsigned char*)newaddr)[0] = byteold;
+    if(e<section.sh_size){
+        e++;
+        goto onceagain;
     }
 }
 
-void printstring(char *message){
-    int i = 0;
-    while(1){
-        char deze = message[i++];
-        if(deze==0x00){
-            break;
-        }
-        putch(deze);
-    }
-}
+ELFHEADER *header;
 
 void kernelpreloader(){
+    // for(int i = 0 ; i < 256 ; i++){
+    //     idt_set_gate(i, isr_common_stub, getCodeSegment(), 0x8E);
+    // }
+    // idt_load();
    // find ELF offset
    unsigned long elfaddr = 0x7C00;
    while(1){
@@ -79,25 +126,27 @@ void kernelpreloader(){
        unsigned char C = ((unsigned char*)(elfaddr+2))[0];
        unsigned char D = ((unsigned char*)(elfaddr+3))[0];
        if(A==ELFMAG0&&B==ELFMAG1&&C==ELFMAG2&&D==ELFMAG3){
-           putch('X');
-           break;
+           goto t1;
        }
        elfaddr++;
    }
-   printstring("Found ELF header\n");
-   ELFHEADER * header = (ELFHEADER *)elfaddr;
+//    printstring("Found ELF header at :");
+//    printstring(convert(elfaddr,16));
+//    printstring("\n");
+   // usually this value is 0x7F90
+   t1:
+   header = (ELFHEADER *)elfaddr;
    ELFSECTION * sections = (ELFSECTION *)((long)elfaddr + header->e_shoff);
-   for(unsigned int i = 0 ; i < header->e_shnum ; i++){
+   Elf32_Half headerc = header->e_shnum;
+   for(Elf32_Half i = 0 ; i < headerc ; i++){
         ELFSECTION section = sections[i];
         if(section.sh_addr){
             if(section.sh_type==1){
-                for(unsigned int e = 0 ; e < section.sh_size ; e++){
-                    ((char*)section.sh_addr)[e] = ((char*)elfaddr + section.sh_offset)[e];
-                }
+                relocate(elfaddr,section);
             }
         }
    }
-   void *(*foo)() = (void *)header->e_entry;
+   void *(*foo)() = (void *) header->e_entry;
    foo();
    for(;;);
 }

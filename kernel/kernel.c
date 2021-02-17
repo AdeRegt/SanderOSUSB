@@ -134,8 +134,9 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 		getch();
 		poweroff();
 	}
-	
-	if(confirm("kernel created by sander de regt, shashwat shagun, johan gericke, daniel mccarthy and pablo narvaja") == 0) {
+	char cod1 = confirm("kernel created by sander de regt, shashwat shagun, johan gericke, daniel mccarthy and pablo narvaja");
+	char cod2 = 0;
+	if( cod1 == cod2 ) {
 		poweroff();
 	};
 
