@@ -146,6 +146,8 @@ void drawcharraw(unsigned char c, int offsetX, int offsetY, int fgcolor, int bgc
  * Gets the character from keyboard input
  **/
 unsigned char getch();
+void curset(int x,int y);
+void setForeGroundBackGround(unsigned char fg,unsigned char bg);
 
 //////
 // arrows key codes

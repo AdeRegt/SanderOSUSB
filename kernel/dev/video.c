@@ -563,6 +563,7 @@ void init_video(){
 	curx = 0;
 	cury = 0;
 	isgraphics = 0;
+	setForeGroundBackGround(7,0);
 	video_load_font();
 }
 
@@ -1425,7 +1426,7 @@ void putc(char a){
 		if(a!='\n'){
 			vidpnt = (curx*2)+(160*cury);
 			videomemory[vidpnt++] = a;
-			videomemory[vidpnt++] = 0x07;
+			videomemory[vidpnt++] = (u_background << 4) | u_foreground;
 			curx++;
 		}
 		if(curx==80||a=='\n'){
@@ -1589,9 +1590,19 @@ char getpixel(int x,int y){
 }
 
 void cls(){
-	for(unsigned int x = 0 ; x < SCREEN_WIDTH ; x++){
-		for(unsigned int y = 0 ; y < SCREEN_HEIGHT ; y++){
-			putpixel(x,y,0x01);
+	if(isGraphicsMode()){
+		for(unsigned int x = 0 ; x < SCREEN_WIDTH ; x++){
+			for(unsigned int y = 0 ; y < SCREEN_HEIGHT ; y++){
+				putpixel(x,y,0x01);
+			}
+		}
+	}else{
+		for(cury = 0 ; cury < 25 ; cury++){
+			for(curx = 0 ; curx < 80 ; curx++){
+				vidpnt = (curx*2)+(160*cury);
+				videomemory[vidpnt++] = ' ';
+				videomemory[vidpnt++] = 0x07;
+			}
 		}
 	}
 	
@@ -1740,3 +1751,7 @@ int init_graph_vga(unsigned int width, unsigned int height,int chain4)
 	return 1;
 }
 
+void curset(int x,int y){
+	curx = x;
+	cury = y;
+}
