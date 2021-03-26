@@ -514,10 +514,16 @@ int xhci_ring_and_wait(int number){
 	sleep(100);
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	stot = stot + 1;
+	int timeout = 0;
 	while(1){
 		sleep(10);
 		if(xhci_seek_end_event_queue()==stot){
 			break;
+		}
+		timeout++;
+		if(timeout>5){
+			printf("[XHCI] Timeout while waiting!\n");
+			return 0;
 		}
 	}
 	
@@ -891,6 +897,7 @@ void xhci_probe_port(int i){
 				printf("[XHCI] Port %x : Device is removable\n",i);
 			}
 
+			sleep(10);
 			
 			//
 			//
@@ -1010,50 +1017,37 @@ void xhci_probe_port(int i){
 
 			//
 			// and test
-			if(0){
+			if(1){
 				printf("[XHCI] Port %x : NOOP ring control\n",device->portnumber);
 				((volatile unsigned long*)&interrupter_1)[0] = 0;
-				TRB *trbx = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
-				trbx->bar1 = 0;
-				trbx->bar2 = 0;
-				trbx->bar3 = 0;
-				trbx->bar4 = (checkbitset==1?0:1) | (8<<10);
+				TRB *trbx1 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
+				trbx1->bar1 = 0;
+				trbx1->bar2 = 0;
+				trbx1->bar3 = 0;
+				trbx1->bar4 = 1 | (8<<10);
 				device->localringoffset += 0x10;
-				int stot = xhci_seek_end_event_queue();
-			
-				((unsigned long*)doorbel)[assignedSloth] = 0;
-				sleep(100);
-				
-				while(1){
-					volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
-					if(r&1){
-						break;
-					}
-					if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
-						break;
-					}
-				}
-				sleep(100);
-				((volatile unsigned long*)&interrupter_1)[0] = 0;
-				sleep(100);
-				stot = stot + 1;
-				while(1){
-					sleep(10);
-					if(xhci_seek_end_event_queue()==stot){
-						break;
-					}
-				}
-				
-				TRB *trbres = xhci_get_last_event();
-				//TRB *trbres = ((TRB*)((volatile unsigned long)(event_ring_queue)+event_ring_offset));
-				unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
-				printf("[XHCI] Port %x : NOOP completioncode is %x \n",device->portnumber,completioncode);
-				if(completioncode!=1){
-					printf("[XHCI] Port %x : NOOP completioncode is not 1 but %x \n",device->portnumber,completioncode);
-					goto disabledevice;
-				}
+
+				TRB *trbx2 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
+				trbx2->bar1 = 0;
+				trbx2->bar2 = 0;
+				trbx2->bar3 = 0;
+				trbx2->bar4 = 0;
+				device->localringoffset += 0x10;
+				int tres = xhci_ring_and_wait(assignedSloth);
 				event_ring_offset += 0x10;
-				
+				if(tres!=1){
+					device->localringoffset -= 0x20;
+					for(int i = 0 ; i < 10 ; i++){
+						TRB *trbx4 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
+						device->localringoffset += 0x10;
+						if(trbx4->bar4&1){
+							printf(" %x att\n",i);
+						}
+					}
+					printf("[XHCI] Port %x : Could not NOOP on ring!\n",device->portnumber);
+					for(;;);
+					return;
+				}
 				
 			}
 			

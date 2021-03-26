@@ -3,7 +3,7 @@
 // reference https://www.seagate.com/files/staticfiles/support/docs/manual/Interface%20manuals/100293068j.pdf
 
 #define USB_STORAGE_ENABLE_ENQ 1
-#define USB_STORAGE_ENABLE_CAP 1
+#define USB_STORAGE_ENABLE_CAP 0
 #define USB_STORAGE_ENABLE_SEC 1
 #define USB_STORAGE_ENABLE_SEN 0
 #define USB_STORAGE_SECTOR_SIZE 512
@@ -67,14 +67,14 @@ typedef struct {
 }SCSIStatus;
 
 unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut){
-	printf("[SMSD] Sending bulk...\n");
+	printf("[SMSD] Sending bulk [%x]...\n",expectedOut);
 	unsigned long lstatus = usb_send_bulk(device,expectedOut,out);
     if(lstatus==EHCI_ERROR){
 		printf("[SMSD] Sending bulk error\n");
         return (unsigned char*)EHCI_ERROR;
     }
 
-	printf("[SMSD] Recieving bulk...\n");
+	printf("[SMSD] Recieving bulk [%x]...\n",expectedIN);
 	unsigned char* buffer = malloc(expectedIN);
 	unsigned long t1 = usb_recieve_bulk(device,expectedIN,buffer);
 	if((unsigned long)t1==EHCI_ERROR){
@@ -98,6 +98,8 @@ unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsign
 			printf("[SMSD] Command Status Wrapper has a invalid signature\n");
 			return (unsigned char *)EHCI_ERROR;
 		}
+	}else{
+		printf("[SMSD] Recieved bulk started with CSW signature\n");
 	}
 	printf("[SMSD] Status=%x \n",csw->status);
 	if(csw->status){
@@ -106,18 +108,19 @@ unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsign
 	}
 	if(csw->dataResidue){
 		printf("[SMSD] Data residu %x \n",csw->dataResidue);
-		printf("[SMSD] Asking for a re-read\n");
-		buffer = ehci_recieve_bulk(device,csw->dataResidue,malloc(csw->dataResidue));
-		if((unsigned long)buffer==EHCI_ERROR){printf("D");for(;;);
-			return (unsigned char *)EHCI_ERROR;
-		}for(;;);
+		return buffer;
+		// printf("[SMSD] Asking for a re-read\n");
+		// buffer = ehci_recieve_bulk(device,csw->dataResidue,malloc(csw->dataResidue));
+		// if((unsigned long)buffer==EHCI_ERROR){printf("D");for(;;);
+		// 	return (unsigned char *)EHCI_ERROR;
+		// }for(;;);
 	}
 	return buffer;
 }
 
 unsigned char* usb_stick_get_inquiry(USB_DEVICE *device){
 	unsigned char bufoutsize = 31;
-	unsigned char bufinsize = 96 - 0x34;//96 36;//sizeof(struct cdbres_inquiry);
+	unsigned char bufinsize = 36;//96;//96 36;//sizeof(struct cdbres_inquiry);
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	// 55 53 42 43 e7 3 0 0 24 0 0 0 80 0 c 12 0 0 0 24 0 0 0 0 0 0 0 0 0 0 0
 	bufout->lun = 0;
@@ -309,12 +312,12 @@ void usb_stick_init(USB_DEVICE *device){
 			printf("[SMSD] Error info collected\n");
 			printf("[SMSD] Sense key %x \n",d.key);
 			printf("[SMSD] Additional sense code %x \n",d.code);
-			printf("[SMSD] Additional sense code qualifier %x \n",d.qualifier);
+			printf("[SMSD] Additional sense code qualifier %x \n",d.qualifier);for(;;);
 			return;
 		}
 		for(int i = 0 ; i < 512 ; i++){printf("%x ",t[i]);}
 		if(t[0]==0x55&&t[1]==0x53&&t[2]==0x42&&t[3]==0x53){
-			printf("[SMSD] Known bug rissen: Statuswrapper at begin instead of end\n");
+			printf("[SMSD] Known bug rissen: Statuswrapper at begin instead of end\n");for(;;);
 			return;
 		}
 		printf("[SMSD] Reading testsector succeed\n");for(;;);
