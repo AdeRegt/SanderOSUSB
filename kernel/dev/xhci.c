@@ -500,7 +500,7 @@ int xhci_wait(int target){
 			break;
 		}
 		timeout++;
-		if(timeout>5){
+		if(timeout>10){
 			printf("[XHCI] Timeout while waiting!\n");
 			return 0;
 		}
@@ -529,13 +529,14 @@ int xhci_ring_and_wait(int number,int callnum){
 		sleep(100);
 		timeout++;
 		if(timeout==10){
+			printf("[XHCI] wait loop 1 timeout\n");
 			return 0;
 		}
 	}
-	
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	stot = stot + 1;
 	if(xhci_wait(stot)==0){
+		printf("[XHCI] wait loop 2 timeout\n");
 		return 0;
 	}
 	
@@ -737,8 +738,8 @@ int xhci_enable_slot(){
 }
 
 int xhci_noop(){
-	unsigned char cs = 1;
-	int stot = xhci_seek_end_event_queue();
+	unsigned char cs = deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU?1:0;
+	xhci_seek_end_event_queue();
 	TRB* trb2 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	trb2->bar1 = 0;
 	trb2->bar2 = 0;
@@ -887,7 +888,7 @@ void xhci_probe_port(int i){
 			printf("[XHCI] Port %x : Obtaining device slot...\n",i);
 			int assignedSloth = xhci_enable_slot();
 			if(assignedSloth==-1){
-				printf("[XHCI] Port %x : Assignation of device slot failed!\n",i);
+				printf("[XHCI] Port %x : Assignation of device slot failed!\n",i);for(;;);
 				goto disabledevice;
 			}
 			printf("[XHCI] Port %x : Device device slot: %x \n",i,assignedSloth);
@@ -958,19 +959,10 @@ void xhci_probe_port(int i){
 			printf("[XHCI] Port %x : Obtaining SETADDRESS(BSR=1)\n",i);
 			int sares = xhci_set_address(assignedSloth,(unsigned long*)&t,1);
 			if(sares==5){
-				printf("[XHCI] Port %x : Local ring not defined as it should be....\n",i);
+				printf("[XHCI] Port %x : Local ring not defined as it should be....\n",i);for(;;);
 				goto disabledevice;
 			}else if(sares!=1){
-				printf("[XHCI] Port %x : Assignation of device slot address failed with %x !\n",i,sares);
-				goto disabledevice;
-			}
-
-			sleep(20);
-			//
-			// get current state of endpoint
-			unsigned char endpoint_status = (unsigned char)(((unsigned long*)sigma)[0] & 0b11);
-			if(endpoint_status!=1){
-				printf("[XHCI] Port %x : Transferring has a unexpected state: %x \n",i,endpoint_status);for(;;);
+				printf("[XHCI] Port %x : Assignation of device slot address failed with %x !\n",i,sares);for(;;);
 				goto disabledevice;
 			}
 			
@@ -1004,7 +996,7 @@ void xhci_probe_port(int i){
 
 			//
 			// and test
-			if(1){
+			if(0){
 				printf("[XHCI] Port %x : NOOP ring control\n",device->portnumber);
 				((volatile unsigned long*)&interrupter_1)[0] = 0;
 				TRB *trbx1 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
@@ -1018,12 +1010,12 @@ void xhci_probe_port(int i){
 				trbx2->bar1 = 0;
 				trbx2->bar2 = 0;
 				trbx2->bar3 = 0;
-				trbx2->bar4 = 0;
+				trbx2->bar4 = 1 | (4<<10) | 0x20 | (1 << 16);
 				device->localringoffset += 0x10;
 				int tres = xhci_ring_and_wait(assignedSloth,1);
 				event_ring_offset += 0x10;
 				if(tres!=1){
-					printf("[XHCI] Port %x : Could not NOOP on ring!\n",device->portnumber);
+					printf("[XHCI] Port %x : Could not NOOP on ring %x !\n",device->portnumber,tres);
 					for(;;);
 					return;
 				}
@@ -1066,6 +1058,7 @@ void xhci_probe_port(int i){
 			dc1->bar4 |= (0<<6); // idt=1
 			dc1->bar4 |= (2<<10); // trbtype
 			dc1->bar4 |= (3<<16); // trt = 3;
+			dc1->bar4 |= 0x40;
 			device->localringoffset += 0x10;
 			
 			// single date stage
@@ -1088,13 +1081,17 @@ void xhci_probe_port(int i){
 			dc3->bar1 = 0;
 			dc3->bar2 = 0;
 			dc3->bar3 = 0;
-			dc3->bar4 = 1 | (4<<10) | 0x20 | (1 << 16); // 1 | (4<<10) | 0x20 | (1 << 16);
+			dc3->bar4 = 0b1000000100001;//1 | (4<<10) | 0x20 | (1 << 16); // 1 | (4<<10) | 0x20 | (1 << 16);
 			device->localringoffset+=0x10;
 
-			unsigned char completioncode = xhci_ring_and_wait(assignedSloth,0);
-			printf("[XHCI] Port %x : complection code is %x \n",device->portnumber,completioncode);for(;;);
+			printf("[XHCI] Port %x : %x %x %x %x \n",device->portnumber,dc1->bar2,dc1->bar1,dc1->bar3,dc1->bar4);
+			printf("[XHCI] Port %x : %x %x %x %x \n",device->portnumber,dc2->bar2,dc2->bar1,dc2->bar3,dc2->bar4);
+			printf("[XHCI] Port %x : %x %x %x %x \n",device->portnumber,dc3->bar2,dc3->bar1,dc3->bar3,dc3->bar4);
+
+			unsigned char completioncode = xhci_ring_and_wait(assignedSloth,1);
+			printf("[XHCI] Port %x : complection code is %x \n",device->portnumber,completioncode);
 			if(completioncode!=1){
-				printf("[XHCI] Port %x : completioncode is not 1 but %x\n",device->portnumber,completioncode);
+				printf("[XHCI] Port %x : completioncode is not 1 but %x\n",device->portnumber,completioncode);for(;;);
 				goto disabledevice;
 			}
 			event_ring_offset += 0x10;
@@ -1558,7 +1555,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	}
 	
 	if(xhci_seek_end_event_queue()!=0){
-		printf("[XHCI] PANIC: should be 0!\n");
+		printf("[XHCI] PANIC: should be 0!\n");for(;;);
 		return;
 	}
 	//
@@ -1566,16 +1563,16 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	printf("[XHCI] Run!\n");
 	((unsigned long*)usbcmd)[0] |= 1;
 	
+	xhci_wait_for_ready();
+	
 	xhci_usbcmd = ((unsigned long*)usbcmd)[0];
 	xhci_usbsts = ((unsigned long*)usbsts)[0];
 	printf("[XHCI] System up and running with USBCMD %x and USBSTS %x \n",xhci_usbcmd,xhci_usbsts);
-	
-	xhci_wait_for_ready();
 
 	int nope = xhci_noop();
 	printf("[XHCI] nope status is %x \n",nope);
 	if(nope==0){
-		printf("[XHCI] something goes wrong with the event queue!\n");
+		printf("[XHCI] something goes wrong with the event queue!\n");for(;;);
 		return;
 	}
 	xhci_dump_event_ring();
