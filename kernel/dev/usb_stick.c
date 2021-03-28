@@ -162,7 +162,7 @@ unsigned char* usb_stick_get_capacity(USB_DEVICE *device){
 unsigned char* usb_stick_request_sense(USB_DEVICE *device){
 	unsigned long bufoutsize = 31;
 	unsigned long bufinsize = 2;//252; 
-	struct cbw_t* bufout = 8;//(struct cbw_t*)malloc(bufoutsize);
+	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	bufout->lun = 0;
 	bufout->tag = 1;
 	bufout->sig = 0x43425355;
@@ -184,6 +184,9 @@ SCSIStatus usb_stick_get_scsi_status(USB_DEVICE *device){
 	unsigned char* d = usb_stick_request_sense(device);
 	if((unsigned long)d==(unsigned long)EHCI_ERROR){
 		printf("[SMSD] Error while getting error info\n");
+		stat.key = 0;
+		stat.code = 0;
+		stat.qualifier = 0;
 		return stat;
 	}
 	stat.key = d[2]&0b00001111;

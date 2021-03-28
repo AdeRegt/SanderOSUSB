@@ -492,15 +492,32 @@ TRB* xhci_get_last_event(){
 	return trbres3;
 }
 
-int xhci_ring_and_wait(int number){
+int xhci_wait(int target){
+	int timeout = 0;
+	while(1){
+		sleep(10);
+		if(xhci_seek_end_event_queue()==target){
+			break;
+		}
+		timeout++;
+		if(timeout>5){
+			printf("[XHCI] Timeout while waiting!\n");
+			return 0;
+		}
+	}
+	return 1;
+}
+
+int xhci_ring_and_wait(int number,int callnum){
 	int stot = xhci_seek_end_event_queue();
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	
 	// doorbell
-	((unsigned long*)doorbel)[number] = 0;
+	((unsigned long*)doorbel)[number] = callnum;
 	sleep(100);
 	
 	// wait
+	int timeout = 0;
 	while(1){
 		volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
 		if(r&1){
@@ -509,22 +526,17 @@ int xhci_ring_and_wait(int number){
 		if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
 			break;
 		}
-	}
-	
-	sleep(100);
-	((volatile unsigned long*)&interrupter_1)[0] = 0;
-	stot = stot + 1;
-	int timeout = 0;
-	while(1){
-		sleep(10);
-		if(xhci_seek_end_event_queue()==stot){
-			break;
-		}
+		sleep(100);
 		timeout++;
-		if(timeout>5){
-			printf("[XHCI] Timeout while waiting!\n");
+		if(timeout==10){
 			return 0;
 		}
+	}
+	
+	((volatile unsigned long*)&interrupter_1)[0] = 0;
+	stot = stot + 1;
+	if(xhci_wait(stot)==0){
+		return 0;
 	}
 	
 	
@@ -637,7 +649,7 @@ int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char 
 	TRB *trb6 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	xhci_stop_codon_to_trb(trb6);
 	command_ring_offset += 0x10;
-	return xhci_ring_and_wait(0);
+	return xhci_ring_and_wait(0,0);
 }
 
 unsigned int xhci_disable_slot(unsigned long assignedSloth){
@@ -679,7 +691,7 @@ unsigned int xhci_disable_slot(unsigned long assignedSloth){
 }
 
 int xhci_enable_slot(){
-	unsigned char cs = 0;
+	unsigned char cs = deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU?1:0;
 	int stot = xhci_seek_end_event_queue();
 	TRB* trb2 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	trb2->bar1 = 0;
@@ -700,7 +712,6 @@ int xhci_enable_slot(){
 	xhci_wait_for_ready();
 	((unsigned long*)doorbel)[0] = 0;
 	sleep(10);
-	
 	while(1){
 		volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
 		if(r&1){
@@ -713,17 +724,11 @@ int xhci_enable_slot(){
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	sleep(10);
 	stot = stot + 1;
-	while(1){
-		sleep(10);
-		if(xhci_seek_end_event_queue()==stot){
-			break;
-		}
-	}
+	xhci_wait(stot);
 	
 	volatile TRB *trbres = xhci_get_last_event();
 	volatile unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
 	volatile unsigned char assignedSloth = (trbres->bar4 & 0b111111100000000000000000000000) >> 24;
-	xhci_seek_end_event_queue();
 	event_ring_offset += 0x10;
 	if(completioncode!=1){
 		return -1;
@@ -732,7 +737,7 @@ int xhci_enable_slot(){
 }
 
 int xhci_noop(){
-	unsigned char cs = 0;
+	unsigned char cs = 1;
 	int stot = xhci_seek_end_event_queue();
 	TRB* trb2 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	trb2->bar1 = 0;
@@ -747,36 +752,8 @@ int xhci_noop(){
 	trb->bar2 = 0;
 	trb->bar3 = 0;
 	trb->bar4 = (cs==1?0:1);
-	
-	((volatile unsigned long*)&interrupter_1)[0] = 0;
-	xhci_wait_for_ready();
-	((unsigned long*)doorbel)[0] = 0;
-	sleep(10);
-	
-	while(1){
-		volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
-		if(r&1){
-			break;
-		}
-		if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
-			break;
-		}
-	}
-	((volatile unsigned long*)&interrupter_1)[0] = 0;
-	sleep(10);
-	stot = stot + 1;
-	while(1){
-		sleep(10);
-		if(xhci_seek_end_event_queue()==stot){
-			break;
-		}
-	}
-	
-	volatile TRB *trbres = xhci_get_last_event();
-	volatile unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
-	
-	event_ring_offset += 0x10;
-	return completioncode;
+
+	return xhci_ring_and_wait(0,0);
 }
 
 void irq_xhci(){
@@ -897,6 +874,8 @@ void xhci_probe_port(int i){
 				printf("[XHCI] Port %x : Device is removable\n",i);
 			}
 
+			//
+			// Sleep a little bit to make sure everyone is at the same point
 			sleep(10);
 			
 			//
@@ -985,6 +964,15 @@ void xhci_probe_port(int i){
 				printf("[XHCI] Port %x : Assignation of device slot address failed with %x !\n",i,sares);
 				goto disabledevice;
 			}
+
+			sleep(20);
+			//
+			// get current state of endpoint
+			unsigned char endpoint_status = (unsigned char)(((unsigned long*)sigma)[0] & 0b11);
+			if(endpoint_status!=1){
+				printf("[XHCI] Port %x : Transferring has a unexpected state: %x \n",i,endpoint_status);for(;;);
+				goto disabledevice;
+			}
 			
 			USB_DEVICE* device = (USB_DEVICE*) malloc(sizeof(USB_DEVICE));
 			device->drivertype = 3;
@@ -1013,7 +1001,6 @@ void xhci_probe_port(int i){
 					goto disabledevice;
 				}
 			}
-			sleep(100);
 
 			//
 			// and test
@@ -1033,22 +1020,15 @@ void xhci_probe_port(int i){
 				trbx2->bar3 = 0;
 				trbx2->bar4 = 0;
 				device->localringoffset += 0x10;
-				int tres = xhci_ring_and_wait(assignedSloth);
+				int tres = xhci_ring_and_wait(assignedSloth,1);
 				event_ring_offset += 0x10;
 				if(tres!=1){
-					device->localringoffset -= 0x20;
-					for(int i = 0 ; i < 10 ; i++){
-						TRB *trbx4 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
-						device->localringoffset += 0x10;
-						if(trbx4->bar4&1){
-							printf(" %x att\n",i);
-						}
-					}
 					printf("[XHCI] Port %x : Could not NOOP on ring!\n",device->portnumber);
 					for(;;);
 					return;
 				}
-				
+				printf("[XHCI] Port %x : It is working!\n",device->portnumber);
+				for(;;);
 			}
 			
 			printf("[XHCI] Port %x : GET DEVICE DESCRIPTOR\n",device->portnumber);
@@ -1111,7 +1091,7 @@ void xhci_probe_port(int i){
 			dc3->bar4 = 1 | (4<<10) | 0x20 | (1 << 16); // 1 | (4<<10) | 0x20 | (1 << 16);
 			device->localringoffset+=0x10;
 
-			unsigned char completioncode = xhci_ring_and_wait(assignedSloth);
+			unsigned char completioncode = xhci_ring_and_wait(assignedSloth,0);
 			printf("[XHCI] Port %x : complection code is %x \n",device->portnumber,completioncode);for(;;);
 			if(completioncode!=1){
 				printf("[XHCI] Port %x : completioncode is not 1 but %x\n",device->portnumber,completioncode);
