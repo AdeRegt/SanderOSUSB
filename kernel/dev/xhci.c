@@ -388,6 +388,9 @@ typedef struct{
 	unsigned char bMaxPacketSize;
 }XHCI_DEVICE_DESCRIPTOR;
 
+/**
+ * The interrupter for xhci
+ */
 extern void xhciirq();
 
 unsigned long basebar = 0;
@@ -413,6 +416,10 @@ unsigned long event_ring_offset = 0;
 unsigned char uses_context_64 = 0;
 unsigned long btc[20] __attribute__ ((aligned (0x100)));
 
+/**
+ * Wait untill Bussy bit is not set
+ * \returns 0 on fail, 1 on success
+ */
 int xhci_wait_for_ready(){
 
 	//
@@ -436,10 +443,17 @@ int xhci_wait_for_ready(){
 	return 1;
 }
 
+/**
+ * Get the cycle bit which should be used
+ * \returns the cyclebit which must be used
+ */
 unsigned char getCycleBit(){
 	return deviceid!=XHCI_DEVICE_QEMU?0:1;
 }
 
+/**
+ * Prints the contents of the event ring to the screen
+ */
 void xhci_dump_event_ring(){
 	int local_event_ring_offset = 0;
 	while(1){
@@ -460,6 +474,10 @@ void xhci_dump_event_ring(){
 	}
 }
 
+/**
+ * Find the offset to the first unused event slot
+ * \returns offset first free event slot
+ */
 int xhci_seek_end_event_queue(){
 	event_ring_offset = 0;
 	int eventcount = 0;
@@ -476,6 +494,10 @@ int xhci_seek_end_event_queue(){
 	return eventcount;
 }
 
+/**
+ * Get last event as trb
+ * \returns last trb of event
+ */
 TRB* xhci_get_last_event(){
 	int t_event_ring_offset = 0;
 	TRB* trbres2 = 0;
@@ -492,6 +514,10 @@ TRB* xhci_get_last_event(){
 	return trbres3;
 }
 
+/**
+ * Wait untill XHCI event queue reaches target
+ * \param target the target to reach
+ */
 int xhci_wait(int target){
 	int timeout = 0;
 	while(1){
@@ -508,6 +534,12 @@ int xhci_wait(int target){
 	return 1;
 }
 
+/**
+ * Ring doorbell and wait untill event is popped on
+ * \param number the doorbel number
+ * \param callnum the endpoint to call
+ * \returns 0 on failure, 1 on success
+ */
 int xhci_ring_and_wait(int number,int callnum){
 	int stot = xhci_seek_end_event_queue();
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
@@ -549,6 +581,10 @@ int xhci_ring_and_wait(int number,int callnum){
 	return completioncode2;
 }
 
+/**
+ * Creates a ending trb for this event
+ * \param out trb to be used
+ */
 void xhci_stop_codon_to_trb(TRB *out){
 	out->bar1 = 0;
 	out->bar2 = 0;
@@ -556,6 +592,11 @@ void xhci_stop_codon_to_trb(TRB *out){
 	out->bar4 = getCycleBit()==1?0:1;
 }
 
+/**
+ * Installs enable_slot on trb
+ * \param in the enable_slot object
+ * \param out the trb object
+ */
 void xhci_trb_enable_slot_to_trb(XHCI_TRB_ENABLE_SLOT in,TRB *out){
 	out->bar1 = 0;
 	out->bar2 = 0;
@@ -565,6 +606,11 @@ void xhci_trb_enable_slot_to_trb(XHCI_TRB_ENABLE_SLOT in,TRB *out){
 	out->bar4 =  XHCI_TRB_ENABLE_SLOT_SLOTTYPE(in.slottype) | XHCI_TRB_SET_TRB_TYPE(in.trbtype) | XHCI_TRB_SET_CYCLE_BIT(in.cyclebit);
 }
 
+/**
+ * Installs the disable slot object to a trb
+ * \param in the disable_slot object
+ * \param out the trb object to install to
+ */
 void xhci_trb_disable_slot_to_trb(XHCI_TRB_DISABLE_SLOT in,TRB *out){
 	out->bar1 = 0;
 	out->bar2 = 0;
@@ -574,6 +620,11 @@ void xhci_trb_disable_slot_to_trb(XHCI_TRB_DISABLE_SLOT in,TRB *out){
 	out->bar4 =  XHCI_TRB_SET_SLOT(in.slot_id) | XHCI_TRB_SET_TRB_TYPE(in.trb_type) | XHCI_TRB_SET_CYCLE_BIT(in.cycle_bit);
 }
 
+/**
+ * Installs set address to trb
+ * \param in set_address object
+ * \param out trb
+*/
 void xhci_trb_set_address_to_trb(XHCI_TRB_SET_ADDRESS in,TRB *out){
 	out->bar1 = 0;
 	out->bar2 = 0;
@@ -584,6 +635,11 @@ void xhci_trb_set_address_to_trb(XHCI_TRB_SET_ADDRESS in,TRB *out){
 	out->bar4 = XHCI_TRB_SET_SLOT(in.slotid) | XHCI_TRB_SET_TRB_TYPE(in.trbtype) | XHCI_TRB_SET_ADDRESS_BSR(in.bsr) | XHCI_TRB_SET_CYCLE_BIT(in.cyclebit);
 }
 
+/**
+ * Installs control context to trb
+ * \param in control context
+ * \param out trb
+*/
 void xhci_input_control_conext_to_addr(XHCI_INPUT_CONTROL_CONTEXT in,unsigned long *out){
 	out[0] = 0;
 	out[1] = 0;
@@ -600,6 +656,11 @@ void xhci_input_control_conext_to_addr(XHCI_INPUT_CONTROL_CONTEXT in,unsigned lo
 	out[7] = XHCI_INPUT_CONTROL_CONTEXT_ALTERNATE_SETTING(in.alternate_setting) | XHCI_INPUT_CONTROL_CONTEXT_INTERFACE_NUMBER(in.interface_number) | XHCI_INPUT_CONTROL_CONTEXT_CONFIGURATION_VALUE(in.configuration_value);
 }
 
+/**
+ * Installs slot context to trb
+ * \param in slot context
+ * \param out trb
+*/
 void xhci_slot_context_to_addr(XHCI_SLOT_CONTEXT in , unsigned long *out){
 	out[0] = 0;
 	out[1] = 0;
@@ -616,6 +677,11 @@ void xhci_slot_context_to_addr(XHCI_SLOT_CONTEXT in , unsigned long *out){
 	out[3] = XHCI_SLOT_CONTEXT_SLOT_STATE(in.slot_state) | XHCI_SLOT_CONTEXT_USB_DEVICE_ADDRESS(in.usb_device_address);
 }
 
+/**
+ * Installs endpointcontext to trb
+ * \param in the endpointcontext
+ * \param out the trb
+*/
 void xhci_endpoint_context_to_addr(XHCI_ENDPOINT_CONTEXT *in, unsigned long *out){
 	out[0] = 0;
 	out[1] = 0;
@@ -633,6 +699,13 @@ void xhci_endpoint_context_to_addr(XHCI_ENDPOINT_CONTEXT *in, unsigned long *out
 	
 }
 
+/**
+ * Set address data to specified port
+ * \param assignedSloth the slot to assign the address to
+ * \param t the data to assign to the slot
+ * \param bsr if the request is bsr
+ * \return 1 for success
+*/
 int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char bsr){
 	// Address Device Command BSR1
 	TRB* trb = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
@@ -653,6 +726,11 @@ int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char 
 	return xhci_ring_and_wait(0,0);
 }
 
+/**
+ * Disable specified slot
+ * \param assignedSloth the slot to disable
+ * \returns 1 for success
+*/
 unsigned int xhci_disable_slot(unsigned long assignedSloth){
 	xhci_seek_end_event_queue();
 	TRB* trb2 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
@@ -670,6 +748,10 @@ unsigned int xhci_disable_slot(unsigned long assignedSloth){
 	return xhci_ring_and_wait(0,0);
 }
 
+/**
+ * Issue enable slot command
+ * \returns the portnumber which is assigned
+*/
 int xhci_enable_slot(){
 	unsigned char cs = deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU?1:0;
 	int stot = xhci_seek_end_event_queue();
@@ -716,6 +798,10 @@ int xhci_enable_slot(){
 	return assignedSloth;
 }
 
+/**
+ * Issue no-operation command
+ * \returns 1 when succeed
+*/
 int xhci_noop(){
 	unsigned char cs = deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU?1:0;
 	xhci_seek_end_event_queue();
@@ -736,6 +822,9 @@ int xhci_noop(){
 	return xhci_ring_and_wait(0,0);
 }
 
+/**
+ * Handle interrupt
+*/
 void irq_xhci(){
 	unsigned long xhci_usbsts = ((unsigned long*)usbsts)[0];
 	if(xhci_usbsts&4){
@@ -752,14 +841,22 @@ void irq_xhci(){
 	// acknowledge packages
 	((unsigned long*)usbsts)[0] = xhci_usbsts;
 	
-//	((unsigned long*)usbsts)[0] |= 0x8;
-//	((unsigned long*)usbsts)[0] |= 0b10000;
+	//	((unsigned long*)usbsts)[0] |= 0x8;
+	//	((unsigned long*)usbsts)[0] |= 0b10000;
 	unsigned long iman_addr = rtsoff + 0x020;
 	((unsigned long*)iman_addr)[0] |= 0b11;
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
 }
 
+/**
+ * Send trb objects to port
+ * \param device the device to send to
+ * \param setup the setup trb
+ * \param data the data trb
+ * \param end the status trb
+ * \returns the return status of te event
+ */
 unsigned char xhci_send_message(USB_DEVICE* device,TRB setup,TRB data,TRB end){
 	xhci_seek_end_event_queue();
 	TRB *dc1 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
@@ -806,6 +903,11 @@ unsigned char xhci_send_message(USB_DEVICE* device,TRB setup,TRB data,TRB end){
 	return completioncode;
 }
 
+/**
+ * Print object according to the standard
+ * \param statecontext the location where the object is
+ * \returns the state of the port
+*/
 unsigned char xhci_dump_port_info_raw(unsigned long *statecontext){
 	unsigned char slotstate = statecontext[3]>>27;
 	printf("------------------------------------------------------------\n");
@@ -827,11 +929,20 @@ unsigned char xhci_dump_port_info_raw(unsigned long *statecontext){
 	return slotstate;
 }
 
+/**
+ * Dump port info by assigned slot
+ * \param assignedSloth the slot to check
+ * \returns the state of the port
+ */
 unsigned char xhci_dump_port_info(unsigned char assignedSloth){
 	unsigned long *statecontext = (unsigned long*)(btc[(assignedSloth*2)+0]);
 	return xhci_dump_port_info_raw(statecontext);
 }
 
+/**
+ * Install port
+ * \param i physical port to install
+ */
 void xhci_probe_port(int i){
 	unsigned long map = basebar + 0x400 + (i*0x10);
 		unsigned long val = ((unsigned long*)map)[0];
@@ -1284,6 +1395,9 @@ void xhci_probe_port(int i){
 		}
 }
 
+/**
+ * Probe and install new ports
+ */
 void xhci_probe_ports(){
 	printf("[XHCI] Probing ports....\n");
 	//
@@ -1297,7 +1411,13 @@ void xhci_probe_ports(){
 	}
 }
 
-// offset intell xhci 0x47C
+/**
+ * Installs XHCI. This is the main function
+ * intell uses xhci offset 0x47c
+ * \param bus bus to check it
+ * \param slot slot to check 
+ * \param function function to check
+ */
 void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	printf("[XHCI] entering xhci driver....\n");
 	#ifdef DISABLE_USB
@@ -1327,8 +1447,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	}
 	printf("[XHCI] HALT=%x SEGM=%x \n",bar,((unsigned char*)bar)[0]);
 	
-//
-// Calculating base address
+	//
+	// Calculating base address
 	basebar = bar+((unsigned char*)bar)[0];
 	if(deviceid==0x22B5){
 		printf("[XHCI] INTELL XHCI CONTROLLER\n");
@@ -1475,8 +1595,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	unsigned long xhci_usbsts = ((unsigned long*)usbsts)[0];
 	unsigned long xhci_pagesize = ((unsigned long*)pagesize)[0];
 	printf("[XHCI] pagesize %x defcmd %x defsts %x \n",xhci_pagesize,xhci_usbcmd,xhci_usbsts);
-//
-// Stopping controller when running
+	//
+	// Stopping controller when running
 	if((xhci_usbcmd & 1)==1){
 		printf("[XHCI] controller already running! (%x)\n",xhci_usbcmd);
 		// ask controller to stop
@@ -1505,8 +1625,8 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	//
 	// setting config
 	((unsigned long*)config)[0] |= 2; // device slots to be used
-//
-// Setup default parameters
+	//
+	// Setup default parameters
 	// TELL XHCI TO REPORT EVERYTHING
 	((unsigned long*)dnctrl)[0] |= 0b1111111111111111;
 	
