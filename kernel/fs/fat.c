@@ -287,15 +287,19 @@ void fat_dir(Device *device,char* path,char *buffer){
 void initialiseFAT(Device* device){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	unsigned short* buffer = (unsigned short*) malloc(512);
-	readraw(device,0,1,buffer);
+	int tres = readraw(device,0,1,buffer);
+	if(tres==0){
+		printf("[FAT] FAIL: cannot read sector\n");
+		return;
+	}
 	fat_BS_t* fat_boot = (fat_BS_t*) buffer;
 	fat_extBS_32_t* fat_boot_ext_32 = (fat_extBS_32_t*) fat_boot->extended_section;
 	printf("[FAT] FAT detected!\n");
-	printf("[FAT] OEM-name: ");
+	printf("[FAT] OEM-name: \"");
 	for(int i = 0 ; i < 8 ; i++){
 		printf("%c",fat_boot->oem_name[i]);
 	}
-	printf("\n");
+	printf("\"\n");
 	unsigned long total_sectors 	= (fat_boot->total_sectors_16 == 0)? fat_boot->total_sectors_32 : fat_boot->total_sectors_16;
 	unsigned long fat_size 		= (fat_boot->table_size_16 == 0)? fat_boot_ext_32->table_size_32 : fat_boot->table_size_16;
 	unsigned long root_dir_sectors 	= ((fat_boot->root_entry_count * 32) + (fat_boot->bytes_per_sector - 1)) / fat_boot->bytes_per_sector;

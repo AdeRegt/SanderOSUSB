@@ -1181,7 +1181,7 @@ void xhci_probe_port(int i){
 			dc1->bar3 |= (0 << 22); // interrupetertrager
 			dc1->bar4 |= 1; // cyclebit =1
 			dc1->bar4 |= (00<<5); // ioc=0
-			dc1->bar4 |= (0<<6); // idt=1
+			dc1->bar4 |= (1<<6); // idt=1
 			dc1->bar4 |= (2<<10); // trbtype
 			dc1->bar4 |= (3<<16); // trt = 3;
 			dc1->bar4 |= 0x40;

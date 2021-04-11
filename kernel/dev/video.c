@@ -1411,8 +1411,10 @@ void setForeGroundBackGround(unsigned char fg,unsigned char bg){
 
 void putc(char a){
 	if(isgraphics==1){
-		if(cury>27){
+		if(cury==27){
+			cls();
 			curx = 0;
+			cury = 1;
 		}else if(curx==40||a=='\n'){
 			curx=0;
 			cury++;

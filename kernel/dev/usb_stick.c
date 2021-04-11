@@ -2,9 +2,9 @@
 
 // reference https://www.seagate.com/files/staticfiles/support/docs/manual/Interface%20manuals/100293068j.pdf
 
-#define USB_STORAGE_ENABLE_ENQ 1
+#define USB_STORAGE_ENABLE_ENQ 0
 #define USB_STORAGE_ENABLE_CAP 0
-#define USB_STORAGE_ENABLE_SEC 1
+#define USB_STORAGE_ENABLE_SEC 0
 #define USB_STORAGE_ENABLE_SEN 0
 #define USB_STORAGE_SECTOR_SIZE 512
 #define USB_STORAGE_CSW_SIGN 0x53425355
@@ -82,8 +82,7 @@ unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsign
 		return (unsigned char *)EHCI_ERROR;
 	}
 
-	CommandStatusWrapper* csw = (CommandStatusWrapper*)0;
-	csw = (CommandStatusWrapper*)buffer;
+	CommandStatusWrapper* csw = (CommandStatusWrapper*)buffer;
 	if(csw->signature!=USB_STORAGE_CSW_SIGN){
 		printf("[SMSD] CSW Sign not at the beginning\n");
 		unsigned char* cuv = malloc(13);
@@ -108,12 +107,11 @@ unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsign
 	}
 	if(csw->dataResidue){
 		printf("[SMSD] Data residu %x \n",csw->dataResidue);
-		return buffer;
-		// printf("[SMSD] Asking for a re-read\n");
-		// buffer = ehci_recieve_bulk(device,csw->dataResidue,malloc(csw->dataResidue));
-		// if((unsigned long)buffer==EHCI_ERROR){printf("D");for(;;);
-		// 	return (unsigned char *)EHCI_ERROR;
-		// }for(;;);
+		printf("[SMSD] Asking for a re-read\n");
+		buffer = ehci_recieve_bulk(device,csw->dataResidue,malloc(csw->dataResidue));
+		if((unsigned long)buffer==EHCI_ERROR){printf("D");for(;;);
+			return (unsigned char *)EHCI_ERROR;
+		}for(;;);
 	}
 	return buffer;
 }
@@ -220,7 +218,7 @@ unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
 	return bufin;
 }
 
-void usb_stick_read_raw_sector(Device *dxv,unsigned long LBA,unsigned char count,unsigned short *l0cation){
+int usb_stick_read_raw_sector(Device *dxv,unsigned long LBA,unsigned char count,unsigned short *l0cation){
 	printf("READ COMMAND RECIEVED TO READ %x SECTORS FROM %x \n",count,LBA);
 	USB_DEVICE *stick = (USB_DEVICE*) ((unsigned long)dxv->arg1);
 	unsigned char *location = (unsigned char*)l0cation;
@@ -232,8 +230,10 @@ void usb_stick_read_raw_sector(Device *dxv,unsigned long LBA,unsigned char count
 			}
 		}else{
 			printf("READ COMMAND ERROR\n");
+			return 0;
 		}
 	}
+	return 1;
 }
 
 //

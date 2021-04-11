@@ -78,7 +78,7 @@ unsigned char ehci_wait_for_completion(volatile EhciTD *status){
         }
         if(!(tstatus & (1 << 7))){
             // not anymore active and succesfull ended
-            printf("[EHCI] Transaction succeed\n");
+            // printf("[EHCI] Transaction succeed\n");
             lstatus = 1;
             break;
         }
