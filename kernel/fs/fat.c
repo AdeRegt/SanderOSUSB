@@ -285,7 +285,7 @@ void fat_dir(Device *device,char* path,char *buffer){
 }
 
 void initialiseFAT(Device* device){
-	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
+	int (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	unsigned short* buffer = (unsigned short*) malloc(512);
 	int tres = readraw(device,0,1,buffer);
 	if(tres==0){

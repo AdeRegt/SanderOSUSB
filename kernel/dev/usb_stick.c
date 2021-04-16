@@ -109,9 +109,9 @@ unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsign
 		printf("[SMSD] Data residu %x \n",csw->dataResidue);
 		printf("[SMSD] Asking for a re-read\n");
 		buffer = ehci_recieve_bulk(device,csw->dataResidue,malloc(csw->dataResidue));
-		if((unsigned long)buffer==EHCI_ERROR){printf("D");for(;;);
+		if((unsigned long)buffer==EHCI_ERROR){
 			return (unsigned char *)EHCI_ERROR;
-		}for(;;);
+		}
 	}
 	return buffer;
 }
