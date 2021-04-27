@@ -82,3 +82,13 @@ the following executable formats are on the list to get implemented:
 * kernel: Kernel source code
 * lib: kernel static library to which programs attach to
 * programs: example programs
+
+## Instalation on CDROM
+* build system with ``` ./build.sh --grub ```
+* burn cdrom.iso to a cdrom
+
+## Instalation on USB
+* make a usbstick with EXT as filesystem
+* run ``` sudo grub-install --target=i386-pc --root-directory=[mountpoint_filesystem] /dev/sdb ```
+* copy grub command file ``` sudo cp ../boot/grub/grub.cfg [mountpoint_filesystem]/boot/grub/grub.cfg ```
+* copy kernel ``` sudo cp ../kernel.bin /media/sander/SOS/kernel.bin ```

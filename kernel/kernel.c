@@ -128,6 +128,23 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 	printf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
 	printf("The system is compiled at %s %s \n",__DATE__,__TIME__);
+
+	cls();
+	curset(27,9);
+	printf("----------------------");
+	curset(27,10);
+	printf("S A N D E R O S U S B ");
+	curset(27,11);
+	printf("----------------------");
+	setForeGroundBackGround(0,7);
+	for(int i = 0 ; i < 22 ; i++){
+		resetTicks();
+		while(getTicks()<1);
+		curset(27+i,12);
+		putc(' ');
+	}
+	setForeGroundBackGround(4,1);
+	cls();
 	
 	if(init_graph_vga(320, 200, 1)==0) {
 		printf("VGA: failed to set!\nPress any key to reboot\n");

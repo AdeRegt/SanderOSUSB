@@ -78,11 +78,12 @@ unsigned char ehci_wait_for_completion(volatile EhciTD *status){
         }
         if(!(tstatus & (1 << 7))){
             // not anymore active and succesfull ended
+            // printf("[EHCI] Transaction succeed\n");
             lstatus = 1;
             break;
         }
-        if(getTicks()>50){
-            printf("EHCI FAIL Timeout\n");
+        if(getTicks()>40){
+            printf("[EHCI] FAILED: Timeout\n");
             lstatus = 0;
             break;
         }
