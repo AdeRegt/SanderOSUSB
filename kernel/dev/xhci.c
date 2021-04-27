@@ -928,9 +928,9 @@ unsigned char xhci_dump_endpoint_context(unsigned long *statecontext){
 	printf("Max Burst Size       : %x \n",(statecontext[1]&0b00000000000000001111111100000000)>>8);
 	printf("Max Packet Size	     : %x  ",(statecontext[1]&0b11111111111111110000000000000000)>>16);
 	printf("DCS                  : %x \n",(statecontext[2]&0b00000000000000000000000000000001)>>0);
-	printf("TR Dequeuepointer    : %x \n",(statecontext[2]&0b11111111111111111111111111110000)>>0);
-	printf("Average TRB Length   : %x   ",(statecontext[0]&0b00000000000000001111111111111111)>>0);
-	printf("Max ESIT Payload Lo  : %x \n",(statecontext[0]&0b11111111111111110000000000000000)>>0);
+	printf("TR Dequeuepointer    : %x %x \n",(statecontext[2]&0b11111111111111111111111111110000)>>0,statecontext[3]);
+	printf("Average TRB Length   : %x   ",(statecontext[4]&0b00000000000000001111111111111111)>>0);
+	printf("Max ESIT Payload Lo  : %x \n",(statecontext[4]&0b11111111111111110000000000000000)>>0);
 	printf(" -----------------------------------------------------------\n");
 	return statecontext[0] & 0b00000000000000000000000000000111;
 }
@@ -1159,8 +1159,11 @@ void xhci_probe_port(int i){
 			}
 
 			unsigned long *yu = (unsigned long*)(((unsigned long)&t)+offsetB);
-			xhci_dump_endpoint_context(yu);
-			for(;;);
+			unsigned char endpointstate = xhci_dump_endpoint_context(yu);
+			if(endpointstate!=1){
+				printf("[XHCI] Unexpected endpointstate!\n");for(;;);
+				goto disabledevice;
+			}
 
 			//
 			// and test

@@ -2,9 +2,9 @@
 
 // reference https://www.seagate.com/files/staticfiles/support/docs/manual/Interface%20manuals/100293068j.pdf
 
-#define USB_STORAGE_ENABLE_ENQ 0
+#define USB_STORAGE_ENABLE_ENQ 1
 #define USB_STORAGE_ENABLE_CAP 0
-#define USB_STORAGE_ENABLE_SEC 0
+#define USB_STORAGE_ENABLE_SEC 1
 #define USB_STORAGE_ENABLE_SEN 0
 #define USB_STORAGE_SECTOR_SIZE 512
 #define USB_STORAGE_CSW_SIGN 0x53425355
@@ -118,7 +118,7 @@ unsigned char* usb_stick_send_and_recieve_scsi_command(USB_DEVICE *device,unsign
 
 unsigned char* usb_stick_get_inquiry(USB_DEVICE *device){
 	unsigned char bufoutsize = 31;
-	unsigned char bufinsize = 36;//96;//96 36;//sizeof(struct cdbres_inquiry);
+	unsigned char bufinsize = 36;//36;//96;//96 36;//sizeof(struct cdbres_inquiry);
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	// 55 53 42 43 e7 3 0 0 24 0 0 0 80 0 c 12 0 0 0 24 0 0 0 0 0 0 0 0 0 0 0
 	bufout->lun = 0;
@@ -212,7 +212,7 @@ unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
 	bufout->cmd[5] = (lba) & 0xFF;
 	bufout->cmd[6] = 0;
 	bufout->cmd[7] = 0;
-	bufout->cmd[8] = 1;
+	bufout->cmd[8] = 1;//1;
 	bufout->cmd[9] = 0;
 	unsigned char* bufin = usb_stick_send_and_recieve_scsi_command(device,(unsigned char*)bufout,bufinsize,bufoutsize);
 	return bufin;
