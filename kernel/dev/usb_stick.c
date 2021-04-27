@@ -2,9 +2,9 @@
 
 // reference https://www.seagate.com/files/staticfiles/support/docs/manual/Interface%20manuals/100293068j.pdf
 
-#define USB_STORAGE_ENABLE_ENQ 1
+#define USB_STORAGE_ENABLE_ENQ 0
 #define USB_STORAGE_ENABLE_CAP 0
-#define USB_STORAGE_ENABLE_SEC 1
+#define USB_STORAGE_ENABLE_SEC 0
 #define USB_STORAGE_ENABLE_SEN 0
 #define USB_STORAGE_SECTOR_SIZE 512
 #define USB_STORAGE_CSW_SIGN 0x53425355

@@ -1642,7 +1642,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 			for(int i = 2 ; i < 10 ; i++){
 				if(adx[i]!=0){
 					printf("[XHCI] Using dev %x for dump\n",i/2);
-					statecontext = adx[i];
+					statecontext = (unsigned long*) adx[i];
 					xhci_dump_port_info_raw(statecontext);
 				}
 				i++;
