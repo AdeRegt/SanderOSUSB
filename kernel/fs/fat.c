@@ -92,15 +92,16 @@ unsigned long fat_get_first_sector_of_cluster(Device *device){
 		unsigned long root_cluster_32 = fat_boot_ext_32->root_cluster;
 		first_sector_of_cluster = ((root_cluster_32 - 2) * fat_boot->sectors_per_cluster) + first_data_sector;
 	}
+	free(rxbuffer);
 	return first_sector_of_cluster;
 }
 
 unsigned long fat_get_first_sector_of_file(Device *device,char *path){
-	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
+	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned char *) = (void*)device->readRawSector;
 
 	unsigned long first_sector_of_cluster = fat_get_first_sector_of_cluster(device);
 	
-	unsigned short* fatbuffer = (unsigned short*) malloc(512);
+	unsigned char* fatbuffer = (unsigned char*) malloc(512);
 	readraw(device,first_sector_of_cluster,1,fatbuffer); 
 	unsigned long pathoffset = 0;
 	unsigned long pathfileof = 0;
@@ -133,14 +134,17 @@ unsigned long fat_get_first_sector_of_file(Device *device,char *path){
 		
 		unsigned long offset = 0;
 		unsigned long newsect = 0;
+		int marx = 0;
 		while(1){
 			fat_dir_t* currentdir = (fat_dir_t*) (fatbuffer + offset);
 			offset += sizeof(fat_dir_t);
+			marx++;
+			if(marx>50){break;}
 			unsigned char eersteteken = currentdir->name[0];
 			if(eersteteken==0x00){
-				break;
+				continue;
 			}
-			if(eersteteken==0xE5){
+			if((eersteteken=='A'&&currentdir->name[2]==0x00)||eersteteken==0xE5){
 				continue;
 			}
 			unsigned long sigma = 0;
@@ -154,6 +158,9 @@ unsigned long fat_get_first_sector_of_file(Device *device,char *path){
 				if(i==7&&currentdir->attrib==0x20&&filename[sigma++]!='.'){
 					yotta = 0;
 				}
+				if(filename[sigma]==0){
+					break;
+				}
 			}
 			if(yotta){
 				newsect = ((currentdir->clusterhigh << 8) &0xFFFF0000) | (currentdir->clusterlow & 0xFFFF);
@@ -164,34 +171,38 @@ unsigned long fat_get_first_sector_of_file(Device *device,char *path){
 			first_sector_of_cluster = ((newsect - 2) * fat_boot->sectors_per_cluster) + first_data_sector;
 			readraw(device,first_sector_of_cluster,1,fatbuffer);
 		}else{
+			free(fatbuffer);
 			return 0;
 		}
 		
 	}
+	free(fatbuffer);
 	return first_sector_of_cluster;
 }
 
 char fat_exists(Device *device,char *path){
-	return fat_get_first_sector_of_file(device,path)>0;
+	unsigned long dk1 = fat_get_first_sector_of_file(device,path);
+	return dk1>0;
 }
 
 void fat_write(Device *device,char* path,char *buffer,int size){}
 
 void fat_create(Device *device,char* path,char *buffer,int size){}
 
-void fat_read(Device *device,char* path,char *buffer){
+char fat_read(Device *device,char* path,char *buffer){
 	//atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location)
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	unsigned long first_sector_of_cluster = fat_get_first_sector_of_file(device,path);
 	if(first_sector_of_cluster==0){
-		return;
+		return 0;
 	}
 	readraw(device,first_sector_of_cluster,1,(unsigned short*)buffer);
+	return 1;
 }
 
 void fat_dir(Device *device,char* path,char *buffer){
 	//atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location)
-	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
+	void* (*readraw)(Device *,unsigned long,unsigned char,char *) = (void*)device->readRawSector;
 
 	unsigned long first_sector_of_cluster = fat_get_first_sector_of_file(device,path);
 	if(first_sector_of_cluster==0){
@@ -227,6 +238,7 @@ void fat_dir(Device *device,char* path,char *buffer){
 		buffer[bufofs++] = ';';
 	}
 	buffer[bufofs-1] = 0x00;
+	buffer[bufofs] = 0x00;
 	free(fatbuffer);
 }
 
