@@ -66,19 +66,20 @@ typedef struct DirectoryEntry{
  
 } __attribute__ ((packed)) fat_dir_t;
 
+fat_BS_t* fat_boot;
+unsigned long first_data_sector;
 
-void fat_read(Device *device,char* path,char *buffer){
-	//atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location)
+unsigned long fat_get_first_sector_of_cluster(Device *device){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	unsigned short* rxbuffer = (unsigned short*) malloc(512);
 	readraw(device,0,1,rxbuffer); 
-	fat_BS_t* fat_boot = (fat_BS_t*) rxbuffer;
+	fat_boot = (fat_BS_t*) rxbuffer;
 	fat_extBS_32_t* fat_boot_ext_32 = (fat_extBS_32_t*) fat_boot->extended_section;
 	
 	unsigned long total_sectors 	= (fat_boot->total_sectors_16 == 0)? fat_boot->total_sectors_32 : fat_boot->total_sectors_16;
 	unsigned long fat_size 		= (fat_boot->table_size_16 == 0)? fat_boot_ext_32->table_size_32 : fat_boot->table_size_16;
 	unsigned long root_dir_sectors 	= ((fat_boot->root_entry_count * 32) + (fat_boot->bytes_per_sector - 1)) / fat_boot->bytes_per_sector;
-	unsigned long first_data_sector = fat_boot->reserved_sector_count + (fat_boot->table_count * fat_size) + root_dir_sectors;
+	first_data_sector = fat_boot->reserved_sector_count + (fat_boot->table_count * fat_size) + root_dir_sectors;
 	unsigned long data_sectors 	= total_sectors - (fat_boot->reserved_sector_count + (fat_boot->table_count * fat_size) + root_dir_sectors);
 	unsigned long total_clusters 	= data_sectors / fat_boot->sectors_per_cluster;
 	
@@ -91,6 +92,18 @@ void fat_read(Device *device,char* path,char *buffer){
 		unsigned long root_cluster_32 = fat_boot_ext_32->root_cluster;
 		first_sector_of_cluster = ((root_cluster_32 - 2) * fat_boot->sectors_per_cluster) + first_data_sector;
 	}
+	return first_sector_of_cluster;
+}
+
+void fat_write(Device *device,char* path,char *buffer,int size){}
+
+void fat_create(Device *device,char* path,char *buffer,int size){}
+
+void fat_read(Device *device,char* path,char *buffer){
+	//atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location)
+	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
+
+	unsigned long first_sector_of_cluster = fat_get_first_sector_of_cluster(device);
 	
 	unsigned short* fatbuffer = (unsigned short*) malloc(512);
 	readraw(device,first_sector_of_cluster,1,fatbuffer); 
@@ -168,27 +181,8 @@ void fat_read(Device *device,char* path,char *buffer){
 void fat_dir(Device *device,char* path,char *buffer){
 	//atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location)
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
-	unsigned short* rxbuffer = (unsigned short*) malloc(512);
-	readraw(device,0,1,rxbuffer); 
-	fat_BS_t* fat_boot = (fat_BS_t*) rxbuffer;
-	fat_extBS_32_t* fat_boot_ext_32 = (fat_extBS_32_t*) fat_boot->extended_section;
-	
-	unsigned long total_sectors 	= (fat_boot->total_sectors_16 == 0)? fat_boot->total_sectors_32 : fat_boot->total_sectors_16;
-	unsigned long fat_size 		= (fat_boot->table_size_16 == 0)? fat_boot_ext_32->table_size_32 : fat_boot->table_size_16;
-	unsigned long root_dir_sectors 	= ((fat_boot->root_entry_count * 32) + (fat_boot->bytes_per_sector - 1)) / fat_boot->bytes_per_sector;
-	unsigned long first_data_sector = fat_boot->reserved_sector_count + (fat_boot->table_count * fat_size) + root_dir_sectors;
-	unsigned long data_sectors 	= total_sectors - (fat_boot->reserved_sector_count + (fat_boot->table_count * fat_size) + root_dir_sectors);
-	unsigned long total_clusters 	= data_sectors / fat_boot->sectors_per_cluster;
-	
-	unsigned long first_sector_of_cluster = 0;
-	if(total_clusters < 4085){
-		first_sector_of_cluster = 19;
-	}else if(total_clusters < 65525){
-		first_sector_of_cluster = fat_boot->reserved_sector_count + (fat_boot->table_count * fat_boot->table_size_16);
-	}else if (total_clusters < 268435445){
-		unsigned long root_cluster_32 = fat_boot_ext_32->root_cluster;
-		first_sector_of_cluster = ((root_cluster_32 - 2) * fat_boot->sectors_per_cluster) + first_data_sector;
-	}
+
+	unsigned long first_sector_of_cluster = fat_get_first_sector_of_cluster(device);
 	
 	unsigned short* fatbuffer = (unsigned short*) malloc(512);
 	readraw(device,first_sector_of_cluster,1,fatbuffer); 
@@ -315,25 +309,28 @@ void initialiseFAT(Device* device){
 	printf("[FAT] first fat sector %x \n",first_fat_sector);
 	printf("[FAT] data sectors %x \n",data_sectors);
 	printf("[FAT] total clusters %x \n",total_clusters);
-	unsigned long first_sector_of_cluster = 0;
 	if(total_clusters < 4085){
-		first_sector_of_cluster = 19;
 		printf("[FAT] FAT-type is FAT12\n");
 	}else if(total_clusters < 65525){
-		first_sector_of_cluster = fat_boot->reserved_sector_count + (fat_boot->table_count * fat_boot->table_size_16);
-		printf("[FAT] FAT-type is FAT16 at cluster %x \n",first_sector_of_cluster);
+		printf("[FAT] FAT-type is FAT16\n");
 	}else if (total_clusters < 268435445){
 		printf("[FAT] FAT-type is FAT32\n");
-		unsigned long root_cluster_32 = fat_boot_ext_32->root_cluster;
-		first_sector_of_cluster = ((root_cluster_32 - 2) * fat_boot->sectors_per_cluster) + first_data_sector;
-		printf("[FAT] root cluster is %x and its sector is %x \n",root_cluster_32,first_sector_of_cluster);
 	}else{ 
 		printf("[FAT] FAT-type is ExFAT\n");
 	}
+	unsigned long first_sector_of_cluster = fat_get_first_sector_of_cluster(device);
+	printf("[FAT] First sector of cluster %x \n",first_sector_of_cluster);
 	if(first_sector_of_cluster==0){
 		printf("[FAT] FAT-dir is 0. No FAT supported!\n");
 		return;
 	}
 	device->dir	= (unsigned long)&fat_dir;
 	device->readFile= (unsigned long)&fat_read;
+	if(device->writeRawSector){
+		printf("[FAT] Enables FAT write function\n");
+		device->writeFile = (unsigned long)&fat_write;
+		device->newFile = (unsigned long)&fat_create;
+	}else{
+		printf("[FAT] FAT is readonly\n");
+	}
 }
