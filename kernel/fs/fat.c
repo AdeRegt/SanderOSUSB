@@ -66,14 +66,14 @@ typedef struct DirectoryEntry{
  
 } __attribute__ ((packed)) fat_dir_t;
 
-fat_BS_t* fat_boot;
 unsigned long first_data_sector;
+unsigned long sectors_per_cluster;
 
 unsigned long fat_get_first_sector_of_cluster(Device *device){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	unsigned short* rxbuffer = (unsigned short*) malloc(512);
 	readraw(device,0,1,rxbuffer); 
-	fat_boot = (fat_BS_t*) rxbuffer;
+	fat_BS_t *fat_boot = (fat_BS_t*) rxbuffer;
 	fat_extBS_32_t* fat_boot_ext_32 = (fat_extBS_32_t*) fat_boot->extended_section;
 	
 	unsigned long total_sectors 	= (fat_boot->total_sectors_16 == 0)? fat_boot->total_sectors_32 : fat_boot->total_sectors_16;
@@ -84,6 +84,7 @@ unsigned long fat_get_first_sector_of_cluster(Device *device){
 	unsigned long total_clusters 	= data_sectors / fat_boot->sectors_per_cluster;
 	
 	unsigned long first_sector_of_cluster = 0;
+	sectors_per_cluster = fat_boot->sectors_per_cluster;
 	if(total_clusters < 4085){
 		first_sector_of_cluster = 19;
 	}else if(total_clusters < 65525){
@@ -106,6 +107,7 @@ unsigned long fat_get_first_sector_of_file(Device *device,char *path){
 	unsigned long pathoffset = 0;
 	unsigned long pathfileof = 0;
 	unsigned char filename[11];
+	unsigned long newsect = 0;
 	
 	//
 	// lookup path
@@ -133,7 +135,7 @@ unsigned long fat_get_first_sector_of_file(Device *device,char *path){
 		}
 		
 		unsigned long offset = 0;
-		unsigned long newsect = 0;
+		newsect = 0;
 		int marx = 0;
 		while(1){
 			fat_dir_t* currentdir = (fat_dir_t*) (fatbuffer + offset);
@@ -168,7 +170,7 @@ unsigned long fat_get_first_sector_of_file(Device *device,char *path){
 			}
 		}
 		if(newsect){
-			first_sector_of_cluster = ((newsect - 2) * fat_boot->sectors_per_cluster) + first_data_sector;
+			first_sector_of_cluster = ((newsect - 2) * sectors_per_cluster) + first_data_sector;
 			readraw(device,first_sector_of_cluster,1,fatbuffer);
 		}else{
 			free(fatbuffer);
