@@ -22,9 +22,11 @@ void detectFilesystemsOnMBR(Device* device){
 	readraw(device, 0, 1, (unsigned short *)msg);
 	unsigned int basex = 0x01BE;
 	mbr_entry* mbrs = (mbr_entry*)&msg[basex];
+	int amt = 0;
 	for(int i = 0 ; i < 4 ; i++){
 		printf("[MBRI] MBR %x : lba %x type %x \n",i+1,mbrs[i].lbastart,mbrs[i].type);
 		if(mbrs[i].type==0xEE){
+			amt++;
 			printf("[MBRI] MBR partitiontable declares EFI subsystem\n");
 			unsigned char* efi = (unsigned char*) 0x1000+512;
 			readraw(device, mbrs[i].lbastart, 1, (unsigned short *)efi);
@@ -59,6 +61,7 @@ void detectFilesystemsOnMBR(Device* device){
 					Device *regdev = getNextFreeDevice();
 		
 					regdev->readRawSector 	= device->readRawSector;
+					regdev->writeRawSector 	= atmp3;
 					
 					regdev->arg1 = device->arg1;
 					regdev->arg2 = xy;
@@ -82,6 +85,7 @@ void detectFilesystemsOnMBR(Device* device){
 				}
 			}
 		}else if(mbrs[i].type==0x83){
+			amt++;
 			printf("[MBRI] Linux native filesystem detected\n");
 			Device *regdev = getNextFreeDevice();
 		
@@ -94,10 +98,12 @@ void detectFilesystemsOnMBR(Device* device){
 			regdev->arg5 = device->arg5;
 			initialiseExt2(regdev);
 		}else if(mbrs[i].type==0x0E||mbrs[i].type==0x0B||mbrs[i].type==0x0C){
+			amt++;
 			printf("[MBRI] FAT filesystem detected\n");
 			Device *regdev = getNextFreeDevice();
 		
 			regdev->readRawSector 	= atmp2;
+			regdev->writeRawSector 	= atmp3;
 			
 			regdev->arg1 = atmp4;
 			regdev->arg2 = mbrs[i].lbastart;
@@ -106,6 +112,7 @@ void detectFilesystemsOnMBR(Device* device){
 			regdev->arg5 = device->arg5;
 			initialiseFAT(regdev);
 		}else if(mbrs[i].type==0xCD){
+			amt++;
 			printf("[MBRI] SFS filesystem detected\n");
 			Device *regdev = getNextFreeDevice();
 		
@@ -120,5 +127,17 @@ void detectFilesystemsOnMBR(Device* device){
 			initialiseSFS(regdev);
 		}
 		basex += 16;
+	}
+	printf("[MBRI] Installed disks: %x \n",amt);
+	if(amt==0){
+		printf("[MBRI] Entering legacy mode... Trying FAT....\n");
+		Device *fatdevice = getNextFreeDevice();
+		fatdevice->readRawSector 	= device->readRawSector;
+		fatdevice->arg1 = device->arg1;
+		fatdevice->arg2 = 0;
+		fatdevice->arg3 = device->arg3;
+		fatdevice->arg4 = device->arg4;
+		fatdevice->arg5 = device->arg5;
+		initialiseFAT(fatdevice);
 	}
 }
