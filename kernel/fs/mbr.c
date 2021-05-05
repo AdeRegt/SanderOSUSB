@@ -61,6 +61,7 @@ void detectFilesystemsOnMBR(Device* device){
 					Device *regdev = getNextFreeDevice();
 		
 					regdev->readRawSector 	= device->readRawSector;
+					regdev->writeRawSector 	= atmp3;
 					
 					regdev->arg1 = device->arg1;
 					regdev->arg2 = xy;
@@ -102,6 +103,7 @@ void detectFilesystemsOnMBR(Device* device){
 			Device *regdev = getNextFreeDevice();
 		
 			regdev->readRawSector 	= atmp2;
+			regdev->writeRawSector 	= atmp3;
 			
 			regdev->arg1 = atmp4;
 			regdev->arg2 = mbrs[i].lbastart;

@@ -68,6 +68,9 @@ typedef struct DirectoryEntry{
 
 unsigned long first_data_sector;
 unsigned long sectors_per_cluster;
+unsigned long selected_file_size;
+unsigned long last_dir_sector;
+unsigned long last_file_selected_index;
 
 unsigned long fat_get_first_sector_of_cluster(Device *device){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
@@ -104,10 +107,12 @@ unsigned long fat_get_first_sector_of_file(Device *device,char *path){
 	
 	unsigned char* fatbuffer = (unsigned char*) malloc(512);
 	readraw(device,first_sector_of_cluster,1,fatbuffer); 
+	last_dir_sector = first_sector_of_cluster;
 	unsigned long pathoffset = 0;
 	unsigned long pathfileof = 0;
 	unsigned char filename[11];
 	unsigned long newsect = 0;
+	selected_file_size = 0;
 	
 	//
 	// lookup path
@@ -139,6 +144,7 @@ unsigned long fat_get_first_sector_of_file(Device *device,char *path){
 		int marx = 0;
 		while(1){
 			fat_dir_t* currentdir = (fat_dir_t*) (fatbuffer + offset);
+			last_file_selected_index = offset;
 			offset += sizeof(fat_dir_t);
 			marx++;
 			if(marx>50){break;}
@@ -166,6 +172,10 @@ unsigned long fat_get_first_sector_of_file(Device *device,char *path){
 			}
 			if(yotta){
 				newsect = ((currentdir->clusterhigh << 8) &0xFFFF0000) | (currentdir->clusterlow & 0xFFFF);
+				selected_file_size = currentdir->filesize;
+				if(currentdir->attrib==0x10){
+					last_dir_sector = ((newsect - 2) * sectors_per_cluster) + first_data_sector;
+				}
 				break;
 			}
 		}
@@ -187,9 +197,43 @@ char fat_exists(Device *device,char *path){
 	return dk1>0;
 }
 
-void fat_write(Device *device,char* path,char *buffer,int size){}
+void fat_write(Device *device,char* path,char *buffer,int size){
+	void* (*readraw)(Device *,unsigned long,unsigned char,char *) = (void*)device->readRawSector;
+	void* (*writeraw)(Device *,unsigned long,unsigned char,char *) = (void*)device->writeRawSector;
 
-void fat_create(Device *device,char* path,char *buffer,int size){}
+	unsigned long first_sector_of_cluster = fat_get_first_sector_of_file(device,path);
+	if(first_sector_of_cluster==0){
+		return;
+	}
+
+	int sectors_before = 0;
+	int sectors_after = 0;
+	int tmpa = selected_file_size;
+	while(1){
+		if((tmpa - 512)>-1){
+			tmpa -= 512;
+			sectors_before++;
+		}else{
+			break;
+		}
+	}
+	tmpa = size;
+	while(1){
+		if((tmpa - 512)>-1){
+			tmpa -= 512;
+			sectors_after++;
+		}else{
+			break;
+		}
+	}
+	char* fatbuffer = (char*) malloc(512);
+	readraw(device,last_dir_sector,1,fatbuffer);
+	fat_dir_t* currentdir = (fat_dir_t*)(fatbuffer + last_file_selected_index);
+	currentdir->filesize = size;
+	writeraw(device,last_dir_sector,1,fatbuffer);
+	free(fatbuffer);
+	writeraw(device,first_sector_of_cluster,sectors_after+1,buffer);
+}
 
 char fat_read(Device *device,char* path,char *buffer){
 	//atapi_read_raw(Device *dev,unsigned long lba,unsigned char count,unsigned short *location)
@@ -296,7 +340,6 @@ void initialiseFAT(Device* device){
 	if(device->writeRawSector){
 		printf("[FAT] Enables FAT write function\n");
 		device->writeFile = (unsigned long)&fat_write;
-		device->newFile = (unsigned long)&fat_create;
 	}else{
 		printf("[FAT] FAT is readonly\n");
 	}
