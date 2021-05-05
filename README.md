@@ -61,11 +61,8 @@ ISO 9660 | :white_check_mark: | :x:
 MBR | :white_check_mark: | :x: 
 EFI-MBR | :white_check_mark: | :x: 
 EXT2 (very basic) | :white_check_mark: | :x: 
-FAT 32 | :white_check_mark: | :x: 
+FAT 12,16,32 | :white_check_mark: | :white_check_mark: 
 SFS | :white_check_mark: | :white_check_mark: 
-
-The following filesystems will be supported:
-* FAT 12
 
 the following executable formats are supported:
 * 32-ELF (relocation and executable type)
