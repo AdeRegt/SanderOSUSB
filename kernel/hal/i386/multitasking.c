@@ -1,9 +1,6 @@
 #include "../../kernel.h"
+#define DEFAULT_ESP_STACK_SIZE 16384
 
-typedef struct {
-    Register registers;
-    unsigned char active;
-}Process;
 
 extern void timerirq();
 
@@ -11,9 +8,12 @@ Process registers[10];
 static int regnow = 0;
 static int regcount = 0;
 
+Process *getCurrentProcess(){
+    return (Process*) (&registers[regnow]);
+}
+
 void irq_multitasking(Register *r){
     irq_timer();
-    asm volatile ("cli");
     if(regcount>0){
 
         //
@@ -68,8 +68,6 @@ void irq_multitasking(Register *r){
 
 
     }
-    asm volatile ("sti");
-    return;
 }
 
 int activeTask(){
@@ -82,11 +80,21 @@ void killTask(int pid){
 
 int createTask(unsigned long entrypoint){
     asm volatile ("cli");
+    if(regcount==0){
+        regcount = 1;
+    }else if(regcount>9){
+        return -1;
+    }
+    unsigned long to = ((unsigned long)malloc(DEFAULT_ESP_STACK_SIZE))+DEFAULT_ESP_STACK_SIZE;
     registers[regcount].registers.cs = 0x08;
     registers[regcount].registers.ds = 0x10;
     registers[regcount].registers.ss = 0x10;
+    registers[regcount].registers.esp = to;
     registers[regcount].registers.eip = entrypoint;
+    registers[regcount].registers.eflags = 0x202;
     registers[regcount].active = 1;
+    registers[regcount].timer = 0;
+    registers[regcount].ticks = 0;
     asm volatile ("sti");
     int cup = regcount;
     regcount++;
@@ -94,7 +102,6 @@ int createTask(unsigned long entrypoint){
 }
 
 void init_multitasking(){
-    regcount = 1;
     printf("[MULT] Multitasking module enabled!\n");
     setNormalInt(0,(unsigned long)timerirq);
     registers[0].active = 1;
