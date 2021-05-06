@@ -11,26 +11,30 @@ volatile int clock = 0;
 volatile int ticks = 0;
 
 int getTicks(){
-	return ticks;
+	Process *p = getCurrentProcess();
+	return p->ticks;
 }
 
 void resetTicks(){
-	ticks = 0;
+	Process *p = getCurrentProcess();
+	p->ticks = 0;
 }
 
 void sleep(int ms){
-	clock = 0;
+	Process *p = getCurrentProcess();
+	p->timer = 0;
 	again:
-	if(clock < ms) {
+	if(p->timer < ms) {
 		goto again;
 	}
 }
 
 void irq_timer(){
-	clock++;
+	Process *p = getCurrentProcess();
+	p->timer++;
 	outportb(0x20,0x20);
-	if(clock % 18 == 0){
-		ticks++;
+	if(p->timer % 18 == 0){
+		p->ticks++;
 	}
 }
 

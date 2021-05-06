@@ -222,6 +222,18 @@ void init_paging();
 void set_paging_frame(unsigned long addr);
 
 // MULTITASKING
+typedef struct{
+    unsigned int gs, fs, es, ds;      /* pushed the segs last */
+    unsigned int edi, esi, ebp, esp, ebx, edx, ecx, eax;  /* pushed by 'pusha' */
+    unsigned int eip, cs, eflags, useresp, ss;   /* pushed by the processor automatically */ 
+}Register;
+typedef struct {
+    Register registers;
+    unsigned char active;
+    int timer;
+	int ticks;
+}Process;
+Process *getCurrentProcess();
 void init_multitasking();
 int createTask(unsigned long entrypoint);
 void killTask(int pid);
@@ -317,11 +329,6 @@ void initialiseSFS(Device *device);
 int pow(int base,int exp);
 
 void irq_timer();
-typedef struct{
-    unsigned int gs, fs, es, ds;      /* pushed the segs last */
-    unsigned int edi, esi, ebp, esp, ebx, edx, ecx, eax;  /* pushed by 'pusha' */
-    unsigned int eip, cs, eflags, useresp, ss;   /* pushed by the processor automatically */ 
-}Register;
 
 typedef struct{
 	unsigned long bar1;
