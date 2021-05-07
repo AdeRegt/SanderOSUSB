@@ -52,7 +52,7 @@ extern void irq_common_stub();
 extern void isr_special_stub();
 
 void fault_handler(){
-	printstring(" -= KERNEL PANIC =- ");
+	printf("\n\n -= KERNEL PANIC =- \n\n");
 	asm volatile("cli");
 	asm volatile("hlt");
 }
@@ -65,18 +65,43 @@ void irq_handler(){
 
 //
 // EAX
+extern char keyword;
+extern void browser();
+
+void exit_program_and_wait_for_keypress(){
+	printf("End of program, press any key to return\n");
+	getch();
+	int mode = 1;
+	int status = 0;
+	__asm__ __volatile__ ("int $0x80": "+a" (mode) , "+b" (status));
+}
+
 void special_handler(Register *r){
-	outportb(0x20,0x20);
 	outportb(0xA0,0x20);
+	outportb(0x20,0x20);
 	if(r->eax==0x01){ // EXIT
-    		__asm__ __volatile__ ("jmp browser");
+    		printf("\nProgram finished!\n");
+			if(r->ebx){
+				r->eip = (unsigned long)exit_program_and_wait_for_keypress;
+			}else{
+				r->eip = (unsigned long)browser;
+			}
+	}else if(r->eax==0x03){ // F-READ
+		if(r->ebx==1){ // FROM STDOUT
+			volatile unsigned char kt = ((volatile unsigned char*)&keyword)[0];
+			((unsigned char*)r->ecx)[0] = kt;
+			((volatile unsigned char*)&keyword)[0] = 0;
+		}else{ // TO FILE
+			printf("INT0x80: unknown read (%x)\n",r->ebx);
+		}
+		r->eax=r->edx;
 	}else if(r->eax==0x04){ // F-WRITE
 		if(r->ebx==1){ // TO STDOUT
 			for(unsigned int i = 0 ; i < r->edx ; i++){
 				printf("%c",((unsigned char*)r->ecx)[i]);
 			}
 		}else{ // TO FILE
-			printf("INT0x80: unknown read (%x)\n",r->ebx);
+			printf("INT0x80: unknown write (%x)\n",r->ebx);
 		}
 		r->eax=r->edx;
 	}else if(r->eax==0x05){ // OPEN FILE

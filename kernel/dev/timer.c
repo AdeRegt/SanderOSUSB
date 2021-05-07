@@ -11,42 +11,38 @@ volatile int clock = 0;
 volatile int ticks = 0;
 
 int getTicks(){
-	return ticks;
+	Process *p = getCurrentProcess();
+	return p->ticks;
 }
 
 void resetTicks(){
-	ticks = 0;
+	Process *p = getCurrentProcess();
+	p->ticks = 0;
 }
 
 void sleep(int ms){
-	clock=0;
-	while(clock!=ms){}
+	Process *p = getCurrentProcess();
+	p->timer = 0;
+	again:
+	if(p->timer < ms) {
+		goto again;
+	}
 }
 
 void irq_timer(){
-	clock++;
+	Process *p = getCurrentProcess();
+	p->timer++;
 	outportb(0x20,0x20);
-	if(clock % 18 == 0){
-		ticks++;
-//		if(videomemory[0]=='-'){
-//			videomemory[0]='\\';
-//		}else if(videomemory[0]=='\\'){
-//			videomemory[0]='|';
-//		}else if(videomemory[0]=='|'){
-//			videomemory[0]='/';
-//		}else if(videomemory[0]=='/'){
-//			videomemory[0]='-';
-//		}else{
-//			videomemory[0]='-';
-//		}
+	if(p->timer % 18 == 0){
+		p->ticks++;
 	}
 }
 
 void init_timer(){
 	int divisor = 1193180 / 100;       /* Calculate our divisor */
-    	outportb(0x43, 0x36);             /* Set our command byte 0x36 */
-    	outportb(0x40, divisor & 0xFF);   /* Set low byte of divisor */
-    	outportb(0x40, divisor >> 8);     /* Set high byte of divisor */
-    	setNormalInt(0,(unsigned long)timerirq);
+	outportb(0x43, 0x36);             /* Set our command byte 0x36 */
+	outportb(0x40, divisor & 0xFF);   /* Set low byte of divisor */
+	outportb(0x40, divisor >> 8);     /* Set high byte of divisor */
+	setNormalInt(0,(unsigned long)timerirq);
 }
 

@@ -347,6 +347,8 @@ void stop_cmd(HBA_PORT *port)
 			continue;
 		break;
 	}
+	
+	
  
 	// Clear FRE (bit4)
 	port->cmd &= ~HBA_PxCMD_FRE;
@@ -436,7 +438,6 @@ int ahci_atapi_read(HBA_PORT *port, unsigned long startl, unsigned long starth, 
 	cmdtbl->prdt_entry[i].i = 1;
 	
 	unsigned long lba = startl;
-	
 	cmdtbl->acmd[ 0] = 0xA8;
     	cmdtbl->acmd[ 1] = 0x00;
     	cmdtbl->acmd[ 2] = (lba >> 0x18) & 0xFF;
@@ -518,21 +519,21 @@ int ahci_atapi_eject(HBA_PORT *port)
 	cmdfis->featureh = 0;
 	cmdfis->c = 1;	// Command
 	cmdfis->command = 0xA0;
-	int i = 0;
-	cmdtbl->prdt_entry[i].i = 1;
+	int t = 0;
+	cmdtbl->prdt_entry[t].i = 1;
 	
 	cmdtbl->acmd[ 0] = 0x1B;
-    	cmdtbl->acmd[ 1] = 0x00;
-    	cmdtbl->acmd[ 2] = 0x00;
-    	cmdtbl->acmd[ 3] = 0x00;
-    	cmdtbl->acmd[ 4] = 0x02;
-    	cmdtbl->acmd[ 5] = 0x00;
-    	cmdtbl->acmd[ 6] = 0x00;
-    	cmdtbl->acmd[ 7] = 0x00;
-    	cmdtbl->acmd[ 8] = 0x00;
-    	cmdtbl->acmd[ 9] = 0x00;
-    	cmdtbl->acmd[10] = 0x00;
-    	cmdtbl->acmd[11] = 0x00;
+	cmdtbl->acmd[ 1] = 0x00;
+	cmdtbl->acmd[ 2] = 0x00;
+	cmdtbl->acmd[ 3] = 0x00;
+	cmdtbl->acmd[ 4] = 0x02;
+	cmdtbl->acmd[ 5] = 0x00;
+	cmdtbl->acmd[ 6] = 0x00;
+	cmdtbl->acmd[ 7] = 0x00;
+	cmdtbl->acmd[ 8] = 0x00;
+	cmdtbl->acmd[ 9] = 0x00;
+	cmdtbl->acmd[10] = 0x00;
+	cmdtbl->acmd[11] = 0x00;
  
 	cmdfis->countl = 1;//count & 0xFF;
 	cmdfis->counth = 0;//(count >> 8) & 0xFF;
@@ -543,17 +544,16 @@ int ahci_atapi_eject(HBA_PORT *port)
 	cmdheader->a = 1;
  
 	// The below loop waits until the port is no longer busy before issuing a new command
-	while ((port->tfd & (ATA_DEV_BUSY | ATA_DEV_DRQ)) && spin < 1000000)
+	while ((port->tfd & (ATA_DEV_BUSY | ATA_DEV_DRQ)) && spin < 500000)
 	{
 		spin++;
 	}
-	if (spin == 1000000)
-	{
-		return 0;
-	}
+
+	if(spin==500000){return 0;}
  
 	port->ci = 1<<slot;
 	// Wait for completion
+	spin = 0;
 	while (1)
 	{
 		// In some longer duration reads, it may be helpful to spin on the DPS bit 
@@ -564,7 +564,8 @@ int ahci_atapi_eject(HBA_PORT *port)
 		{
 			return 0;
 		}
-		
+		spin++;
+		if(spin>500000){return 0;}
 	}
  
 	// Check again
@@ -628,13 +629,18 @@ int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, un
 	cmdfis->counth = (count >> 8) & 0xFF;
  
 	// The below loop waits until the port is no longer busy before issuing a new command
-	while ((port->tfd & (ATA_DEV_BUSY | ATA_DEV_DRQ)) && spin < 1000000)
+	resetTicks();
+	while ((port->tfd & (ATA_DEV_BUSY | ATA_DEV_DRQ)))
 	{
-		spin++;
+		if(getTicks()>5)
+		{
+			spin = 1000000;
+			break;
+		}
 	}
 	if (spin == 1000000)
 	{
-		printf("Port is hung\n");for(;;);
+		printf("Port is hung\n");
 		return 0;
 	}
  
@@ -649,7 +655,7 @@ int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, un
 			break;
 		if (port->is & HBA_PxIS_TFES)	// Task file error
 		{
-			printf("Read disk error\n");for(;;);
+			printf("Read disk error\n");
 			return 0;
 		}
 		
@@ -658,11 +664,15 @@ int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, un
 	// Check again
 	if (port->is & HBA_PxIS_TFES)
 	{
-		printf("Read disk error\n");for(;;);
+		printf("Read disk error\n");
 		return 0;
 	}
  
 	return 1;
+}
+
+void ahci_ata_read_ext(Device *dev,unsigned long lba,unsigned char count,unsigned short *location){
+	ahci_ata_read((HBA_PORT *)dev->arg1, dev->arg2+lba, 0, count, location);
 }
 
 void ahci_atapi_read_ext(Device *dev,unsigned long lba,unsigned char count,unsigned short *location){
@@ -670,6 +680,88 @@ void ahci_atapi_read_ext(Device *dev,unsigned long lba,unsigned char count,unsig
 }
 
 void ahci_atapi_eject_ext(){}
+
+// 0x00	1	Drive attributes (bit 7 set = active or bootable)
+// 0x01	3	CHS Address of partition start
+// 0x04	1	Partition type
+// 0x05	3	CHS address of last partition sector
+// 0x08	4	LBA of partition start
+// 0x0C	4	Number of sectors in partition
+
+
+void ahci_ata_init(HBA_PORT *port,int i){
+	port_rebase(port,i);
+	unsigned char* msg = (unsigned char*) 0x1000;
+	if(ahci_ata_read(port, 0, 0, 1, (unsigned short *)msg)==0){
+		return;
+	}
+	if(msg[510]==0x55&&msg[511]==0xAA){
+		printf("[AHCI] ATA is bootable\n");
+	}else{
+		printf("[AHCI] ATA is not bootable\n");
+	}
+	
+	Device* regdev = (Device*) malloc(sizeof(Device));
+		
+	regdev->readRawSector 	= (unsigned long)&ahci_ata_read_ext;
+	
+	regdev->arg1 = (unsigned long)port;
+	regdev->arg2 = 0;
+	regdev->arg3 = 0;
+	regdev->arg4 = 0;
+	regdev->arg5 = 512;
+	detectFilesystemsOnMBR(regdev);
+}
+
+void ahci_atapi_init(HBA_PORT *port,int i){
+	port_rebase(port,i);
+	unsigned char* buffer = (unsigned char*) 0x1000;
+	for(int z = 0 ; z < 512 ; z++){
+		buffer[z] = 0x00;
+	}
+	printf("[AHCI] ATAPI read test sector...\n");
+	if(ahci_atapi_read(port, 0, 0, 1, (unsigned short *)buffer)==0){
+		printf("[AHCI] ATAPI is unable to read sectors...\n");
+		printf("[AHCI] ATAPI will eject drive....\n");
+		ahci_atapi_eject(port);
+		return;
+	}
+	if(buffer[510]==0x55&&buffer[511]==0xAA){
+		printf("[AHCI] ATAPI is bootable\n");
+	}else{
+		printf("[AHCI] ATAPI is not bootable\n");
+	}
+	int choice = -1;
+	for(int i = 0 ; i < 10 ; i++){
+//					atapi_read_sector(device,0x10+i,1, (unsigned short *)buffer);
+		ahci_atapi_read(port, 0x10+i, 0, 1, (unsigned short *)buffer);
+		if(buffer[1]=='C'&&buffer[2]=='D'&&buffer[3]=='0'&&buffer[4]=='0'&&buffer[5]=='1'){
+			choice = i;
+			break;
+		}
+	}
+	if(choice==-1){
+		printf("[AHCI] ATAPI: unknown filesystem\n");
+	}else{
+		printf("[AHCI] ATAPI: known filesystem ISO 9660\n");
+		
+		Device *regdev = getNextFreeDevice();
+		
+		regdev->readRawSector 	= (unsigned long)&ahci_atapi_read_ext;
+		regdev->eject 		= (unsigned long)&ahci_atapi_eject_ext;
+		
+		regdev->dir		= (unsigned long)&iso_9660_dir;
+		regdev->readFile	= (unsigned long)&iso_9660_read;
+		regdev->existsFile	= (unsigned long)&iso_9660_exists;
+		
+		// .command= 0x1f0,.control=0x3f6,.irq=14,.slave=0
+		regdev->arg1 = (unsigned long)port;
+		regdev->arg2 = 0;
+		regdev->arg3 = 0;
+		regdev->arg4 = 0;
+		regdev->arg5 = ATAPI_SECTOR_SIZE;
+	}
+}
 
 void ahci_init(int bus,int slot,int function){
 	unsigned long bar0 = getBARaddress(bus,slot,function,0x10);
@@ -683,79 +775,118 @@ void ahci_init(int bus,int slot,int function){
 	printf("[AHCI] 0:%x  1:%x 2:%x 3:%x 4:%x 5:%x!\n",bar0,bar1,bar2,bar3,bar4,bar5);
 	//init_ide2();
 	HBA_MEM *target = (HBA_MEM *)base;
+	
+	//
+	// printing systeminfo
+	printf("[AHCI] AHCI SYSTEM INFO\n");
+	printf("[AHCI] CAP - HBA Capabilities: ");
+	if(target->cap & 0b10000000000000000000000000000000){
+		printf("64bit ");
+	}
+	if(target->cap & 0b01000000000000000000000000000000){
+		printf("SNCQ ");
+	}
+	if(target->cap & 0b00100000000000000000000000000000){
+		printf("SSNTF ");
+	}
+	if(target->cap & 0b00010000000000000000000000000000){
+		printf("SMPS ");
+	}
+	if(target->cap & 0b00001000000000000000000000000000){
+		printf("SSS ");
+	}
+	if(target->cap & 0b00000100000000000000000000000000){
+		printf("SALP ");
+	}
+	if(target->cap & 0b00000010000000000000000000000000){
+		printf("SAL ");
+	}
+	if(target->cap & 0b00000001000000000000000000000000){
+		printf("SCLO ");
+	}
+	if(target->cap & 0b00000000111110000000000000000000){
+		printf("ISS ");
+	}
+	if(target->cap & 0b00000000000001000000000000000000){
+		printf("SAM ");
+	}
+	if(target->cap & 0b00000000000000100000000000000000){
+		printf("SPM ");
+	}
+	if(target->cap & 0b00000000000000010000000000000000){
+		printf("FBSS ");
+	}
+	if(target->cap & 0b00000000000000001000000000000000){
+		printf("PMD ");
+	}
+	if(target->cap & 0b00000000000000000100000000000000){
+		printf("SSC ");
+	}
+	if(target->cap & 0b00000000000000000010000000000000){
+		printf("PSC ");
+	}
+	if(target->cap & 0b00000000000000000001111100000000){
+		printf("NCS[%x] ",(target->cap & 0b00000000000000000001111100000000)>>8);
+	}
+	if(target->cap & 0b00000000000000000000000010000000){
+		printf("CCCS ");
+	}
+	if(target->cap & 0b00000000000000000000000001000000){
+		printf("EMS ");
+	}
+	if(target->cap & 0b00000000000000000000000000100000){
+		printf("SXS ");
+	}
+	if(target->cap & 0b00000000000000000000000000011111){
+		printf("NP[%x] ",target->cap & 0b00000000000000000000000000011111);
+	}
+	printf("\n");
+	printf("[AHCI] GHC - Global HBA control : ");
+	if(target->ghc & 0b10000000000000000000000000000000){
+		printf("AE ");
+	}
+	if(target->ghc & 0b00000000000000000000000000000100){
+		printf("MRSM ");
+	}
+	if(target->ghc & 0b00000000000000000000000000000010){
+		printf("IE ");
+	}
+	printf("\n");
+	printf("[AHCI] version: %x \n",target->vs);
+	if(0){
+		printf("[AHCI] Trigger reset\n");
+		target->ghc |= 1;
+		while(1){
+			volatile unsigned long tkap = target->ghc;
+			if((tkap&1)==0){ // wait untill reset bit has been unset
+				break;
+			}
+		}
+	}
 	unsigned short pi = target->pi;
 	int i = 0;
 	while (i<33){
 		if (pi & 1){
-			
 			HBA_PORT *port = (HBA_PORT *)&target->ports[i];
 			unsigned long ssts = port->ssts;
  
 			unsigned char ipm = (ssts >> 8) & 0x0F;
 			unsigned char det = ssts & 0x0F;
+
+			printf("[AHCI] Probing port %x \n",i);
 		 
 			if (det != HBA_PORT_DET_PRESENT && ipm != HBA_PORT_IPM_ACTIVE){
 				
 		 	}else if(port->sig==SATA_SIG_ATAPI){
 				printf("[AHCI] ATAPI detected\n");
-				port_rebase(port,i);
-				unsigned char* buffer = (unsigned char*) 0x1000;
-				ahci_atapi_read(port, 0, 0, 1, (unsigned short *)buffer);
-				if(buffer[510]==0x55&&buffer[511]==0xAA){
-					printf("[AHCI] ATAPI is bootable\n");
-				}else{
-					printf("[AHCI] ATAPI is not bootable\n");
-				}
-				int choice = -1;
-				for(int i = 0 ; i < 10 ; i++){
-//					atapi_read_sector(device,0x10+i,1, (unsigned short *)buffer);
-					ahci_atapi_read(port, 0x10+i, 0, 1, (unsigned short *)buffer);
-					if(buffer[1]=='C'&&buffer[2]=='D'&&buffer[3]=='0'&&buffer[4]=='0'&&buffer[5]=='1'){
-						choice = i;
-						break;
-					}
-				}
-				if(choice==-1){
-					printf("[AHCI] ATAPI: unknown filesystem\n");
-				}else{
-					printf("[AHCI] ATAPI: known filesystem ISO 9660\n");
-					
-					Device *regdev = getNextFreeDevice();
-					
-					regdev->readRawSector 	= (unsigned long)&ahci_atapi_read_ext;
-					regdev->eject 		= (unsigned long)&ahci_atapi_eject_ext;
-					
-					regdev->dir		= (unsigned long)&iso_9660_dir;
-					regdev->readFile	= (unsigned long)&iso_9660_read;
-					regdev->existsFile	= (unsigned long)&iso_9660_exists;
-					
-					// .command= 0x1f0,.control=0x3f6,.irq=14,.slave=0
-					regdev->arg1 = (unsigned long)port;
-					regdev->arg2 = 0;
-					regdev->arg3 = 0;
-					regdev->arg4 = 0;
-					regdev->arg5 = ATAPI_SECTOR_SIZE;
-				}
+				ahci_atapi_init(port,i);
 			}else if(port->sig==SATA_SIG_SEMB){
 				printf("[AHCI] SEMB detected\n");
 			}else if(port->sig==SATA_SIG_PM){
 				printf("[AHCI] PM detected\n");
 			}else{
-				printf("[AHCI] SATA detected %x \n",i);return;
-				port_rebase(port,i);
-				unsigned char* msg = (unsigned char*) 0x1000;
-				ahci_ata_read(port, 0, 0, 1, (unsigned short *)msg);
-				if(msg[510]==0x55&&msg[511]==0xAA){
-					printf("[AHCI] ATA is bootable\n");
-				}else{
-					printf("[AHCI] ATA is not bootable\n");
-				}
-				
-				unsigned int basex = 0x01BE;
-				for(int i = 0 ; i < 4 ; i++){
-					printf("[AHCI] MBR %x : active %x filesystem %x \n",i+1,msg[basex],msg[basex+4]);
-					basex += 16;
-				}
+				printf("[AHCI] SATA detected %x \n",i);
+				ahci_ata_init(port,i);
 			}
 		}
 		pi >>= 1;

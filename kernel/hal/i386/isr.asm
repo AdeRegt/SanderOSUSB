@@ -59,6 +59,10 @@ mov [keyword],al
 mov al,[keyword]
 cmp al,0
 je .again
+push ax
+mov al,0
+mov [keyword],al
+pop ax
 ret
 
 global mouseirq
@@ -77,9 +81,9 @@ e1000irq:
     	iret
     
 
-global timerirq
-extern irq_timer
-timerirq:
+global uhciirq
+extern irq_uhci
+uhciirq:
 	push byte 0
 	push byte 0
     pusha
@@ -89,7 +93,7 @@ timerirq:
     push gs
     mov eax, esp
     push eax
-    mov eax, irq_timer
+    mov eax, irq_uhci
     call eax
     pop eax
     pop gs
@@ -99,6 +103,122 @@ timerirq:
     popa
     add esp, 8
     iret
+    
+
+global rtl8169irq
+extern irq_rtl8169
+rtl8169irq:
+	push byte 0
+	push byte 0
+    pusha
+    push ds
+    push es
+    push fs
+    push gs
+    mov eax, esp
+    push eax
+    mov eax, irq_rtl8169
+    call eax
+    pop eax
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popa
+    add esp, 8
+    iret
+    
+
+global sndirq
+extern irq_snd
+sndirq:
+	push byte 0
+	push byte 0
+    pusha
+    push ds
+    push es
+    push fs
+    push gs
+    mov eax, esp
+    push eax
+    mov eax, irq_snd
+    call eax
+    pop eax
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popa
+    add esp, 8
+    iret
+    
+
+global ehciirq
+extern irq_ehci
+ehciirq:
+	push byte 0
+	push byte 0
+    pusha
+    push ds
+    push es
+    push fs
+    push gs
+    mov eax, esp
+    push eax
+    mov eax, irq_ehci
+    call eax
+    pop eax
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popa
+    add esp, 8
+    iret
+
+global xhciirq
+extern irq_xhci
+xhciirq:
+	push byte 0
+	push byte 0
+    pusha
+    push ds
+    push es
+    push fs
+    push gs
+    mov eax, esp
+    push eax
+    mov eax, irq_xhci
+    call eax
+    pop eax
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popa
+    add esp, 8
+    iret
+    
+
+global timerirq
+extern irq_multitasking
+timerirq:
+    pusha
+	push ds
+	push es
+	push fs
+	push gs
+	mov eax, esp   ; Push us the stack
+	push eax
+	mov eax, irq_multitasking
+	call eax       ; A special call, preserves the 'eip' register
+	pop eax
+	pop gs
+	pop fs
+	pop es
+	pop ds
+	popa
+	iret
     
 
 global irq_common_stub
