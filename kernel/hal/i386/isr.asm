@@ -72,13 +72,6 @@ mouseirq:
 	call irq_mouse
 	
     iret
-
-
-global e1000irq
-extern irq_e1000
-e1000irq:
-	call irq_e1000
-    	iret
     
 
 global uhciirq
