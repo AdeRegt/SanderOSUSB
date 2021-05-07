@@ -397,6 +397,9 @@ char *browse(){
 	}
 	int pnt = 0;
 	char *sigma = (char *)browseDIR("@");
+	if(sigma==0||sigma[0]==0){
+		return 0;
+	}
 	if(sigma[0]=='@'||sigma[0]=='^'){
 		goto again;
 	}

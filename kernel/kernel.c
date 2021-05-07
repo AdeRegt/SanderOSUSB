@@ -1,9 +1,18 @@
 #include "kernel.h"
 #include "exec/program.h"
 
+void no_usefull_hardware(){
+	message("Unable to discover usefull hardware");
+	poweroff();
+	for(;;);
+}
+
 void browser(){
 	while(1){
 		char *pt = browse();
+		if(pt==0){
+			no_usefull_hardware();
+		}
 		unsigned char* buffer = (unsigned char*)0x2000;
 		if(fexists((unsigned char *)pt) && fread(pt,buffer)){
 			cls();
@@ -157,8 +166,7 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 	};
 
 	if(!getDeviceCount()) {
-		message("Unable to discover usefull hardware");
-		poweroff();
+		no_usefull_hardware();
 	}
 	
 	browser();
