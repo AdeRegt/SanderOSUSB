@@ -475,3 +475,5 @@ typedef struct {
 #define PATH_MAX 100
 char *getcwd();
 void setcwd(char *t);
+
+void init_e1000(int bus,int slot,int function);
