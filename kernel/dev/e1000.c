@@ -184,7 +184,7 @@ void e1000_send_package(PackageRecievedDescriptor desc,unsigned char first,unsig
     tx_cur = (tx_cur + 1) % E1000_NUM_TX_DESC;
     e1000_write_in_space(REG_TXDESCTAIL, tx_cur);   
     while(!(tx_descs[old_cur]->status & 0xff));    
-    printf(" Stuff sended!\n");
+    printf(" Stuff sended! (loc=%x, %x %x %x %x %x)\n",desc.low_buf,first,last,ip,udp,tcp);
     return;
 }
 
@@ -335,8 +335,5 @@ void init_e1000(int bus,int slot,int function){
 
     //
     // register driver
-    PackageRecievedDescriptor re = e1000_recieve_package();
-    e1000_send_package(re,0,0,0,0,0);
     register_ethernet_device((unsigned long)&e1000_send_package,(unsigned long)&e1000_recieve_package);
-    for(;;);
 }
