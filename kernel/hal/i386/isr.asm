@@ -111,7 +111,9 @@ e1000irq:
     mov eax, esp
     push eax
     mov eax, irq_e1000
+    cli
     call eax
+    sti
     pop eax
     pop gs
     pop fs
