@@ -8,6 +8,7 @@ void ethernet_detect(int bus,int slot,int function,int device,int vendor){
         init_rtl(bus,slot,function);
     }else if(device==0x100e||device==0x153A||device==0x10EA||vendor==0x8086){
         // Johan his E1000 driver comes here
+        init_e1000(bus,slot,function);
     }else{
         printf("[ETH] Unknown ethernet device: device: %x vendor: %x \n",device,vendor);
     }

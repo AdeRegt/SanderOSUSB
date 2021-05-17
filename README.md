@@ -49,6 +49,7 @@ USB - HID - Keyboard | :white_check_mark: | :white_check_mark: | :white_check_ma
 USB - Mass Storage Device | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x:
 EHCI - Basic support | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
 RTL8169 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+E1000 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: 
 Soundblaster 16 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
 
 The following devices are on the list to get implemented:
