@@ -765,6 +765,7 @@ void init_ehci_port(int portnumber){
 
 void ehci_probe(){
     // checking all ports
+    printf("[EHCI] Probing devices...\n");
     for(int i = 0 ; i < available_ports ; i++){
         unsigned long avail_port_addr = portbaseaddress + 0x44 + (i*4);
         unsigned long portinfo = ((unsigned long*)avail_port_addr)[0];
@@ -878,8 +879,8 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
     // set correct segment
     ((unsigned long*)usbctr_addr)[0] = 0;
 
-    // set correct ints
-    ((unsigned long*)usbint_addr)[0] |= 0b10111; // enable all interrupts except: frame_list_rollover async_adv
+    // do not enable interrupts. they not needed
+    ((unsigned long*)usbint_addr)[0] = 0;
 
     // set periodic list base
     ((unsigned long*)usbper_addr)[0] = (unsigned long)&periodic_list;
