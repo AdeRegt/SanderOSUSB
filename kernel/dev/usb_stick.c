@@ -27,6 +27,20 @@ unsigned char usb_stick_get_max_lun(USB_DEVICE *device){
 	return res[0];
 }
 
+char usb_stick_abort_commands(USB_DEVICE *device){
+	EhciCMD* commando = (EhciCMD*) malloc_align(sizeof(EhciCMD),0x1FF);
+	commando->bRequest = 0xFF; // get_max_lun
+    commando->bRequestType = 0b00100001; // TO= interface
+    commando->wIndex = 0; // windex=0
+    commando->wLength = 0; // getlength=8
+    commando->wValue = 0; // get config info
+	unsigned char *res = usb_send_and_recieve_control(device,commando,malloc(1));
+	if((unsigned long)res==EHCI_ERROR){
+		return 1;
+	}
+	return 0;
+}
+
 struct cdbres_inquiry {
     unsigned char pdt;
     unsigned char removable;
@@ -193,9 +207,48 @@ SCSIStatus usb_stick_get_scsi_status(USB_DEVICE *device){
 	return stat;
 }
 
-unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
+unsigned long usb_stick_check_ready_status(USB_DEVICE *device){
 	unsigned long bufoutsize = 31;
-	unsigned long bufinsize = USB_STORAGE_SECTOR_SIZE; 
+	unsigned long bufinsize = 0; 
+	unsigned char opcode = 0;
+	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
+	bufout->lun = 0;
+	bufout->tag = 5;
+	bufout->sig = 0x43425355;
+	bufout->wcb_len = 10;//10;
+	bufout->flags = 0x80;
+	bufout->xfer_len = bufinsize;
+	bufout->cmd[0] = opcode;
+	bufout->cmd[1] = 0;
+	bufout->cmd[2] = 0;
+	bufout->cmd[3] = 0;
+	bufout->cmd[4] = 0;
+	bufout->cmd[5] = 0;
+	bufout->cmd[6] = 0;
+	bufout->cmd[7] = 0;
+	bufout->cmd[8] = 0;
+	bufout->cmd[9] = 0;
+	unsigned long lstatus = usb_send_bulk(device,bufoutsize,bufout);
+	return lstatus;
+}
+
+int usb_stick_preform_on_sector_2 = 0;
+int usb_stick_preform_on_sector_2_times = 0;
+unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
+
+	//
+	// oke, on real hardware there is a issue on the first sector. I see most systems
+	// always use more then 1 sector to read, this seems to be the right solution
+	unsigned long bufoutsize = 32;//31
+	unsigned int sectorcount = 1;
+	usb_stick_preform_on_sector_2_times = 0;
+
+	if(lba>0&&usb_stick_preform_on_sector_2==1){
+		sectorcount = 2;
+		lba--;
+	}
+
+	unsigned long bufinsize = USB_STORAGE_SECTOR_SIZE * sectorcount; 
 	unsigned char opcode = 0x28;
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	bufout->lun = 0;
@@ -212,10 +265,30 @@ unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
 	bufout->cmd[5] = (lba) & 0xFF;
 	bufout->cmd[6] = 0;
 	bufout->cmd[7] = 0;
-	bufout->cmd[8] = 1;//1;
+	bufout->cmd[8] = sectorcount;//1;
 	bufout->cmd[9] = 0;
-	unsigned char* bufin = usb_stick_send_and_recieve_scsi_command(device,(unsigned char*)bufout,bufinsize,bufoutsize);
-	return bufin;
+	unsigned long lstatus = usb_send_bulk(device,bufoutsize,bufout);
+	if(lstatus==EHCI_ERROR){
+		// things went wrong...
+		printf("[SMSD] An error occured while sending the results from USB-stick \n");
+		return (unsigned char*)lstatus;
+	}
+	
+	unsigned char *buffer = (unsigned char*)malloc(bufinsize);
+	unsigned long c = usb_recieve_bulk(device,512,buffer);
+	if(c==EHCI_ERROR){
+		// things went wrong...
+		printf("[SMSD] An error occured while retrieving the results from USB-stick\n");
+		return (unsigned char*)c;
+	}
+
+	CommandStatusWrapper* csw = (CommandStatusWrapper*)buffer;
+	if(csw->signature==USB_STORAGE_CSW_SIGN){
+		printf("[SMSD] CSW at the beginning of the result. Mark this mistake for the future\n");
+		usb_stick_preform_on_sector_2 = 1;
+	}
+
+	return buffer;
 }
 
 int usb_stick_read_raw_sector(Device *dxv,unsigned long LBA,unsigned char count,unsigned short *l0cation){
@@ -308,7 +381,7 @@ void usb_stick_init(USB_DEVICE *device){
 	
 	if(USB_STORAGE_ENABLE_SEC){
 		sleep(10);
-		unsigned char* t = usb_stick_read_sector(device,0);
+		unsigned char* t = usb_stick_read_sector(device,1);
 		if((unsigned long)t==(unsigned long)EHCI_ERROR){
 			printf("[SMSD] An error occured while reading a sector \n");
 			SCSIStatus d = usb_stick_get_scsi_status(device);
@@ -323,7 +396,7 @@ void usb_stick_init(USB_DEVICE *device){
 			printf("[SMSD] Known bug rissen: Statuswrapper at begin instead of end\n");for(;;);
 			return;
 		}
-		printf("[SMSD] Reading testsector succeed\n");for(;;);
+		printf("[SMSD] Reading testsector succeed\n");
 	}
 
 	// setup bootdevice
