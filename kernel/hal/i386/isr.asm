@@ -35,19 +35,64 @@ vbirq:
 global ideirq
 extern irq_ide
 ideirq:
-    call irq_ide
+    pusha
+    push ds
+    push es
+    push fs
+    push gs
+    mov eax, esp
+    push eax
+    mov eax, irq_ide
+    call eax
+    pop eax
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popa
     iret
     
 global serialirq
 extern irq_serial
 serialirq:
-    call irq_serial
+    push byte 0
+	push byte 0
+    pusha
+    push ds
+    push es
+    push fs
+    push gs
+    mov eax, esp
+    push eax
+    mov eax, irq_serial
+    call eax
+    pop eax
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popa
+    add esp, 8
     iret
     
 global keyboardirq
 extern irq_keyboard
 keyboardirq:
-    call irq_keyboard
+    pusha
+    push ds
+    push es
+    push fs
+    push gs
+    mov eax, esp
+    push eax
+    mov eax, irq_keyboard
+    call eax
+    pop eax
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popa
     iret
     
 global keywait
@@ -68,9 +113,21 @@ ret
 global mouseirq
 extern irq_mouse
 mouseirq:
-	
-	call irq_mouse
-	
+    pusha
+    push ds
+    push es
+    push fs
+    push gs
+    mov eax, esp
+    push eax
+    mov eax, irq_mouse
+    call eax
+    pop eax
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popa
     iret
     
 
@@ -266,8 +323,6 @@ irq_common_stub:
 global isr_common_stub
 extern fault_handler    
 isr_common_stub:
-	push byte 0
-	push byte 0
     pusha
     push ds
     push es

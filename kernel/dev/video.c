@@ -1598,7 +1598,7 @@ void cls(){
 	if(isGraphicsMode()){
 		for(unsigned int x = 0 ; x < SCREEN_WIDTH ; x++){
 			for(unsigned int y = 0 ; y < SCREEN_HEIGHT ; y++){
-				putpixel(x,y,0x01);
+				putpixel(x,y,u_background);
 			}
 		}
 	}else{
@@ -1606,7 +1606,7 @@ void cls(){
 			for(curx = 0 ; curx < 80 ; curx++){
 				vidpnt = (curx*2)+(160*cury);
 				videomemory[vidpnt++] = ' ';
-				videomemory[vidpnt++] = 0x07;
+				videomemory[vidpnt++] = u_background;
 			}
 		}
 	}

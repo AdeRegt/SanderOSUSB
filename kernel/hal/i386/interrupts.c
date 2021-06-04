@@ -51,9 +51,26 @@ extern void isr_common_stub();
 extern void irq_common_stub();
 extern void isr_special_stub();
 
-void fault_handler(){
-	printf("\n\n -= KERNEL PANIC =- \n\n");
+void fault_handler(Register *r){
 	asm volatile("cli");
+	// handle panick like it should be!
+	setForeGroundBackGround(0x7,0x4);
+	cls();
+	if(isGraphicsMode()){
+		printf("K E R N E L   P A N I C \n\n");
+		printf("There is a error in the kernel which caus");
+		printf("sed the OS to stop!\n");
+	}else{
+		printf("==============================================\n");
+		printf("|         K E R N E L   P A N I C            |\n");
+		printf("==============================================\n");
+		printf("Something serious happend and this causes the \n");
+		printf("Operatingsystem to halt operations. Debuginfo:\n");
+	}
+	printf("\n");
+	printf("EIP=%x \n",r->eip);
+	printf("EAX=%x\n",r->eax);
+	printf("\n\n System halted \n\n");
 	asm volatile("hlt");
 }
 

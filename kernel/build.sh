@@ -115,7 +115,6 @@ fi
 if [ "$1" = "--pxe" ]
 	then
 		cd boot/pxe 
-		~/Downloads/smlrc -seg32 cstub.c cstub.asm
 		nasm -fbin pxe_entry_point.asm -o pxestub.bin 
 		cat pxestub.bin ../../kernel.bin > pxeentry.bin
 		cp pxeentry.bin ../../SanderOSUSB.0
