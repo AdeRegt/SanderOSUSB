@@ -137,6 +137,7 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 	printf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
 	printf("The system is compiled at %s %s \n",__DATE__,__TIME__);
+	init_cmos();
 
 	cls();
 	curset(27,9);

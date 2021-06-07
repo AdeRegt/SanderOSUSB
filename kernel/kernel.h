@@ -479,3 +479,6 @@ void setcwd(char *t);
 void init_e1000(int bus,int slot,int function);
 unsigned short pciConfigReadWord (unsigned char bus, unsigned char slot, unsigned char func, unsigned char offset);
 void pciConfigWriteWord (unsigned char bus, unsigned char slot, unsigned char func, unsigned char offset,unsigned long value);
+
+void init_cmos();
+unsigned char* cmos_update_datetime_to_variables();
