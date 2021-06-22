@@ -112,6 +112,47 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 			if(z!=0&&t!=0x00){
 				goto again;
 			}
+		printf("[GRUB] Multiboot flags: %x \n" ,grub->flags);
+		unsigned long fx = grub->flags;
+		if(fx & 0x00000001){
+			printf("[GRUB] Memory information present!\n");
+		}
+		if(fx & 0x00000002){
+			printf("[GRUB] Bootdevice present!\n");
+		}
+		if(fx & 0x00000004){
+			printf("[GRUB] Commandline present!\n");
+		}
+		if(fx & 0x00000008){
+			printf("[GRUB] Modules present!\n");
+		}
+		if(fx & 0x00000010){
+			printf("[GRUB] Symboltable present!\n");
+		}
+		if(fx & 0X00000020){
+			printf("[GRUB] Elf Sectionheader present!\n");
+		}
+		if(fx & 0x00000040){
+			printf("[GRUB] Memorymap present!\n");
+		}
+		if(fx & 0x00000080){
+			printf("[GRUB] Driveinfo present!\n");
+		}
+		if(fx & 0x00000100){
+			printf("[GRUB] Configtable present!\n");
+		}
+		if(fx & 0x00000200){
+			printf("[GRUB] Bootloader name present!\n");
+		}
+		if(fx & 0x00000400){
+			printf("[GRUB] APMTable present!\n");
+		}
+		if(fx & 0x00000800){
+			printf("[GRUB] VBEInfo present!\n");
+		}
+		if(fx & 0x00001000){
+			printf("[GRUB] Framebuffer info present!\n");
+		}
 	}
 	printstring("=> Global Description Table...\n");
 	init_gdt();
