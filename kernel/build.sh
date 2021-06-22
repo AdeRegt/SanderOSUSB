@@ -10,7 +10,7 @@ as -c hal/i386/paging.asm --32 -o paging2.o  || exit
 
 gcc -c kernel.c -m32 -o kernel.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c hal/i386/io_ports.c -m32 -o io_ports.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
-gcc -c hal/i386/interrupts.c -m32 -o interrupts.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
+gcc -c hal/i386/interrupts.c -m32 -o interrupts.o -std=gnu99 -ffreestanding -O0 -Wall -Wextra || exit
 gcc -c hal/i386/paging.c -m32 -o paging.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c hal/i386/multitasking.c -m32 -o multitasking.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c dev/cpuid.c -m32 -o cpuid.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit

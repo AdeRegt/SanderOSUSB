@@ -51,6 +51,11 @@ extern void isr_common_stub();
 extern void irq_common_stub();
 extern void isr_special_stub();
 
+struct stackframe{
+	struct stackframe *ebp;
+	void *eip;
+}__attribute__((packed));
+
 void fault_handler(Register *r){
 	asm volatile("cli");
 	// handle panick like it should be!
@@ -70,6 +75,15 @@ void fault_handler(Register *r){
 	printf("\n");
 	printf("EIP=%x \n",r->eip);
 	printf("EAX=%x\n",r->eax);
+	printf("\n");
+	struct stackframe *stk = NULL;
+	__asm__("movl %%ebp, %[stk]" :  /* output */ [stk] "=r" (stk));
+    // asm volatile ("movl %%ebp,%0" : "r"(stk) ::);
+    for(int i = 0; i < 5 && stk != NULL; stk = stk->ebp, i++)
+    {
+        // Unwind to previous stack frame
+        printf("[ %x ]> %x \n", i, ((unsigned long)stk->eip) & 0xFFFFFFFF);
+    }
 	printf("\n\n System halted \n\n");
 	asm volatile("hlt");
 }
