@@ -67,6 +67,8 @@ _fstart:
 	; stack (as it grows downwards on x86 systems). This is necessarily done
 	; in assembly as languages such as C cannot function without a stack.
 	mov esp, stack_top
+	; cleanup stack
+	xor ebp, ebp
 
 	push eax ; header magic of grub
 	push ebx ; header pointer
