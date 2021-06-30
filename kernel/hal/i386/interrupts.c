@@ -109,7 +109,8 @@ void exit_program_and_wait_for_keypress(){
 
 void special_handler(Register *r){
 	outportb(0xA0,0x20);
-	outportb(0x20,0x20);
+	outportb(0x20,0x20);//printf("OKE: eax=%x \n",r->eax);__asm__ __volatile__("cli\nhlt"); for(;;);
+
 	if(r->eax==0x01){ // EXIT
     		printf("\nProgram finished!\n");
 			if(r->ebx){
@@ -117,7 +118,8 @@ void special_handler(Register *r){
 			}else{
 				r->eip = (unsigned long)browser;
 			}
-	}else if(r->eax==0x03){ // F-READ
+	}
+	else if(r->eax==0x03){ // F-READ
 		if(r->ebx==1){ // FROM STDOUT
 			volatile unsigned char kt = ((volatile unsigned char*)&keyword)[0];
 			((unsigned char*)r->ecx)[0] = kt;
@@ -126,16 +128,19 @@ void special_handler(Register *r){
 			printf("INT0x80: unknown read (%x)\n",r->ebx);
 		}
 		r->eax=r->edx;
-	}else if(r->eax==0x04){ // F-WRITE
+	}
+	else if(r->eax==0x04){ // F-WRITE
 		if(r->ebx==1){ // TO STDOUT
 			for(unsigned int i = 0 ; i < r->edx ; i++){
 				printf("%c",((unsigned char*)r->ecx)[i]);
 			}
 		}else{ // TO FILE
-			printf("INT0x80: unknown write (%x)\n",r->ebx);
+			printf("INT0x80: unknown write (%x)\n",r->ebx);for(;;);
 		}
 		r->eax=r->edx;
-	}else if(r->eax==0x05){ // OPEN FILE
+		// printf("OKE: eax=%x , edx=%x , ecx=%x , ebx=%x \n",r->eax,r->edx,r->ecx,r->ebx);__asm__ __volatile__("cli\nhlt"); for(;;);
+	}
+	else if(r->eax==0x05){ // OPEN FILE
 		unsigned char* file = ((unsigned char*)r->ebx);
 		printf("INT0x80: Looking for %s \n",file);
 		if(fexists(file)){
@@ -143,10 +148,16 @@ void special_handler(Register *r){
 		}else{
 			printf("INT0x80: file NOT exists\n");
 		}
-	}else if(r->eax==0x4E){ // GET SYSTEMTIME
+	}
+	else if(r->eax==0x4E){ // GET SYSTEMTIME
 		r->eax=0;
 		printf("INT0x80: asked for systemtime\n");
-	}else{
+	}
+	else if(r->eax==0xC0){ // MALLOC
+		unsigned long size = r->ebx;
+		r->eax = (unsigned long) malloc(size);
+	}
+	else{
 		printf("INT0x80: UNKNOWN SYSCALL %x \n",r->eax);
 		for(;;);
 	}
