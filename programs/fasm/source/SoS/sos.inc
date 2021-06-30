@@ -20,7 +20,7 @@ extrn main
 
 section '.text' executable
 ;
-; The linking puzzle for FASM for SOS
+; SanderOSUSB Standard Libary
 ; By Alexandros de Regt
 ;
 
@@ -42,20 +42,19 @@ exit:
 
 ;
 ; Get the time of the day
+; int gettimeofday(unsigned long tv, unsigned long tz)
+; tv = 8
+; tz = 12
+; ebp
 gettimeofday:
-    pop eax
-    pop eax
+    push ebp
+    mov ebp,esp
+
     mov eax,0x4E
     int 0x80
-    ret
 
-;
-; the main routine
-probeer:
-    mov eax,0
-    push eax
-    push eax
-    call main
+    pop ebp
+    ret
 
 ;
 ; mallocate some memory
@@ -73,31 +72,143 @@ malloc:
     pop ebp
     ret
 
+;
+; Get env details
+; const char *getenv(const char *name)
+; name = 8
+; ebp
 getenv:
-    mov eax,0
-    ret
+    push ebp
+    mov ebp,esp
 
+    mov eax,.emptyreturnvar
+
+    pop ebp
+    ret
+    .emptyreturnvar db 0x00
+
+;
+; Opens a file
+; unsigned long fopen(const char* filename, const char *mode)
+; filename = 8
+; mode = 12
+; ebp
 fopen:
-    pop eax
-    pop eax
-    mov eax,0
+    push ebp
+    mov ebp,esp
+
+    mov eax,0x05
+    mov ebx,dword [ebp + 8]
+    int 0x80
+
+    pop ebp
     ret
 
+;
+; Closes a file
+; int fclose(unsigned long stream)
+; stream = 8
+; ebp
 fclose:
-    pop eax
-    mov eax,0
+    push ebp
+    mov ebp,esp
+
+    mov eax,0x06
+    mov ebx,dword [ebp + 8]
+    int 0x80
+
+    pop ebp
     ret
 
+;
+; Gets the time 
+; unsigned long time(unsigned long t)
+; t = 8
+; ebp
 time:
-    pop eax
-    mov eax,0
+    push ebp
+    mov ebp,esp
+
+    mov eax,0x00
+
+    pop ebp
+    ret
+;
+; Reads some or the complete code of a file
+; unsigned long fread(unsigned char *ptr, unsigned long size, unsigned long nmemb, unsigned long stream)
+; ptr = 8
+; size = 12
+; nmemb = 16
+; stream = 20
+; ebp
+fread:
+    push ebp
+    mov ebp,esp
+    
+    mov eax,0x03
+    mov ebx, dword[ebp + 20]
+    mov ecx, dword[ebp + 8]
+    mov edx, dword[ebp + 12]
+    int 0x80
+
+    pop ebp
     ret
 
-fread:
+;
+; Writes code to file
+; unsigned long fwrite(const void *ptr, unsigned long size, unsigned long nmemb, unsigned long stream)
+; ptr = 8
+; size = 12
+; nmemb = 16
+; stream = 20
+; ebp
 fwrite:
+    push ebp
+    mov ebp,esp
+    
+    mov eax,0x04
+    mov ebx, dword[ebp + 20]
+    mov ecx, dword[ebp + 8]
+    mov edx, dword[ebp + 12]
+    int 0x80
+
+    pop ebp
+    ret
+;
+; Seeks a certain point in the filebuffer
+; int fseek(unsigned long stream, long int offset, int whence)
+; stream = 8
+; offset = 12
+; whence = 16
+; ebp
 fseek:
+    push ebp
+    mov ebp,esp
+
+    mov ebx, dword [ebp + 8]
+    mov ecx, dword [ebp + 12]
+    mov edx, dword [ebp + 16]
+    mov eax,0xC2
+    int 0x80
+
+    pop ebp
+    ret
+
+;
+; Tells where the filepointer is
+; long int ftell(unsigned long stream)
+; stream = 8
+; ebp
 ftell:
-ret
+    push ebp
+    mov ebp,esp
+
+    mov ebx, dword [ebp + 8]
+    mov eax,0xC3
+    int 0x80
+
+    pop ebp
+    ret
 
 ; signed long write(int fd, const char *buf, unsigned long nbytes)
 ;   fd      =   8
@@ -117,5 +228,18 @@ write:
     pop ebp
     ret
 
+;
+; Frees a resource
+; void free(void *ptr)
+; ptr = 8
+; ebp
 free:
-ret
+    push ebp
+    mov ebp,esp
+
+    mov ebx, dword [ebp + 8]
+    mov eax,0xC1
+    int 0x80
+
+    pop ebp
+    ret

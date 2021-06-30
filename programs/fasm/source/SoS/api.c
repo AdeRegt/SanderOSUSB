@@ -21,6 +21,6 @@ void probeer(){
 	fileoutbuffer[t-3] = 'b';
 	fileoutbuffer[t-2] = 'i';
 	fileoutbuffer[t-1] = 'n';
-	char **c = (char *[]){"./fasm", filenamebuffer,fileoutbuffer};
-	main(3,c);
+	char **c = (char *[]){"./fasm", filenamebuffer,fileoutbuffer,"-m","100"};
+	main(5,c);
 }

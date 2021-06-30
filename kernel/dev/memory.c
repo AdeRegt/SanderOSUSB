@@ -14,7 +14,7 @@ typedef struct {
 
 MemoryBlock memreg[MEMORY_BLOCK_LIMIT];
 
-unsigned char *memman = (unsigned char*) 0x30000;
+unsigned char *memman = (unsigned char*) 0x2000000;
 int mempoint = 0;
 
 extern int curx;

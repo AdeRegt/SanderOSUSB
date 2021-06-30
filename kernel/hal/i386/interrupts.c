@@ -107,6 +107,15 @@ void exit_program_and_wait_for_keypress(){
 	__asm__ __volatile__ ("int $0x80": "+a" (mode) , "+b" (status));
 }
 
+typedef struct {
+	unsigned long ftell;
+	unsigned char inuse;
+	void *pointer;
+}FileSymbol;
+
+#define MAX_FILE_SYMBOLS 10
+FileSymbol filesymboltable[MAX_FILE_SYMBOLS];
+
 void special_handler(Register *r){
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);//printf("OKE: eax=%x \n",r->eax);__asm__ __volatile__("cli\nhlt"); for(;;);
@@ -125,37 +134,92 @@ void special_handler(Register *r){
 			((unsigned char*)r->ecx)[0] = kt;
 			((volatile unsigned char*)&keyword)[0] = 0;
 		}else{ // TO FILE
-			printf("INT0x80: unknown read (%x)\n",r->ebx);
+			if(filesymboltable[r->ebx-3].inuse){
+				for(unsigned int i = 0 ; i < r->edx ; i++){
+					((unsigned char*)r->ecx)[i] = ((unsigned char*)filesymboltable[r->ebx-3].pointer)[i];
+				}
+				r->eax = r->edx;
+			}
 		}
 		r->eax=r->edx;
 	}
 	else if(r->eax==0x04){ // F-WRITE
-		if(r->ebx==1){ // TO STDOUT
+		if(r->ebx==1||r->ebx==2){ // TO STDOUT OR STDERR
 			for(unsigned int i = 0 ; i < r->edx ; i++){
 				printf("%c",((unsigned char*)r->ecx)[i]);
 			}
 		}else{ // TO FILE
 			printf("INT0x80: unknown write (%x)\n",r->ebx);for(;;);
 		}
-		r->eax=r->edx;
+		r->eax = 0;//r->eax=r->edx;
 		// printf("OKE: eax=%x , edx=%x , ecx=%x , ebx=%x \n",r->eax,r->edx,r->ecx,r->ebx);__asm__ __volatile__("cli\nhlt"); for(;;);
 	}
 	else if(r->eax==0x05){ // OPEN FILE
 		unsigned char* file = ((unsigned char*)r->ebx);
-		printf("INT0x80: Looking for %s \n",file);
+		char* file2 = ((char*)r->ebx);
 		if(fexists(file)){
-			printf("INT0x80: file exists\n");
+			int fileloc = 3;
+			int z = 0;
+			for(z = 0 ; z < MAX_FILE_SYMBOLS ; z++){
+				if(filesymboltable[z].inuse==0){
+					filesymboltable[z].inuse = 1;
+					fileloc = 3+z;
+					break;
+				}
+			}
+			filesymboltable[fileloc-3].ftell = 0;
+			void *dataset = malloc(0x100);
+			fread(file2,dataset);
+			filesymboltable[fileloc-3].pointer = dataset;
+			r->eax = fileloc;
 		}else{
-			printf("INT0x80: file NOT exists\n");
+			r->eax = 0;
 		}
+	}
+	else if(r->eax==0x06){ // CLOSE FILE
+		unsigned int file = r->ebx;
+		filesymboltable[file-3].inuse = 0;
+		free(filesymboltable[file-3].pointer);
+		printf("INT0x80: Closing file %x \n",file);
+		r->eax = 0;
 	}
 	else if(r->eax==0x4E){ // GET SYSTEMTIME
 		r->eax=0;
-		printf("INT0x80: asked for systemtime\n");
 	}
 	else if(r->eax==0xC0){ // MALLOC
 		unsigned long size = r->ebx;
 		r->eax = (unsigned long) malloc(size);
+	}
+	else if(r->eax==0xC1){ // FREE
+		unsigned long location = r->ebx;
+		free((void*)location);
+	}
+	else if(r->eax==0xC2){ // SEEK
+		unsigned long location = r->ebx;
+		unsigned long offset = r->ecx;
+		unsigned long whence = r->edx;
+		if(whence==2){
+			filesymboltable[location-3].ftell = offset;
+		}else if(whence==1){
+			filesymboltable[location-3].ftell += offset;
+		}else if(whence==0){
+			int nieuwetel = filesymboltable[location-3].ftell;
+			while(1){
+				unsigned char t = ((unsigned char*)(filesymboltable[location-3].pointer))[nieuwetel];
+				if(t==0){
+					break;
+				}
+				nieuwetel++;
+			}
+			filesymboltable[location-3].ftell = nieuwetel;
+		}
+		printf("INT0x80: SEEK %x %x %x\n",location,offset,whence);//for(;;);
+		r->eax = 0;
+	}
+	else if(r->eax==0xC3){ // TELL
+		unsigned long location = r->ebx;
+		printf("INT0x80: TELL %x with %x \n",location,filesymboltable[location-3].ftell);//for(;;);
+		r->eax = filesymboltable[location-3].ftell;
 	}
 	else{
 		printf("INT0x80: UNKNOWN SYSCALL %x \n",r->eax);
