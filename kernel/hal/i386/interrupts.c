@@ -111,6 +111,7 @@ typedef struct {
 	unsigned long ftell;
 	unsigned char inuse;
 	void *pointer;
+	char filename[100];
 }FileSymbol;
 
 #define MAX_FILE_SYMBOLS 10
@@ -129,35 +130,42 @@ void special_handler(Register *r){
 			}
 	}
 	else if(r->eax==0x03){ // F-READ
+		printf("INT0x80: READ\n");
 		if(r->ebx==1){ // FROM STDOUT
 			volatile unsigned char kt = ((volatile unsigned char*)&keyword)[0];
 			((unsigned char*)r->ecx)[0] = kt;
 			((volatile unsigned char*)&keyword)[0] = 0;
 		}else{ // TO FILE
 			if(filesymboltable[r->ebx-3].inuse){
-				for(unsigned int i = 0 ; i < r->edx ; i++){
-					((unsigned char*)r->ecx)[i] = ((unsigned char*)filesymboltable[r->ebx-3].pointer)[i];
-				}
+				memset((char*)r->ecx,r->edx,0);
+				memcpy((char*)filesymboltable[r->ebx-3].pointer,(char*)r->ecx,r->edx);
 				r->eax = r->edx;
+				((char*)r->ecx)[r->edx+0] = 0x00;
+			}else{
+				printf("not allowed call\n");for(;;);
 			}
 		}
 		r->eax=r->edx;
 	}
 	else if(r->eax==0x04){ // F-WRITE
 		if(r->ebx==1||r->ebx==2){ // TO STDOUT OR STDERR
-			for(unsigned int i = 0 ; i < r->edx ; i++){
-				printf("%c",((unsigned char*)r->ecx)[i]);
-			}
+			const char *buf = (const char *)r->ecx;
+			putc(buf[0]);
+			// for(unsigned long i = 0 ; i < 1 ; i++){
+			// 	unsigned long adx = r->ecx + i;
+			// 	putc(((unsigned char*)adx)[0]);
+			// }
 		}else{ // TO FILE
 			printf("INT0x80: unknown write (%x)\n",r->ebx);for(;;);
 		}
-		r->eax = 0;//r->eax=r->edx;
+		r->eax = (signed int)0;//r->eax=r->edx;
 		// printf("OKE: eax=%x , edx=%x , ecx=%x , ebx=%x \n",r->eax,r->edx,r->ecx,r->ebx);__asm__ __volatile__("cli\nhlt"); for(;;);
 	}
 	else if(r->eax==0x05){ // OPEN FILE
 		unsigned char* file = ((unsigned char*)r->ebx);
-		char* file2 = ((char*)r->ebx);
-		if(fexists(file)){
+		printf("INT0x80: OPEN %s \n",file);
+		if(((unsigned char*)r->ecx)[0]=='w'){
+			char* file2 = ((char*)r->ebx);
 			int fileloc = 3;
 			int z = 0;
 			for(z = 0 ; z < MAX_FILE_SYMBOLS ; z++){
@@ -168,29 +176,49 @@ void special_handler(Register *r){
 				}
 			}
 			filesymboltable[fileloc-3].ftell = 0;
-			void *dataset = malloc(0x100);
-			fread(file2,dataset);
-			filesymboltable[fileloc-3].pointer = dataset;
+			memcpy(file2,filesymboltable[fileloc-3].filename,strlen(file2));
 			r->eax = fileloc;
 		}else{
-			r->eax = 0;
+			char* file2 = ((char*)r->ebx);
+			if(fexists(file)){
+				int fileloc = 3;
+				int z = 0;
+				for(z = 0 ; z < MAX_FILE_SYMBOLS ; z++){
+					if(filesymboltable[z].inuse==0){
+						filesymboltable[z].inuse = 1;
+						fileloc = 3+z;
+						break;
+					}
+				}
+				filesymboltable[fileloc-3].ftell = 0;
+				void *dataset = malloc(0x100);
+				fread(file2,dataset);
+				filesymboltable[fileloc-3].pointer = dataset;
+				memcpy(file2,filesymboltable[fileloc-3].filename,strlen(file2));
+				r->eax = fileloc;
+			}else{
+				r->eax = 0;
+			}
 		}
 	}
 	else if(r->eax==0x06){ // CLOSE FILE
 		unsigned int file = r->ebx;
 		filesymboltable[file-3].inuse = 0;
 		free(filesymboltable[file-3].pointer);
-		printf("INT0x80: Closing file %x \n",file);
+		printf("INT0x80: Closing file\n");
 		r->eax = 0;
 	}
 	else if(r->eax==0x4E){ // GET SYSTEMTIME
+		printf("INT0x80: SYSTIME\n");
 		r->eax=0;
 	}
 	else if(r->eax==0xC0){ // MALLOC
+		printf("INT0x80: MALLOC\n");
 		unsigned long size = r->ebx;
 		r->eax = (unsigned long) malloc(size);
 	}
 	else if(r->eax==0xC1){ // FREE
+		printf("INT0x80: FREE\n");
 		unsigned long location = r->ebx;
 		free((void*)location);
 	}
@@ -198,11 +226,12 @@ void special_handler(Register *r){
 		unsigned long location = r->ebx;
 		unsigned long offset = r->ecx;
 		unsigned long whence = r->edx;
-		if(whence==2){
+		printf("About to seek\n");
+		if(whence==0){
 			filesymboltable[location-3].ftell = offset;
 		}else if(whence==1){
 			filesymboltable[location-3].ftell += offset;
-		}else if(whence==0){
+		}else if(whence==2){
 			int nieuwetel = filesymboltable[location-3].ftell;
 			while(1){
 				unsigned char t = ((unsigned char*)(filesymboltable[location-3].pointer))[nieuwetel];
@@ -213,7 +242,7 @@ void special_handler(Register *r){
 			}
 			filesymboltable[location-3].ftell = nieuwetel;
 		}
-		printf("INT0x80: SEEK %x %x %x\n",location,offset,whence);//for(;;);
+		printf("INT0x80: SEEK %x %x %x \n",location,offset,whence);//for(;;);
 		r->eax = 0;
 	}
 	else if(r->eax==0xC3){ // TELL

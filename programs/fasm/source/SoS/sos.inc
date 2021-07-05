@@ -99,6 +99,7 @@ fopen:
 
     mov eax,0x05
     mov ebx,dword [ebp + 8]
+    mov ecx,dword [ebp + 12]
     int 0x80
 
     pop ebp
@@ -148,7 +149,7 @@ fread:
     mov eax,0x03
     mov ebx, dword[ebp + 20]
     mov ecx, dword[ebp + 8]
-    mov edx, dword[ebp + 12]
+    mov edx, dword[ebp + 16]
     int 0x80
 
     pop ebp
