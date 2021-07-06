@@ -62,6 +62,11 @@ gcc gensymbols.c -o ./gensymbols
 ./gensymbols
 cd ..
 
+echo "Build SDK"
+cd lib
+fasm user32.inc user32.o
+cd ..
+
 echo "Build programs"
 for i in programs/*.asm
 do
