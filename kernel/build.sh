@@ -62,6 +62,11 @@ gcc gensymbols.c -o ./gensymbols
 ./gensymbols
 cd ..
 
+echo "Build SDK"
+cd lib
+fasm user32.inc user32.o
+cd ..
+
 echo "Build programs"
 for i in programs/*.asm
 do
@@ -109,7 +114,6 @@ if [ "$1" = "--grub" ]
 		mkdir mnt/boot/grub
 		cp kernel.bin mnt/kernel.bin
 		cp boot/grub/grub.cfg mnt/boot/grub/grub.cfg
-		printf "format ELF\nint 0x80\nret" >> mnt/prgs/tegt.asm
 		grub-mkrescue -o cdrom.iso mnt
 		rm -rf mnt
 fi
