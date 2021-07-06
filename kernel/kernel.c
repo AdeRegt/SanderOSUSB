@@ -179,7 +179,7 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 	printstring("\nEnd of loading system!\n");
 	printf("The system is compiled at %s %s \n",__DATE__,__TIME__);
 	init_cmos();
-
+	
 	cls();
 	curset(27,9);
 	printf("----------------------");

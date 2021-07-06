@@ -28,7 +28,7 @@ void probeer(){
 	fileoutbuffer[t-2] = 'i';
 	fileoutbuffer[t-1] = 'n';
 	char **c = (char *[]){"./fasm", filenamebuffer,fileoutbuffer,"-m","10"};
-	main(5,c);
+	main(2,c);
 }
 
 // int gettimeofday(unsigned long tv, unsigned long tz){

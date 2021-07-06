@@ -150,13 +150,12 @@ void special_handler(Register *r){
 	else if(r->eax==0x04){ // F-WRITE
 		if(r->ebx==1||r->ebx==2){ // TO STDOUT OR STDERR
 			const char *buf = (const char *)r->ecx;
-			putc(buf[0]);
-			// for(unsigned long i = 0 ; i < 1 ; i++){
-			// 	unsigned long adx = r->ecx + i;
-			// 	putc(((unsigned char*)adx)[0]);
-			// }
+			for(unsigned long i = 0 ; i < r->edx ; i++){
+				putc(buf[i]);
+			}
 		}else{ // TO FILE
-			printf("INT0x80: unknown write (%x)\n",r->ebx);for(;;);
+			r->eax = fwrite((char *)filesymboltable[r->ebx-3].filename,(unsigned char *)r->ecx,r->edx);
+			// printf("INT0x80: unknown write (%x)\n",r->ebx);for(;;);
 		}
 		r->eax = (signed int)0;//r->eax=r->edx;
 		// printf("OKE: eax=%x , edx=%x , ecx=%x , ebx=%x \n",r->eax,r->edx,r->ecx,r->ebx);__asm__ __volatile__("cli\nhlt"); for(;;);
