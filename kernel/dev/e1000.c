@@ -161,14 +161,14 @@ void irq_e1000(){
     e1000_write_in_space(0xD0,1);
     unsigned long to = e1000_read_in_space(0xC0);
 	if(to&0x04){
-        printf("[E1000] Link change!\n");
+        debugf("[E1000] Link change!\n");
     }else if(to&0x80){
-        printf("[E1000] Package recieved!\n");
+        debugf("[E1000] Package recieved!\n");
 		((unsigned volatile long*)((unsigned volatile long)&e1000_package_recieved_ack))[0] = 1;
     }else if(to&0x10){
-        printf("[E1000] THG!\n");
+        debugf("[E1000] THG!\n");
     }else{
-        printf("[E1000] Unknown interrupt: %x !\n",to);
+        debugf("[E1000] Unknown interrupt: %x !\n",to);
     }
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
@@ -184,7 +184,7 @@ void e1000_send_package(PackageRecievedDescriptor desc,unsigned char first,unsig
     tx_cur = (tx_cur + 1) % E1000_NUM_TX_DESC;
     e1000_write_in_space(REG_TXDESCTAIL, tx_cur);   
     while(!(tx_descs[old_cur]->status & 0xff));    
-    printf(" Stuff sended! (loc=%x, %x %x %x %x %x)\n",desc.low_buf,first,last,ip,udp,tcp);
+    debugf(" Stuff sended! (loc=%x, %x %x %x %x %x)\n",desc.low_buf,first,last,ip,udp,tcp);
     return;
 }
 
@@ -192,13 +192,13 @@ void e1000_enable_int(){
     e1000_write_in_space(0xD0,0x1F6DC);
     e1000_write_in_space(0xD0,0xff & ~4);
     e1000_read_in_space(0xC0);
-    printf("[E1000] Interrupts enabled!\n");
+    debugf("[E1000] Interrupts enabled!\n");
 }
 
 void e1000_link_up(){
     unsigned long ty = e1000_read_in_space(0);
     e1000_write_in_space(0, ty | 0x40);
-    printf("[E1000] Link is up!\n");
+    debugf("[E1000] Link is up!\n");
 }
 
 PackageRecievedDescriptor e1000_recieve_package(){
@@ -230,22 +230,22 @@ PackageRecievedDescriptor e1000_recieve_package(){
 }
 
 void init_e1000(int bus,int slot,int function){
-    printf("[E1000] E1000 initialised bus=%x slot=%x function=%x \n",bus,slot,function);
+    debugf("[E1000] E1000 initialised bus=%x slot=%x function=%x \n",bus,slot,function);
     base_addr = getBARaddress(bus,slot,function,0x10) & 0xFFFFFFFE;
-    printf("[E1000] Base address: %x \n",base_addr);
+    debugf("[E1000] Base address: %x \n",base_addr);
 	unsigned long usbint = getBARaddress(bus,slot,function,0x3C) & 0x000000FF;
-    printf("[E1000] USBINT %x \n",usbint);
+    debugf("[E1000] USBINT %x \n",usbint);
     setNormalInt(usbint,(unsigned long)e1000irq);
 
     //
     // mac ophalen
     is_eeprom = e1000_is_eeprom();
     if(is_eeprom){
-        printf("[E1000] Device has EEPROM\n");
-        printf("[E1000] EEPROM is not supported, yet\n");
+        debugf("[E1000] Device has EEPROM\n");
+        debugf("[E1000] EEPROM is not supported, yet\n");
         return;
     }else{
-        printf("[E1000] Device has NO EEPROM\n");
+        debugf("[E1000] Device has NO EEPROM\n");
         unsigned long *tg = (unsigned long*) (base_addr + 0x5400);
         mac_address[0] = ((tg[0] & 0x000000FF)>>0) & 0xFF;
         mac_address[1] = ((tg[0] & 0x0000FF00)>>8) & 0xFF;
@@ -254,12 +254,12 @@ void init_e1000(int bus,int slot,int function){
         mac_address[4] = ((tg[1] & 0x000000FF)>>0) & 0xFF;
         mac_address[5] = ((tg[1] & 0x0000FF00)>>8) & 0xFF;
     }
-    printf("[E1000] MAC: %x:%x:%x:%x:%x:%x \n",mac_address[0],mac_address[1],mac_address[2],mac_address[3],mac_address[4],mac_address[5]);
+    debugf("[E1000] MAC: %x:%x:%x:%x:%x:%x \n",mac_address[0],mac_address[1],mac_address[2],mac_address[3],mac_address[4],mac_address[5]);
 
     if(!(getBARaddress(bus,slot,function,0x04)&0x04)){
         unsigned long to = pciConfigReadWord(bus,slot,function,0x04) | 0x04;
         pciConfigWriteWord(bus,slot,function,0x04,to);
-        printf("[E1000] Busmastering was not enabled, but now it is!\n");
+        debugf("[E1000] Busmastering was not enabled, but now it is!\n");
     }
 
 

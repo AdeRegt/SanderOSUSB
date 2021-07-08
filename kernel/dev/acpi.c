@@ -96,7 +96,7 @@ void init_acpi(){
 	}
 	return;
 	success:
-	printf("ACPI: ACPI pressent at %x \n",rsdp);
+	debugf("ACPI: ACPI pressent at %x \n",rsdp);
 	if(acpiCheckHeader(rsdp, "RSDT") == 0){
 		// the RSDT contains an unknown number of pointers to acpi tables
       		int entrys = *(rsdp + 1);
@@ -146,21 +146,21 @@ void init_acpi(){
                      					SLP_EN = 1<<13;
                      					SCI_EN = 1;
 							
-							printf("ACPI: everything is ready!\n");
+							debugf("ACPI: everything is ready!\n");
                      					return;
                   				} else {
-                     					printf("ACPI: \\_S5 parse error.\n");
+                     					debugf("ACPI: \\_S5 parse error.\n");
                   				}
                				} else {
-                  				printf("ACPI: \\_S5 not present.\n");
+                  				debugf("ACPI: \\_S5 not present.\n");
                				}
             			} else {
-               				printf("ACPI: DSDT invalid.\n");
+               				debugf("ACPI: DSDT invalid.\n");
             			}
          		}
          		rsdp++;
       		}
-      		printf("ACPI: no valid FACP present.\n");
+      		debugf("ACPI: no valid FACP present.\n");
 	}
 	for(;;);
 }
@@ -185,18 +185,18 @@ int acpiEnable(void){
 					sleep(10);
 				}
 			if (i<300) {
-				printf("ACPI: enabled acpi.\n");
+				debugf("ACPI: enabled acpi.\n");
 				return 0;
 			} else {
-				printf("ACPI: couldn't enable acpi.\n");
+				debugf("ACPI: couldn't enable acpi.\n");
             			return -1;
          		}
       		} else {
-         		printf("ACPI: no known way to enable acpi.\n");
+         		debugf("ACPI: no known way to enable acpi.\n");
          		return -1;
       		}
    	} else {
-      		printf("ACPI: acpi was already enabled.\n");
+      		debugf("ACPI: acpi was already enabled.\n");
       		return 0;
    	}
 }
@@ -209,10 +209,10 @@ void poweroff(){
 		outportw((unsigned int) PM1a_CNT, SLP_TYPa | SLP_EN );
 		if ( PM1b_CNT != 0 )
       			outportw((unsigned int) PM1b_CNT, SLP_TYPb | SLP_EN );
-      		printf("ACPI: Panic! unable to turn off");
+      		debugf("ACPI: Panic! unable to turn off");
       		for(;;);
 	}else{
-		printf("ACPI: Unable to enable ACPI!\n");
+		debugf("ACPI: Unable to enable ACPI!\n");
 		for(;;);
 	}
 }

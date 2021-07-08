@@ -20,7 +20,7 @@ unsigned long iso_9660_target(Device *device,char* path){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	selfloor = 1;
 
-	//printf("Te zoeken path= %s \n",path);
+	//debugf("Te zoeken path= %s \n",path);
 
 	//
 	// analyseren pathgegevens
@@ -41,7 +41,7 @@ unsigned long iso_9660_target(Device *device,char* path){
 			is_bestand = 1;
 		}
 	}
-	//printf("Er zijn %x pathelementen\n",paths);
+	//debugf("Er zijn %x pathelementen\n",paths);
 
 	//
 	// eerst opzoeken van de primaire block
@@ -57,7 +57,7 @@ unsigned long iso_9660_target(Device *device,char* path){
 	}
 	
 	if(primairesector==0){
-		printf("ISO: primairy sector not found!\n");for(;;);
+		debugf("ISO: primairy sector not found!\n");for(;;);
 	}
 	
 	unsigned long dt = charstoint(isobuffer[148],isobuffer[149],isobuffer[150],isobuffer[151]);
@@ -66,7 +66,7 @@ unsigned long iso_9660_target(Device *device,char* path){
 	unsigned long res = charstoint(isobuffer[2],isobuffer[3],isobuffer[4],isobuffer[5]);
 	
 	if(path[0]==0){
-		printf("gevonden3");
+		debugf("gevonden3");
 		return res;
 	}
 
@@ -86,7 +86,7 @@ unsigned long iso_9660_target(Device *device,char* path){
 			goto kopieernogeen;
 		}
 		pathchunk[ipath] = 0x00;
-		//printf("Chunk [%s] word nu behandeld \n",pathchunk);
+		//debugf("Chunk [%s] word nu behandeld \n",pathchunk);
 
 		// door alle directories lopen van actuele boom
 		unsigned char entrytextlength = 0;
@@ -111,7 +111,7 @@ unsigned long iso_9660_target(Device *device,char* path){
 				selfloor = boomdiepte;
 				if((paths-(is_bestand?1:0))==(i+1)){
 					dummy = res;
-	printf("gevonden2");
+	debugf("gevonden2");
 					return res;
 				}
 				continue;
@@ -125,7 +125,7 @@ unsigned long iso_9660_target(Device *device,char* path){
 		edept++;
 		goto nogmaals;
 	}
-	printf("gevonden1");
+	debugf("gevonden1");
 	return res;
 }
 

@@ -27,8 +27,8 @@ unsigned char* cmos_update_datetime_to_variables(){
 }
 
 void init_cmos(){
-    printf("CMOS: ready!\n");
+    debugf("CMOS: ready!\n");
     unsigned char *dataset = cmos_update_datetime_to_variables();
-    printf("CMOS: %x:%x:%x %x/%x/%x \n",dataset[0],dataset[1],dataset[2],dataset[3],dataset[4],2000+dataset[5]);
+    debugf("CMOS: %x:%x:%x %x/%x/%x \n",dataset[0],dataset[1],dataset[2],dataset[3],dataset[4],2000+dataset[5]);
     free(dataset);
 }

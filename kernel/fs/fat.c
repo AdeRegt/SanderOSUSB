@@ -293,17 +293,17 @@ void initialiseFAT(Device* device){
 	unsigned short* buffer = (unsigned short*) malloc(512);
 	int tres = readraw(device,0,1,buffer);
 	if(tres==0){
-		printf("[FAT] FAIL: cannot read sector\n");
+		debugf("[FAT] FAIL: cannot read sector\n");
 		return;
 	}
 	fat_BS_t* fat_boot = (fat_BS_t*) buffer;
 	fat_extBS_32_t* fat_boot_ext_32 = (fat_extBS_32_t*) fat_boot->extended_section;
-	printf("[FAT] FAT detected!\n");
-	printf("[FAT] OEM-name: \"");
+	debugf("[FAT] FAT detected!\n");
+	debugf("[FAT] OEM-name: \"");
 	for(int i = 0 ; i < 8 ; i++){
-		printf("%c",fat_boot->oem_name[i]);
+		debugf("%c",fat_boot->oem_name[i]);
 	}
-	printf("\"\n");
+	debugf("\"\n");
 	unsigned long total_sectors 	= (fat_boot->total_sectors_16 == 0)? fat_boot->total_sectors_32 : fat_boot->total_sectors_16;
 	unsigned long fat_size 		= (fat_boot->table_size_16 == 0)? fat_boot_ext_32->table_size_32 : fat_boot->table_size_16;
 	unsigned long root_dir_sectors 	= ((fat_boot->root_entry_count * 32) + (fat_boot->bytes_per_sector - 1)) / fat_boot->bytes_per_sector;
@@ -312,35 +312,35 @@ void initialiseFAT(Device* device){
 	unsigned long data_sectors 	= total_sectors - (fat_boot->reserved_sector_count + (fat_boot->table_count * fat_size) + root_dir_sectors);
 	unsigned long total_clusters 	= data_sectors / fat_boot->sectors_per_cluster;
 	
-	printf("[FAT] total sectors %x \n",total_sectors);
-	printf("[FAT] fatsize %x \n",fat_size);
-	printf("[FAT] root dir sectors %x \n",root_dir_sectors);
-	printf("[FAT] first data sector %x \n",first_data_sector);
-	printf("[FAT] first fat sector %x \n",first_fat_sector);
-	printf("[FAT] data sectors %x \n",data_sectors);
-	printf("[FAT] total clusters %x \n",total_clusters);
+	debugf("[FAT] total sectors %x \n",total_sectors);
+	debugf("[FAT] fatsize %x \n",fat_size);
+	debugf("[FAT] root dir sectors %x \n",root_dir_sectors);
+	debugf("[FAT] first data sector %x \n",first_data_sector);
+	debugf("[FAT] first fat sector %x \n",first_fat_sector);
+	debugf("[FAT] data sectors %x \n",data_sectors);
+	debugf("[FAT] total clusters %x \n",total_clusters);
 	if(total_clusters < 4085){
-		printf("[FAT] FAT-type is FAT12\n");
+		debugf("[FAT] FAT-type is FAT12\n");
 	}else if(total_clusters < 65525){
-		printf("[FAT] FAT-type is FAT16\n");
+		debugf("[FAT] FAT-type is FAT16\n");
 	}else if (total_clusters < 268435445){
-		printf("[FAT] FAT-type is FAT32\n");
+		debugf("[FAT] FAT-type is FAT32\n");
 	}else{ 
-		printf("[FAT] FAT-type is ExFAT\n");
+		debugf("[FAT] FAT-type is ExFAT\n");
 	}
 	unsigned long first_sector_of_cluster = fat_get_first_sector_of_cluster(device);
-	printf("[FAT] First sector of cluster %x \n",first_sector_of_cluster);
+	debugf("[FAT] First sector of cluster %x \n",first_sector_of_cluster);
 	if(first_sector_of_cluster==0){
-		printf("[FAT] FAT-dir is 0. No FAT supported!\n");
+		debugf("[FAT] FAT-dir is 0. No FAT supported!\n");
 		return;
 	}
 	device->dir	= (unsigned long)&fat_dir;
 	device->readFile = (unsigned long)&fat_read;
 	device->existsFile = (unsigned long)&fat_exists;
 	if(device->writeRawSector){
-		printf("[FAT] Enables FAT write function\n");
+		debugf("[FAT] Enables FAT write function\n");
 		device->writeFile = (unsigned long)&fat_write;
 	}else{
-		printf("[FAT] FAT is readonly\n");
+		debugf("[FAT] FAT is readonly\n");
 	}
 }

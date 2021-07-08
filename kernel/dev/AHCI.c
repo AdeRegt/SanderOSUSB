@@ -402,7 +402,7 @@ int find_cmdslot(HBA_PORT *port)
 			return i;
 		slots >>= 1;
 	}
-	printf("Cannot find free command list entry\n");
+	debugf("Cannot find free command list entry\n");
 	return -1;
 }
 
@@ -640,7 +640,7 @@ int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, un
 	}
 	if (spin == 1000000)
 	{
-		printf("Port is hung\n");
+		debugf("Port is hung\n");
 		return 0;
 	}
  
@@ -655,7 +655,7 @@ int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, un
 			break;
 		if (port->is & HBA_PxIS_TFES)	// Task file error
 		{
-			printf("Read disk error\n");
+			debugf("Read disk error\n");
 			return 0;
 		}
 		
@@ -664,7 +664,7 @@ int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, un
 	// Check again
 	if (port->is & HBA_PxIS_TFES)
 	{
-		printf("Read disk error\n");
+		debugf("Read disk error\n");
 		return 0;
 	}
  
@@ -696,9 +696,9 @@ void ahci_ata_init(HBA_PORT *port,int i){
 		return;
 	}
 	if(msg[510]==0x55&&msg[511]==0xAA){
-		printf("[AHCI] ATA is bootable\n");
+		debugf("[AHCI] ATA is bootable\n");
 	}else{
-		printf("[AHCI] ATA is not bootable\n");
+		debugf("[AHCI] ATA is not bootable\n");
 	}
 	
 	Device* regdev = (Device*) malloc(sizeof(Device));
@@ -719,17 +719,17 @@ void ahci_atapi_init(HBA_PORT *port,int i){
 	for(int z = 0 ; z < 512 ; z++){
 		buffer[z] = 0x00;
 	}
-	printf("[AHCI] ATAPI read test sector...\n");
+	debugf("[AHCI] ATAPI read test sector...\n");
 	if(ahci_atapi_read(port, 0, 0, 1, (unsigned short *)buffer)==0){
-		printf("[AHCI] ATAPI is unable to read sectors...\n");
-		printf("[AHCI] ATAPI will eject drive....\n");
+		debugf("[AHCI] ATAPI is unable to read sectors...\n");
+		debugf("[AHCI] ATAPI will eject drive....\n");
 		ahci_atapi_eject(port);
 		return;
 	}
 	if(buffer[510]==0x55&&buffer[511]==0xAA){
-		printf("[AHCI] ATAPI is bootable\n");
+		debugf("[AHCI] ATAPI is bootable\n");
 	}else{
-		printf("[AHCI] ATAPI is not bootable\n");
+		debugf("[AHCI] ATAPI is not bootable\n");
 	}
 	int choice = -1;
 	for(int i = 0 ; i < 10 ; i++){
@@ -741,9 +741,9 @@ void ahci_atapi_init(HBA_PORT *port,int i){
 		}
 	}
 	if(choice==-1){
-		printf("[AHCI] ATAPI: unknown filesystem\n");
+		debugf("[AHCI] ATAPI: unknown filesystem\n");
 	}else{
-		printf("[AHCI] ATAPI: known filesystem ISO 9660\n");
+		debugf("[AHCI] ATAPI: known filesystem ISO 9660\n");
 		
 		Device *regdev = getNextFreeDevice();
 		
@@ -771,90 +771,90 @@ void ahci_init(int bus,int slot,int function){
 	unsigned long bar4 = getBARaddress(bus,slot,function,0x20);
 	unsigned long bar5 = getBARaddress(bus,slot,function,0x24);
 	unsigned long base = bar5;
-	printf("[AHCI] AHCI detected based at %x !\n",base);
-	printf("[AHCI] 0:%x  1:%x 2:%x 3:%x 4:%x 5:%x!\n",bar0,bar1,bar2,bar3,bar4,bar5);
+	debugf("[AHCI] AHCI detected based at %x !\n",base);
+	debugf("[AHCI] 0:%x  1:%x 2:%x 3:%x 4:%x 5:%x!\n",bar0,bar1,bar2,bar3,bar4,bar5);
 	//init_ide2();
 	HBA_MEM *target = (HBA_MEM *)base;
 	
 	//
 	// printing systeminfo
-	printf("[AHCI] AHCI SYSTEM INFO\n");
-	printf("[AHCI] CAP - HBA Capabilities: ");
+	debugf("[AHCI] AHCI SYSTEM INFO\n");
+	debugf("[AHCI] CAP - HBA Capabilities: ");
 	if(target->cap & 0b10000000000000000000000000000000){
-		printf("64bit ");
+		debugf("64bit ");
 	}
 	if(target->cap & 0b01000000000000000000000000000000){
-		printf("SNCQ ");
+		debugf("SNCQ ");
 	}
 	if(target->cap & 0b00100000000000000000000000000000){
-		printf("SSNTF ");
+		debugf("SSNTF ");
 	}
 	if(target->cap & 0b00010000000000000000000000000000){
-		printf("SMPS ");
+		debugf("SMPS ");
 	}
 	if(target->cap & 0b00001000000000000000000000000000){
-		printf("SSS ");
+		debugf("SSS ");
 	}
 	if(target->cap & 0b00000100000000000000000000000000){
-		printf("SALP ");
+		debugf("SALP ");
 	}
 	if(target->cap & 0b00000010000000000000000000000000){
-		printf("SAL ");
+		debugf("SAL ");
 	}
 	if(target->cap & 0b00000001000000000000000000000000){
-		printf("SCLO ");
+		debugf("SCLO ");
 	}
 	if(target->cap & 0b00000000111110000000000000000000){
-		printf("ISS ");
+		debugf("ISS ");
 	}
 	if(target->cap & 0b00000000000001000000000000000000){
-		printf("SAM ");
+		debugf("SAM ");
 	}
 	if(target->cap & 0b00000000000000100000000000000000){
-		printf("SPM ");
+		debugf("SPM ");
 	}
 	if(target->cap & 0b00000000000000010000000000000000){
-		printf("FBSS ");
+		debugf("FBSS ");
 	}
 	if(target->cap & 0b00000000000000001000000000000000){
-		printf("PMD ");
+		debugf("PMD ");
 	}
 	if(target->cap & 0b00000000000000000100000000000000){
-		printf("SSC ");
+		debugf("SSC ");
 	}
 	if(target->cap & 0b00000000000000000010000000000000){
-		printf("PSC ");
+		debugf("PSC ");
 	}
 	if(target->cap & 0b00000000000000000001111100000000){
-		printf("NCS[%x] ",(target->cap & 0b00000000000000000001111100000000)>>8);
+		debugf("NCS[%x] ",(target->cap & 0b00000000000000000001111100000000)>>8);
 	}
 	if(target->cap & 0b00000000000000000000000010000000){
-		printf("CCCS ");
+		debugf("CCCS ");
 	}
 	if(target->cap & 0b00000000000000000000000001000000){
-		printf("EMS ");
+		debugf("EMS ");
 	}
 	if(target->cap & 0b00000000000000000000000000100000){
-		printf("SXS ");
+		debugf("SXS ");
 	}
 	if(target->cap & 0b00000000000000000000000000011111){
-		printf("NP[%x] ",target->cap & 0b00000000000000000000000000011111);
+		debugf("NP[%x] ",target->cap & 0b00000000000000000000000000011111);
 	}
-	printf("\n");
-	printf("[AHCI] GHC - Global HBA control : ");
+	debugf("\n");
+	debugf("[AHCI] GHC - Global HBA control : ");
 	if(target->ghc & 0b10000000000000000000000000000000){
-		printf("AE ");
+		debugf("AE ");
 	}
 	if(target->ghc & 0b00000000000000000000000000000100){
-		printf("MRSM ");
+		debugf("MRSM ");
 	}
 	if(target->ghc & 0b00000000000000000000000000000010){
-		printf("IE ");
+		debugf("IE ");
 	}
-	printf("\n");
-	printf("[AHCI] version: %x \n",target->vs);
+	debugf("\n");
+	debugf("[AHCI] version: %x \n",target->vs);
 	if(0){
-		printf("[AHCI] Trigger reset\n");
+		debugf("[AHCI] Trigger reset\n");
 		target->ghc |= 1;
 		while(1){
 			volatile unsigned long tkap = target->ghc;
@@ -873,24 +873,24 @@ void ahci_init(int bus,int slot,int function){
 			unsigned char ipm = (ssts >> 8) & 0x0F;
 			unsigned char det = ssts & 0x0F;
 
-			printf("[AHCI] Probing port %x \n",i);
+			debugf("[AHCI] Probing port %x \n",i);
 		 
 			if (det != HBA_PORT_DET_PRESENT && ipm != HBA_PORT_IPM_ACTIVE){
 				
 		 	}else if(port->sig==SATA_SIG_ATAPI){
-				printf("[AHCI] ATAPI detected\n");
+				debugf("[AHCI] ATAPI detected\n");
 				ahci_atapi_init(port,i);
 			}else if(port->sig==SATA_SIG_SEMB){
-				printf("[AHCI] SEMB detected\n");
+				debugf("[AHCI] SEMB detected\n");
 			}else if(port->sig==SATA_SIG_PM){
-				printf("[AHCI] PM detected\n");
+				debugf("[AHCI] PM detected\n");
 			}else{
-				printf("[AHCI] SATA detected %x \n",i);
+				debugf("[AHCI] SATA detected %x \n",i);
 				ahci_ata_init(port,i);
 			}
 		}
 		pi >>= 1;
 		i ++;
 	}
-	printf("[AHCI] End of operation\n");
+	debugf("[AHCI] End of operation\n");
 }

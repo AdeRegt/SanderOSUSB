@@ -16,7 +16,7 @@ void irq_snd(){
 	soundblaster16_irq_fire = 1;
 	unsigned char tp1 = inportb(SOUNDBLASTER16_DSP_READ_STATUS);
 	unsigned char tp2 = inportb(SOUNDBLASTER16_DSP_16BACK);
-	printf("[SNDBST] Interrupt fired with 1=%x 2=%x \n",tp1,tp2);
+	debugf("[SNDBST] Interrupt fired with 1=%x 2=%x \n",tp1,tp2);
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
 }
@@ -30,7 +30,7 @@ void soundblaster16_reset(){
 int soundblaster16_detect(){
 	soundblaster16_reset();
 	unsigned char resultaat = inportb(SOUNDBLASTER16_DSP_READ);
-	printf("[SNDBST] Result reset=%x (Should be 0xAA)\n",resultaat);
+	debugf("[SNDBST] Result reset=%x (Should be 0xAA)\n",resultaat);
 	return resultaat==0xAA;
 }
 
@@ -106,17 +106,17 @@ void init_soundblaster16(){
 	
 	//
 	// detect and reset
-	printf("[SNDBST] Detecting possible existance of a soundblaster16 device\n");
+	debugf("[SNDBST] Detecting possible existance of a soundblaster16 device\n");
 	if(soundblaster16_detect()==0){
-		printf("[SNDBST] No soundblaster available\n");
+		debugf("[SNDBST] No soundblaster available\n");
 		return;
 	}
-	printf("[SNDBST] Soundblaster available\n");
+	debugf("[SNDBST] Soundblaster available\n");
 
 	//
 	// set interrupt
 	unsigned char targetinterrupt = 5;
-	printf("[SNDBST] Setting interrupt to %x \n",targetinterrupt);
+	debugf("[SNDBST] Setting interrupt to %x \n",targetinterrupt);
 	setNormalInt(targetinterrupt,(unsigned long)sndirq);
 	outportb(SOUNDBLASTER16_DSP_MIXER_PORT,0x80);
 	outportb(SOUNDBLASTER16_DSP_MIXER_PORT,0x02); // 2= interrupt 5

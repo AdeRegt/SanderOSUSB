@@ -24,5 +24,5 @@ char* cpuid_get_model(){
 }
 
 void cpuid_get_details(){
-    printf("CPUVendor: \"%s\" \n",cpuid_get_model());
+    debugf("CPUVendor: \"%s\" \n",cpuid_get_model());
 }

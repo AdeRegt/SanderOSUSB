@@ -40,13 +40,13 @@ void *usb_send_and_recieve_control(USB_DEVICE *device,void *commando,void *buffe
 
 void usb_device_install(USB_DEVICE *device){
 	if(device->class==8){
-        printf("[USB] Port %x : Mass Storage Device detected!\n",device->portnumber);
+        debugf("[USB] Port %x : Mass Storage Device detected!\n",device->portnumber);
         usb_stick_init(device);
     }else if(device->class==3){
-        printf("[USB] Port %x : Human Interface Device detected!\n",device->portnumber);
+        debugf("[USB] Port %x : Human Interface Device detected!\n",device->portnumber);
 		init_usb_hid(device);
     }else{
-        printf("[USB] Port %x : Unable to understand deviceclass: %x \n",device->portnumber,device->class);
+        debugf("[USB] Port %x : Unable to understand deviceclass: %x \n",device->portnumber,device->class);
 		for(;;);
     }
 }

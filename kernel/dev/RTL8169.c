@@ -36,27 +36,27 @@ unsigned volatile long package_send_ack = 0;
 extern void rtl8169irq();
 
 void irq_rtl8169(){
-	printf("[RTL81] Interrupt detected\n");
+	debugf("[RTL81] Interrupt detected\n");
 	unsigned short status = inportw(bar1 + 0x3E);
 	if(status&0x20){
-		printf("[RTL81] Link change detected!\n");
+		debugf("[RTL81] Link change detected!\n");
 		status |= 0x20;
 	}else if(status&0x01){
-		printf("[RTL81] Package recieved!\n");
+		debugf("[RTL81] Package recieved!\n");
 		((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0] = 1;
 		status |= 0x01;
 	}else if(status&0x04){
-		printf("[RTL81] Package send!\n");
+		debugf("[RTL81] Package send!\n");
 		((unsigned volatile long*)((unsigned volatile long)&package_send_ack))[0] = 1;
 		status |= 0x04;
 	}else{
-		printf("[RTL81] Unknown INT %x \n",status);
+		debugf("[RTL81] Unknown INT %x \n",status);
 	}
 	outportw(bar1 + 0x3E,status);
 	
 	status = inportw(bar1 + 0x3E);
 	if(status!=0x00){
-		printf("[RTL81] Unresolved interrupt: %x \n",status);
+		debugf("[RTL81] Unresolved interrupt: %x \n",status);
 	}
 	
 	outportb(0xA0,0x20);
@@ -71,7 +71,7 @@ void rtl_sendPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned
 	
 	struct Descriptor *desz = ((struct Descriptor*)(Tx_Descriptors+(sizeof(struct Descriptor)*tx_pointer)));
 	if(desz->command!=0x80000064){ // a check if we somehow lost the count
-		printf("[RTL81] Unexpected default value: %x \n",desz->command);
+		debugf("[RTL81] Unexpected default value: %x \n",desz->command);
 	}
 	desz->high_buf = ms4;
 	desz->low_buf = ms3;
@@ -116,31 +116,31 @@ PackageRecievedDescriptor rtl_recievePackage(){
 
 void rtl_test(){
 	PackageRecievedDescriptor res = rtl_recievePackage();
-	printf("[RTL81] Testpackage recieved. Length=%x \n",res.buffersize);
+	debugf("[RTL81] Testpackage recieved. Length=%x \n",res.buffersize);
 	
 	PackageRecievedDescriptor resx;
 	resx.buffersize = res.buffersize;
 	resx.low_buf = res.low_buf;
 	resx.high_buf = 0;
 	rtl_sendPackage(resx,1,1,0,0,0);
-	printf("[RTL81] Package send\n");
+	debugf("[RTL81] Package send\n");
 }
 
 void init_rtl(int bus,int slot,int function){
-	printf("[RTL81] Driver loaded\n");
+	debugf("[RTL81] Driver loaded\n");
 	bar1 = getBARaddress(bus,slot,function,0x10) & 0xFFFFFFFE;
-	printf("[RTL81] BAR=%x \n",bar1);
+	debugf("[RTL81] BAR=%x \n",bar1);
 	
-	printf("[RTL81] Set interrupter\n");
+	debugf("[RTL81] Set interrupter\n");
 	unsigned long usbint = getBARaddress(bus,slot,function,0x3C) & 0x000000FF;
 	setNormalInt(usbint,(unsigned long)rtl8169irq);
 	
 	//
 	// trigger reset
-	printf("[RTL81] Resetting driver \n");
+	debugf("[RTL81] Resetting driver \n");
 	outportb(bar1 + 0x37, 0x10);
 	while(inportb(bar1 + 0x37) & 0x10){}
-	printf("[RTL81] Driver reset succesfully \n");
+	debugf("[RTL81] Driver reset succesfully \n");
 	
 	//
 	// get mac address
@@ -148,11 +148,11 @@ void init_rtl(int bus,int slot,int function){
 	for(int i = 0 ; i < 6 ; i++){
 		macaddress[i] = inportb(bar1+i);
 	}
-	printf("[RTL81] MAC-address %x %x %x %x %x %x \n",macaddress[0],macaddress[1],macaddress[2],macaddress[3],macaddress[4],macaddress[5]);
+	debugf("[RTL81] MAC-address %x %x %x %x %x %x \n",macaddress[0],macaddress[1],macaddress[2],macaddress[3],macaddress[4],macaddress[5]);
 	
 	//
 	// setup rx descriptor
-	printf("[RTL81] Setup RX descriptor\n");
+	debugf("[RTL81] Setup RX descriptor\n");
 	unsigned int OWN = 0x80000000;
 	unsigned int EOR = 0x40000000;
 	for(unsigned long i = 0; i < num_of_rx_descriptors; i++){
@@ -182,5 +182,5 @@ void init_rtl(int bus,int slot,int function){
 	outportb(bar1 + 0x50, 0x00); /* Lock config registers */
 	
 	register_ethernet_device((unsigned long)&rtl_sendPackage,(unsigned long)&rtl_recievePackage);
-	printf("[RTL81] Setup finished\n");
+	debugf("[RTL81] Setup finished\n");
 }

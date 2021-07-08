@@ -37,17 +37,17 @@ extern void vbirq();
 
 void irq_vb(){
 	outportb(0x20,0x20);
-	printf("VB:DDDD\n");
+	debugf("VB:DDDD\n");
 }
 
 void init_vbox(unsigned long bus, unsigned long slot, unsigned long function){
-	printf("[VBOX] Virtualbox Guest Additions found!\n");
+	debugf("[VBOX] Virtualbox Guest Additions found!\n");
 	for(int i = 0 ; i < 6 ; i++){
 		unsigned long addr = getBARaddress(bus,slot,function,0x10+(i*4));
 		if(addr){
-			printf("[VBOX] BAR%x : %x \n",i,addr);
+			debugf("[VBOX] BAR%x : %x \n",i,addr);
 		}
 	}
 	vbox_port = getBARaddress(bus,slot,function,0x10) & 0xFFFFFFF0;
-	printf("[VBOX] Default port is %x with default value %x \n",vbox_port,inportl(vbox_port));
+	debugf("[VBOX] Default port is %x with default value %x \n",vbox_port,inportl(vbox_port));
 }

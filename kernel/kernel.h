@@ -149,6 +149,12 @@ unsigned char getch();
 void curset(int x,int y);
 void setForeGroundBackGround(unsigned char fg,unsigned char bg);
 
+char* vsprintf(char* format,va_list arg);
+char* sprintf(char* format,...);
+void debugf(char* format,...);
+void writer_string_serial(char* message,unsigned short PORT);
+unsigned short getDefaultSerialPort();
+
 //////
 // arrows key codes
 //////

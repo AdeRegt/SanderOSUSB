@@ -105,7 +105,7 @@ void sfs_dir(Device *device,char* path,char *buffer){
 	sfs_get_detail(path);
 	int counter = 0;
 	if(device->arg5!=512){
-		printf("Illegal sector size");for(;;);
+		debugf("Illegal sector size");for(;;);
 	}
 	for(int i = 0 ; i < SFS_FILE_TABLE_ENTRIES ; i++){
 		SFSFileEntry fe = filetable.entries[i];
@@ -229,7 +229,7 @@ char sfs_write(Device *device,char* path,char *buffer,int size){
 char sfs_exists(Device *device,char* path){
 	//void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	if(device->arg5!=512){
-		printf("Illegal size\n");for(;;);
+		debugf("Illegal size\n");for(;;);
 	}
 	sfs_get_detail(path);
 	unsigned char nameexists = 0;
@@ -279,7 +279,7 @@ unsigned char sfs_read(Device *device,char* path,char *buffer){
 	offset = 0;
 	for(unsigned long i = 0 ; i < 512 ; i++){
 		if(tabletable[i]==nameexists){
-			printf("SFS: read %x [%x] \n",i,device->arg2+i);
+			debugf("SFS: read %x [%x] \n",i,device->arg2+i);
 			unsigned long dir = ((unsigned long)buffer)+offset;
 			readraw(device,i,1,(unsigned short*)dir);
 			offset += 512;
@@ -290,21 +290,21 @@ unsigned char sfs_read(Device *device,char* path,char *buffer){
 
 void initialiseSFS(Device *device){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
-	printf("[SFS] SanderOSUSB File System (SFS) driver activated\n");
-	printf("[SFS] Read raw sector code located at %x \n",device->readRawSector);
+	debugf("[SFS] SanderOSUSB File System (SFS) driver activated\n");
+	debugf("[SFS] Read raw sector code located at %x \n",device->readRawSector);
 	unsigned char* bootsecloc = (unsigned char*)&bootsector;
 	readraw(device,0,1,(unsigned short*)bootsecloc);
 	if(bootsector.signature!=0xCD){
-		printf("[SFS] Invalid SFS bootsector\n");
+		debugf("[SFS] Invalid SFS bootsector\n");
 		return;
 	}
 	if(bootsector.version!=1){
-		printf("[SFS] Invalid SFS versionnumber: %x \n",bootsector.version);
+		debugf("[SFS] Invalid SFS versionnumber: %x \n",bootsector.version);
 		return;
 	}
-	printf("[SFS] Sectorsize: %x \n",bootsector.sectorsize);
-	printf("[SFS] Offset first sectortable: %x \n",bootsector.offset_first_sectortable);
-	printf("[SFS] Sector table size: %x \n",bootsector.sectortablesize);
+	debugf("[SFS] Sectorsize: %x \n",bootsector.sectorsize);
+	debugf("[SFS] Offset first sectortable: %x \n",bootsector.offset_first_sectortable);
+	debugf("[SFS] Sector table size: %x \n",bootsector.sectortablesize);
 
 	unsigned char* filetableloc = (unsigned char*)&filetable;
 	unsigned char* tabletableloc = (unsigned char*)&tabletable;
@@ -321,6 +321,6 @@ void initialiseSFS(Device *device){
 	device->writeFile = (unsigned long)&sfs_write;
 	device->newFile = (unsigned long)&sfs_new_file;
 
-	printf("[SFS] readSector: %x dir: %x \n",device->readRawSector,device->dir);
+	debugf("[SFS] readSector: %x dir: %x \n",device->readRawSector,device->dir);
 
 }
