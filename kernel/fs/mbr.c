@@ -24,24 +24,24 @@ void detectFilesystemsOnMBR(Device* device){
 	mbr_entry* mbrs = (mbr_entry*)&msg[basex];
 	int amt = 0;
 	for(int i = 0 ; i < 4 ; i++){
-		printf("[MBRI] MBR %x : lba %x type %x \n",i+1,mbrs[i].lbastart,mbrs[i].type);
+		debugf("[MBRI] MBR %x : lba %x type %x \n",i+1,mbrs[i].lbastart,mbrs[i].type);
 		if(mbrs[i].type==0xEE){
 			amt++;
-			printf("[MBRI] MBR partitiontable declares EFI subsystem\n");
+			debugf("[MBRI] MBR partitiontable declares EFI subsystem\n");
 			unsigned char* efi = (unsigned char*) 0x1000+512;
 			readraw(device, mbrs[i].lbastart, 1, (unsigned short *)efi);
 			if(efi[0]==0x45&&efi[1]==0x46&&efi[2]==0x49&&efi[3]==0x20&&efi[4]==0x50&&efi[5]==0x41&&efi[6]==0x52&&efi[7]==0x54){
-				printf("[MBRI] EFI checksum OK\n");
+				debugf("[MBRI] EFI checksum OK\n");
 			}else{
 				continue;
 			}
 			readraw(device, mbrs[i].lbastart+1, 1, (unsigned short *)efi);
 			for(int z = 0 ; z < 512 ; z = z+128){
-				printf("[MBRI] partname \"");
+				debugf("[MBRI] partname \"");
 				for(int k = 0 ; k < 72 ; k++){
 					char deze = efi[z+56+k];
 					if(deze!=0x00){
-						printf("%c",deze);
+						debugf("%c",deze);
 					}
 				}
 				unsigned char tA = efi[z+32+0];
@@ -54,9 +54,9 @@ void detectFilesystemsOnMBR(Device* device){
 				xt[2] = tC;
 				xt[3] = tD;
 				unsigned long xy = ((unsigned long*)&xt)[0];
-				printf("\" type %x%x %x%x %x%x %x%x \n",efi[z+8+0],efi[z+8+1],efi[z+8+2],efi[z+8+3],efi[z+8+4],efi[z+8+5],efi[z+8+6],efi[z+8+7]);
+				debugf("\" type %x%x %x%x %x%x %x%x \n",efi[z+8+0],efi[z+8+1],efi[z+8+2],efi[z+8+3],efi[z+8+4],efi[z+8+5],efi[z+8+6],efi[z+8+7]);
 				if((efi[z+8+6]==0xC9&&efi[z+8+7]==0x3B)||(efi[z+8+6]==0x99&&efi[z+8+7]==0xC7)){
-					printf("[MBRI] EFI: FAT-formated partition found at %x! \n",xy);
+					debugf("[MBRI] EFI: FAT-formated partition found at %x! \n",xy);
 					
 					Device *regdev = getNextFreeDevice();
 		
@@ -70,7 +70,7 @@ void detectFilesystemsOnMBR(Device* device){
 					regdev->arg5 = device->arg5;
 					initialiseFAT(regdev);
 				}else if(efi[z+8+6]==0x7D&&efi[z+8+7]==0xE4){
-					printf("[MBRI] EFI: Linux native filesystem detected at %x !\n",xy);
+					debugf("[MBRI] EFI: Linux native filesystem detected at %x !\n",xy);
 					
 					Device *regdev = getNextFreeDevice();
 		
@@ -86,7 +86,7 @@ void detectFilesystemsOnMBR(Device* device){
 			}
 		}else if(mbrs[i].type==0x83){
 			amt++;
-			printf("[MBRI] Linux native filesystem detected\n");
+			debugf("[MBRI] Linux native filesystem detected\n");
 			Device *regdev = getNextFreeDevice();
 		
 			regdev->readRawSector 	= device->readRawSector;
@@ -99,7 +99,7 @@ void detectFilesystemsOnMBR(Device* device){
 			initialiseExt2(regdev);
 		}else if(mbrs[i].type==0x0E||mbrs[i].type==0x0B||mbrs[i].type==0x0C){
 			amt++;
-			printf("[MBRI] FAT filesystem detected\n");
+			debugf("[MBRI] FAT filesystem detected\n");
 			Device *regdev = getNextFreeDevice();
 		
 			regdev->readRawSector 	= atmp2;
@@ -113,7 +113,7 @@ void detectFilesystemsOnMBR(Device* device){
 			initialiseFAT(regdev);
 		}else if(mbrs[i].type==0xCD){
 			amt++;
-			printf("[MBRI] SFS filesystem detected\n");
+			debugf("[MBRI] SFS filesystem detected\n");
 			Device *regdev = getNextFreeDevice();
 		
 			regdev->readRawSector 	= atmp2;
@@ -128,9 +128,9 @@ void detectFilesystemsOnMBR(Device* device){
 		}
 		basex += 16;
 	}
-	printf("[MBRI] Installed disks: %x \n",amt);
+	debugf("[MBRI] Installed disks: %x \n",amt);
 	if(amt==0){
-		printf("[MBRI] Entering legacy mode... Trying FAT....\n");
+		debugf("[MBRI] Entering legacy mode... Trying FAT....\n");
 		Device *fatdevice = getNextFreeDevice();
 		fatdevice->readRawSector 	= device->readRawSector;
 		fatdevice->arg1 = device->arg1;

@@ -86,7 +86,7 @@ void elf_error_message(){
 
 int elf_get_symval(ELFHEADER* header, int table,unsigned int info){
 	if(table==0||info==0){
-		printf("ELF: get_symfal is 0 \n");
+		debugf("ELF: get_symfal is 0 \n");
 		return 0;
 	}
 	ELFSECTION symtab = ((ELFSECTION*)((int)header + header->e_shoff))[table];
@@ -114,7 +114,7 @@ int elf_get_symval(ELFHEADER* header, int table,unsigned int info){
 unsigned long loadelf(void * buffer){
 	ELFHEADER * header = (ELFHEADER *)buffer;
 	if(header->e_ident[4]!=1){
-		printf("ELF: Invalid type. Target is 32 bit\n");for(;;);
+		debugf("ELF: Invalid type. Target is 32 bit\n");for(;;);
 	}
 	if(header->e_type==1){
 		int ok = 0;
@@ -125,7 +125,7 @@ unsigned long loadelf(void * buffer){
 				if(section.sh_size && section.sh_flags & ELFSECTIONATTRIBUTES_ALLOC){
 					void *meminfo = malloc(section.sh_size);
 					section.sh_offset = (int) meminfo - (int) header;
-					printf("ELF: allocated a nobits section of the size %x \n",section.sh_offset);
+					debugf("ELF: allocated a nobits section of the size %x \n",section.sh_offset);
 				}
 			}else if(section.sh_type==ELFSECTIONTYPES_REL){
 				for(unsigned int j = 0 ; j < (section.sh_size / section.sh_entsize) ; j++){
@@ -146,10 +146,10 @@ unsigned long loadelf(void * buffer){
 					}else if(((unsigned char)relocation->r_info)==ELFRELOCATIONTYPE_386_PC32){
 						*ref = ((symval) + (*ref) - ((int)ref));
 					}else{
-						printf("ELF: Unknown relocation type: %x \n",((unsigned char)relocation->r_info));
+						debugf("ELF: Unknown relocation type: %x \n",((unsigned char)relocation->r_info));
 						continue;
 					}
-					printf("ELF: Relocating symbol\n");
+					debugf("ELF: Relocating symbol\n");
 				}
 			}else if(section.sh_type==ELFSECTIONTYPES_PROGBITS){
 				if(ok==0){
@@ -157,7 +157,7 @@ unsigned long loadelf(void * buffer){
 				}
 			}
 		}
-		printf("ELF: finished loading allocated elf\n");
+		debugf("ELF: finished loading allocated elf\n");
 		if(ok){
 			return (int)header + ok;
 		}else{
@@ -169,21 +169,21 @@ unsigned long loadelf(void * buffer){
 			ELFSECTION section = sections[i];
 			if(section.sh_addr){
 				if(section.sh_type==1){
-					printf("ELF: loading segment at %x \n",section.sh_addr);
+					debugf("ELF: loading segment at %x \n",section.sh_addr);
 					for(unsigned int e = 0 ; e < section.sh_size ; e++){
 						((char*)section.sh_addr)[e] = ((char*)buffer + section.sh_offset)[e];
 					}
 				}else{
-					printf("ELF: no need to copy this segment \n");
+					debugf("ELF: no need to copy this segment \n");
 				}
 			}else{
-				printf("ELF: skipping segment %x because it has no location\n",i);
+				debugf("ELF: skipping segment %x because it has no location\n",i);
 			}
 		}
-		printf("ELF: ready at %x \n",header->e_entry);
+		debugf("ELF: ready at %x \n",header->e_entry);
 		return header->e_entry;
 	}else{
-		printf("ELF: unknown elf type: %x \n",header->e_type);
+		debugf("ELF: unknown elf type: %x \n",header->e_type);
 	}
 	return 0;
 }

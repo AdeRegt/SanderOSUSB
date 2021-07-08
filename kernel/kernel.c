@@ -41,10 +41,10 @@ void browser(){
 				}
 			}else if(t==1){
 				if(iself(buffer)){
-					printf("ELF: program is ELF!\n");
+					debugf("ELF: program is ELF!\n");
 					unsigned long gamma = loadelf(buffer);
 					if(gamma==0){
-						printf("ELF: Unable to load ELF!\n");
+						debugf("ELF: Unable to load ELF!\n");
 					}else{
 						cls();
 						void* (*foo)() = (void*) gamma;
@@ -75,9 +75,9 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 	cpuid_get_details();
 	printstring("Loading core components...\n");
 	if(magic==0x2BADB002){
-		printf("[GRUB] Multiboot compliant bootloader!\n");
+		debugf("[GRUB] Multiboot compliant bootloader!\n");
 		unsigned char* cmdline = (unsigned char*) grub->cmdline;
-		printf("[GRUB] CMDLINE \"%s\" \n",cmdline);
+		debugf("[GRUB] CMDLINE \"%s\" \n",cmdline);
 		unsigned char token[50];
 		int got = 0;
 		again:
@@ -112,46 +112,46 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 			if(z!=0&&t!=0x00){
 				goto again;
 			}
-		printf("[GRUB] Multiboot flags: %x \n" ,grub->flags);
+		debugf("[GRUB] Multiboot flags: %x \n" ,grub->flags);
 		unsigned long fx = grub->flags;
 		if(fx & 0x00000001){
-			printf("[GRUB] Memory information present!\n");
+			debugf("[GRUB] Memory information present!\n");
 		}
 		if(fx & 0x00000002){
-			printf("[GRUB] Bootdevice present!\n");
+			debugf("[GRUB] Bootdevice present!\n");
 		}
 		if(fx & 0x00000004){
-			printf("[GRUB] Commandline present!\n");
+			debugf("[GRUB] Commandline present!\n");
 		}
 		if(fx & 0x00000008){
-			printf("[GRUB] Modules present!\n");
+			debugf("[GRUB] Modules present!\n");
 		}
 		if(fx & 0x00000010){
-			printf("[GRUB] Symboltable present!\n");
+			debugf("[GRUB] Symboltable present!\n");
 		}
 		if(fx & 0X00000020){
-			printf("[GRUB] Elf Sectionheader present!\n");
+			debugf("[GRUB] Elf Sectionheader present!\n");
 		}
 		if(fx & 0x00000040){
-			printf("[GRUB] Memorymap present!\n");
+			debugf("[GRUB] Memorymap present!\n");
 		}
 		if(fx & 0x00000080){
-			printf("[GRUB] Driveinfo present!\n");
+			debugf("[GRUB] Driveinfo present!\n");
 		}
 		if(fx & 0x00000100){
-			printf("[GRUB] Configtable present!\n");
+			debugf("[GRUB] Configtable present!\n");
 		}
 		if(fx & 0x00000200){
-			printf("[GRUB] Bootloader name present!\n");
+			debugf("[GRUB] Bootloader name present!\n");
 		}
 		if(fx & 0x00000400){
-			printf("[GRUB] APMTable present!\n");
+			debugf("[GRUB] APMTable present!\n");
 		}
 		if(fx & 0x00000800){
-			printf("[GRUB] VBEInfo present!\n");
+			debugf("[GRUB] VBEInfo present!\n");
 		}
 		if(fx & 0x00001000){
-			printf("[GRUB] Framebuffer info present!\n");
+			debugf("[GRUB] Framebuffer info present!\n");
 		}
 	}
 	printstring("=> Global Description Table...\n");
@@ -175,9 +175,9 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 	init_acpi();
 	printstring("=> Soundblaster...\n");
 	init_soundblaster16();
-	printf("Shashwat %d sss %s",1, "test2");
+	debugf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
-	printf("The system is compiled at %s %s \n",__DATE__,__TIME__);
+	debugf("The system is compiled at %s %s \n",__DATE__,__TIME__);
 	init_cmos();
 	
 	cls();

@@ -102,8 +102,8 @@ int createTask(unsigned long entrypoint){
 }
 
 void init_multitasking(){
-    printf("[MULT] Multitasking module enabled!\n");
+    debugf("[MULT] Multitasking module enabled!\n");
     setNormalInt(0,(unsigned long)timerirq);
     registers[0].active = 1;
-    printf("[MULT] Finished multitasking\n");
+    debugf("[MULT] Finished multitasking\n");
 }

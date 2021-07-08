@@ -83,36 +83,36 @@ void initialiseExt2(Device* device){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	
 	unsigned short* efi = (unsigned short*) malloc(device->arg5);
-	printf("[EXT2] PARSING EXT2\n");
+	debugf("[EXT2] PARSING EXT2\n");
 	unsigned long superblockid = 2;
 	readraw(device, superblockid, 1, (unsigned short *)efi);
 	EXT2Super *superblock = (EXT2Super*) efi;
 	if(superblock->checksum==0xEF53){
-		printf("[EXT2] Detected by signature!!\n");
+		debugf("[EXT2] Detected by signature!!\n");
 		unsigned long blocksize = 1024 << superblock->blocksize;
-		printf("[EXT2] Have blocksize %x \n",blocksize);
+		debugf("[EXT2] Have blocksize %x \n",blocksize);
 		unsigned long blocksector = blocksize/512;
-		printf("[EXT2] One block has %x sectors \n",blocksector);
+		debugf("[EXT2] One block has %x sectors \n",blocksector);
 		unsigned long offsetblockgroup = 1;
 		if(blocksize==1024){
 			offsetblockgroup = 2;
 		}
 		unsigned long inodecount = superblock->total_inodes;
-		printf("[EXT2] We have a inode count of %x \n",inodecount);
+		debugf("[EXT2] We have a inode count of %x \n",inodecount);
 		unsigned long offsetblockgroupsect = offsetblockgroup*blocksector;
 		unsigned long offsetblockgroupsectphys = offsetblockgroupsect;
-		printf("[EXT2] Offset to blockgrouptable is %x (virt %x : phy %x)\n",offsetblockgroup,offsetblockgroupsect,offsetblockgroupsectphys);
-		printf("[EXT2] First non-reserved inode=%x sizeof inode=%x \n",superblock->firstnonreserved,superblock->sizeofinode);
+		debugf("[EXT2] Offset to blockgrouptable is %x (virt %x : phy %x)\n",offsetblockgroup,offsetblockgroupsect,offsetblockgroupsectphys);
+		debugf("[EXT2] First non-reserved inode=%x sizeof inode=%x \n",superblock->firstnonreserved,superblock->sizeofinode);
 		
 		// blockdevice info ophalen
 		unsigned char* ext = (unsigned char*) 0x1500;
 		readraw(device, offsetblockgroupsectphys, 1, (unsigned short *)ext);
 		EXT2BlockGroupDesc* et = (EXT2BlockGroupDesc*) ext;
 		unsigned short* grouproot = (unsigned short*) 0x1500+512;
-		printf("[EXT2] Group0, inodetablestart at %x and %x dirs declared with sizeofinode of %x \n",et->inodetablestart*blocksector,et->directoriesingroup,superblock->sizeofinode);
+		debugf("[EXT2] Group0, inodetablestart at %x and %x dirs declared with sizeofinode of %x \n",et->inodetablestart*blocksector,et->directoriesingroup,superblock->sizeofinode);
 		readraw(device, et->inodetablestart*blocksector, 1, grouproot);
 		if(superblock->sizeofinode!=0x100){
-			printf("[EXT2] unexpected inode size!!!\n");
+			debugf("[EXT2] unexpected inode size!!!\n");
 		}
 		//
 		// root node vinden
@@ -120,21 +120,21 @@ void initialiseExt2(Device* device){
 		unsigned long rootdirtype = lst->typeandpremissions;
 		rootdirtype = rootdirtype >> 12;
 		if(rootdirtype==4){
-			printf("[EXT2] Root dir found!\n");
+			debugf("[EXT2] Root dir found!\n");
 			for(int i = 0 ; i < 12 ; i++){
-				printf("[EXT2] DRPNT: %x \n",lst->directp[i]);
+				debugf("[EXT2] DRPNT: %x \n",lst->directp[i]);
 			}
 			if(lst->directp[0]==0x1f30a){
-				printf("[EXT2] ACK\n");
+				debugf("[EXT2] ACK\n");
 			}
 			unsigned long directp = (lst->directp[0])*blocksector;//+superblock->blocksforsu;
 			unsigned short* dirlist = (unsigned short*) 0x1500;
 			readraw(device, directp, 1, dirlist);
 			
 		}else{
-			printf("[EXT2] Root dir NOT found! [ %x : %x ] \n",rootdirtype,lst->typeandpremissions);
+			debugf("[EXT2] Root dir NOT found! [ %x : %x ] \n",rootdirtype,lst->typeandpremissions);
 		}
 	}else{
-		printf("[EXT2] Illegal checksum %x \n",superblock->checksum);
+		debugf("[EXT2] Illegal checksum %x \n",superblock->checksum);
 	}
 }

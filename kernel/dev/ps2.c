@@ -78,15 +78,15 @@ int ps2_echo(){
 
 void printps2devicetype(unsigned char a){
 	if(a==0x00){
-		printf("PS2: standard ps/2 mouse\n");
+		debugf("PS2: standard ps/2 mouse\n");
 	}else if(a==0x03){
-		printf("PS2: mouse with scroll wheel\n");
+		debugf("PS2: mouse with scroll wheel\n");
 	}else if(a==0x04){
-		printf("PS2: 5 button mouse\n");
+		debugf("PS2: 5 button mouse\n");
 	}else if(a==0xab||a==0x41||a==0xab||a==0xc1||a==0x83){
-		printf("PS2: keyboard\n");
+		debugf("PS2: keyboard\n");
 	}else{
-		printf("PS2: unknown: %x ",a); 
+		debugf("PS2: unknown: %x ",a); 
 	}
 }
 

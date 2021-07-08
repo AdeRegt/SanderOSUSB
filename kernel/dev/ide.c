@@ -22,7 +22,7 @@ volatile int ideXirq = 0;
 void irq_ide()
 {
 	ideXirq = 1;
-	printf("[IDE] ACK int\n");
+	debugf("[IDE] ACK int\n");
 	inportb(0x177); // acknowledge second
 	inportb(0x1F7);	// acknowledge first
 	outportb(0x20, 0x20);
@@ -61,35 +61,35 @@ char getIDEError(IDEDevice cdromdevice)
 	{
 		if (msg & 0x80)
 		{
-			printf("IDE: Bad sector\n");
+			debugf("IDE: Bad sector\n");
 		}
 		else if (msg & 0x40)
 		{
-			printf("IDE: Uncorrectable data\n");
+			debugf("IDE: Uncorrectable data\n");
 		}
 		else if (msg & 0x20)
 		{
-			printf("IDE: No media\n");
+			debugf("IDE: No media\n");
 		}
 		else if (msg & 0x10)
 		{
-			printf("IDE: ID mark not found\n");
+			debugf("IDE: ID mark not found\n");
 		}
 		else if (msg & 0x08)
 		{
-			printf("IDE: No media\n");
+			debugf("IDE: No media\n");
 		}
 		else if (msg & 0x04)
 		{
-			printf("IDE: Command aborted\n");
+			debugf("IDE: Command aborted\n");
 		}
 		else if (msg & 0x02)
 		{
-			printf("IDE: Track 0 not found\n");
+			debugf("IDE: Track 0 not found\n");
 		}
 		else if (msg & 0x01)
 		{
-			printf("IDE: No address mark\n");
+			debugf("IDE: No address mark\n");
 		}
 		return 1;
 	}
@@ -125,7 +125,7 @@ void ide_wait_for_ready(IDEDevice cdromdevice)
 		}
 		if (getTicks() == 5)
 		{
-			//			printf("IDE: TIMEOUT\n");
+			//			debugf("IDE: TIMEOUT\n");
 			break;
 		}
 	}
@@ -278,7 +278,7 @@ void ata_write_sector(IDEDevice dev, unsigned long LBA, unsigned char count, uns
 	{
 		outportw(dev.command, location[U++]);
 	}
-	printf("STGE\n");
+	debugf("STGE\n");
 	ide_wait_for_ready(dev);
 	resetIDEFire();
 	outportb(dev.command + 6, 0xE0 | (dev.slave << 4));
@@ -356,14 +356,14 @@ void init_ide_device(IDEDevice device)
 
 	if (inportb(0x1F4) == 0x3C || inportb(0x1F5) == 0xC3)
 	{
-		printf("IDE: Device is SATA\n");
+		debugf("IDE: Device is SATA\n");
 		issata = 1;
 		return;
 	}
 
 	if (inportb(device.command + 4) == 0 && inportb(device.command + 5) == 0)
 	{
-		printstring("IDE: device is ATA\n");
+		debugf("IDE: device is ATA\n");
 		unsigned char *identbuffer = (unsigned char *) malloc(sizeof(IDE_IDENTIFY));
 		for (int i = 0; i < 256; i++)
 		{
@@ -376,7 +376,7 @@ void init_ide_device(IDEDevice device)
 		IDE_IDENTIFY *ident = (IDE_IDENTIFY*) identbuffer;
 		ident->unused2[0] = 0;
 		ident->unused3[0] = 0;
-		printf("[IDE] ATA version=%s name=%s \n",ident->version,ident->name);
+		debugf("[IDE] ATA version=%s name=%s \n",ident->version,ident->name);
 
 		Device *regdev = (Device*)malloc(sizeof(Device));
 		regdev->readRawSector = (unsigned long)&ata_read_raw;
@@ -437,16 +437,16 @@ void init_ide_device(IDEDevice device)
 			IDE_IDENTIFY *ident = (IDE_IDENTIFY*) identbuffer;
 			ident->unused2[0] = 0;
 			ident->unused3[0] = 0;
-			printf("[IDE] ATAPI version=%s name=%s \n",ident->version,ident->name);
+			debugf("[IDE] ATAPI version=%s name=%s \n",ident->version,ident->name);
 			unsigned char *buffer = (unsigned char *)0x2000;
 			atapi_read_sector(device, 0, 1, (unsigned short *)buffer);
 			if (buffer[510] == 0x55 && buffer[511] == 0xAA)
 			{
-				printf("ATAPI: cdrom is bootable!\n");
+				debugf("ATAPI: cdrom is bootable!\n");
 			}
 			else
 			{
-				printf("ATAPI: cdrom is not bootable!\n");
+				debugf("ATAPI: cdrom is not bootable!\n");
 			}
 			int choice = -1;
 			for (int i = 0; i < 10; i++)
@@ -460,11 +460,11 @@ void init_ide_device(IDEDevice device)
 			}
 			if (choice == -1)
 			{
-				printf("ATAPI: unknown filesystem\n");
+				debugf("ATAPI: unknown filesystem\n");
 			}
 			else
 			{
-				printf("ATAPI: known filesystem ISO 9660\n");
+				debugf("ATAPI: known filesystem ISO 9660\n");
 
 				Device *regdev = getNextFreeDevice();
 

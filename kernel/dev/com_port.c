@@ -50,10 +50,10 @@ void irq_serial(){
    }else if(serial_received(0x2e8)){
       port = 0x2e8;
    }else{
-      printf("[SER] Input via unknown port\n");
+      debugf("[SER] Input via unknown port\n");
       goto out;
    }
-   printf("[SER] Input via serial via port %x !\n",port);
+   debugf("[SER] Input via serial via port %x !\n",port);
 	unsigned char binnengekomen = read_serial(port);
    last_com_char = binnengekomen;
    out:
@@ -71,7 +71,7 @@ void init_serial_device(unsigned short PORT) {
    outportb(PORT + 4, 0x0B);    // IRQs enabled, RTS/DSR set
    outportb(PORT + 1, 1);
    setNormalInt(4,(unsigned long)serialirq);
-   printf("[SER] Serial %x installed!\n",PORT);
+   debugf("[SER] Serial %x installed!\n",PORT);
 }
 
 void init_serial(){
