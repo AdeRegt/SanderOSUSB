@@ -165,12 +165,12 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 	init_paging();
 	printstring("=> Multitasking...\n");
 	init_multitasking();
+	printstring("=> Serial ports...\n");
+	init_serial();
 	printstring("=> PS2...\n");
 	init_ps2();
 	printstring("=> PCI...\n");
 	init_pci();
-	printstring("=> Serial ports...\n");
-	init_serial();
 	printstring("=> APCI...\n");
 	init_acpi();
 	printstring("=> Soundblaster...\n");

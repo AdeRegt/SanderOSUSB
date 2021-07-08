@@ -1453,63 +1453,128 @@ void putc(char a){
 	}
 }
 
-
-void printf(char* format,...) 
-{ 
+/**
+ * Creates a string from input
+ * @param format the base string
+ * @param arg the list of arguments
+*/
+char* vsprintf(char* format,va_list arg){
+	if(strlen(format)==0){
+		return NULL;
+	}
+	char* buffer = malloc(strlen(format));
+	char* buffertmp;
+	int buffersize = strlen(format) + 1;
+	int oldsize;
 	char *traverse; 
 	unsigned int i; 
 	signed int t;
-	char *s; 
-	
-	//Module 1: Initializing Myprintf's arguments 
-	va_list arg; 
-	va_start(arg, format); 
+	char *s;
+	int travelpointer = 0;
 	
 	for(traverse = format; *traverse != '\0'; traverse++) 
 	{ 
 		while( *traverse != '%' && *traverse != '\0' ) 
 		{ 
-			putc(*traverse);
+			buffer[travelpointer++] = *traverse;
 			traverse++; 
 		} 
 		if(*traverse =='\0'){
 		    break; 
 		}
 		traverse++; 
+		oldsize = buffersize;
 		
-		//Module 2: Fetching and executing arguments
 		switch(*traverse) 
 		{ 
 			case 'c' : i = va_arg(arg,int);		//Fetch char argument
-						putc(i);
+						// char is only 1 argument
+						buffersize += 1;
+						buffertmp = buffer;
+						buffer = malloc(buffersize);
+						memcpy(buffertmp,buffer,oldsize);
+						free(buffertmp);
+						buffer[travelpointer++] = i;
 						break; 
 						
 			case 'd' : t = va_arg(arg,int); 		//Fetch Decimal/Integer argument
+						char* chachacha;
 						if(t<0) 
 						{ 
 							t = -t;
-							putc('-'); 
+							chachacha = "-"; 
 						} 
-						printstring(convert(t,10));
+						chachacha = convert(t,10);
+						buffersize += strlen(chachacha);
+						buffertmp = buffer;
+						buffer = malloc(buffersize);
+						memcpy(buffertmp,buffer,oldsize);
+						free(buffertmp);
+						for(int x0 = 0 ; x0 < strlen(chachacha) ; x0++){buffer[travelpointer++] = chachacha[x0];}
 						break; 
 						
 			case 'o': i = va_arg(arg,unsigned int); //Fetch Octal representation
-						printstring(convert(i,8));
+						chachacha = convert(i,8);
+						buffersize += strlen(chachacha);
+						buffertmp = buffer;
+						buffer = malloc(buffersize);
+						memcpy(buffertmp,buffer,oldsize);
+						free(buffertmp);
+						for(int x0 = 0 ; x0 < strlen(chachacha) ; x0++){buffer[travelpointer++] = chachacha[x0];}
 						break; 
 						
 			case 's': s = va_arg(arg,char *); 		//Fetch string
-						printstring(s); 
+						chachacha = s; 
+						buffersize += strlen(chachacha);
+						buffertmp = buffer;
+						buffer = malloc(buffersize);
+						memcpy(buffertmp,buffer,oldsize);
+						free(buffertmp);
+						for(int x0 = 0 ; x0 < strlen(chachacha) ; x0++){buffer[travelpointer++] = chachacha[x0];}
 						break; 
 						
 			case 'x': i = va_arg(arg,unsigned int); //Fetch Hexadecimal representation
-						printstring(convert(i,16));
+						chachacha = convert(i,16);
+						buffersize += strlen(chachacha);
+						buffertmp = buffer;
+						buffer = malloc(buffersize);
+						memcpy(buffertmp,buffer,oldsize);
+						free(buffertmp);
+						for(int x0 = 0 ; x0 < strlen(chachacha) ; x0++){buffer[travelpointer++] = chachacha[x0];}
 						break; 
 				
 		}	
-	} 
-	
-	//Module 3: Closing argument list to necessary clean-up
+	}
+	buffer[travelpointer++] = 0x00;
+	return buffer;
+}
+
+char* sprintf(char* format,...){
+	va_list arg; 
+	va_start(arg, format);
+	char* result = vsprintf(format,arg); 
 	va_end(arg); 
+	return result;
+}
+
+void debugf(char* format,...){
+	va_list arg; 
+	va_start(arg, format);
+	char* result = vsprintf(format,arg); 
+	writer_string_serial(result,getDefaultSerialPort());
+	free(result);
+	va_end(arg); 
+}
+
+
+void printf(char* format,...) 
+{ 
+	va_list arg; 
+	va_start(arg, format);
+	char* result = vsprintf(format,arg); 
+	printstring(result);
+	free(result);
+	va_end(arg);
 } 
  
 char *convert(unsigned int num, int base) 

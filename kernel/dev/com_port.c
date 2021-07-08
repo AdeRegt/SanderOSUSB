@@ -27,6 +27,16 @@ void write_serial(char a,unsigned short PORT) {
    outportb(PORT,a);
 }
 
+void writer_string_serial(char* message,unsigned short PORT){
+   for(int i = 0 ; i < strlen(message) ; i++){
+      write_serial(message[i],PORT);
+   }
+}
+
+unsigned short getDefaultSerialPort(){
+   return 0x3f8;
+}
+
 static unsigned char last_com_char = 0;
 
 void irq_serial(){
