@@ -270,7 +270,7 @@ void fat_dir(Device *device,char* path,char *buffer){
 		if(eersteteken==0x00){
 			break;
 		}
-		if((eersteteken=='A'&&currentdir->name[2]==0x00)||eersteteken==0xE5){
+		if((eersteteken=='A'&&currentdir->name[2]==0x00)||eersteteken==0xE5||currentdir->attrib==0x08){
 			continue;
 		}
 		for(int i = 0 ; i < 11 ; i++){

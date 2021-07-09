@@ -66,7 +66,7 @@ unsigned long iso_9660_target(Device *device,char* path){
 	unsigned long res = charstoint(isobuffer[2],isobuffer[3],isobuffer[4],isobuffer[5]);
 	
 	if(path[0]==0){
-		debugf("gevonden3");
+		// debugf("gevonden3");
 		return res;
 	}
 
@@ -111,7 +111,6 @@ unsigned long iso_9660_target(Device *device,char* path){
 				selfloor = boomdiepte;
 				if((paths-(is_bestand?1:0))==(i+1)){
 					dummy = res;
-	debugf("gevonden2");
 					return res;
 				}
 				continue;
