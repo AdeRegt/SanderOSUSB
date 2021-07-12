@@ -19,8 +19,7 @@ unsigned long charstoint(unsigned char a,unsigned char b,unsigned char c,unsigne
 unsigned long iso_9660_target(Device *device,char* path){
 	void* (*readraw)(Device *,unsigned long,unsigned char,unsigned short *) = (void*)device->readRawSector;
 	selfloor = 1;
-
-	//debugf("Te zoeken path= %s \n",path);
+	debugf("iso_9660_target: opening %s \n",path);
 
 	//
 	// analyseren pathgegevens
@@ -41,6 +40,7 @@ unsigned long iso_9660_target(Device *device,char* path){
 			is_bestand = 1;
 		}
 	}
+	debugf("iso_9660_target: there are %x pathelements and the path is a %s path\n",paths,is_bestand?"file":"folder");
 	//debugf("Er zijn %x pathelementen\n",paths);
 
 	//
@@ -86,7 +86,7 @@ unsigned long iso_9660_target(Device *device,char* path){
 			goto kopieernogeen;
 		}
 		pathchunk[ipath] = 0x00;
-		//debugf("Chunk [%s] word nu behandeld \n",pathchunk);
+		debugf("iso_9660_target: looking for chunk %s \n",pathchunk);
 
 		// door alle directories lopen van actuele boom
 		unsigned char entrytextlength = 0;
@@ -94,7 +94,13 @@ unsigned long iso_9660_target(Device *device,char* path){
 		unsigned char entrytree = 0;
 		int entrypointer = 0;
 		int edept = 0;
+		int ccount = 0;
 		nogmaals:
+		ccount++;
+		if(ccount>20){
+			debugf("iso_9660_target: unable to find requested resource \n");
+			return 0;
+		}
 		entrytextlength = isobuffer[entrypointer+0];
 		entrytotallength = isobuffer[entrypointer+1];
 		entrytree = isobuffer[entrypointer+7];

@@ -1562,7 +1562,9 @@ void debugf(char* format,...){
 	va_start(arg, format);
 	char* result = vsprintf(format,arg); 
 	writer_string_serial(result,getDefaultSerialPort());
+	#ifdef DEBUG_TO_SCREEN
 	printstring(result);
+	#endif
 	free(result);
 	va_end(arg); 
 }
