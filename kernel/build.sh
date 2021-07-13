@@ -125,5 +125,6 @@ if [ "$1" = "--pxe" ]
 		nasm -fbin pxe_entry_point.asm -o pxestub.bin 
 		cat pxestub.bin ../../kernel.bin > pxeentry.bin
 		cp pxeentry.bin ../../SanderOSUSB.0
-		exit
 fi
+
+echo $(date)

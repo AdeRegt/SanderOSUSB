@@ -561,7 +561,7 @@ unsigned char* ehci_recieve_bulk(USB_DEVICE *device,unsigned long expectedIN,voi
 
     // wacht totdat alle bytes zijn ingeladen, dit zijn er 144 per keer.
     unsigned long wachtend = 0;
-    unsigned long bytesperkeer = 512; //144
+    unsigned long bytesperkeer = 512;//512; //144
     unsigned char reject = 0;
     unsigned char tx = 0;
     unsigned char forcestop = 0;
