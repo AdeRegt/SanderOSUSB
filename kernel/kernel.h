@@ -203,6 +203,8 @@ void freeGui();
 void init_vbox(unsigned long bus, unsigned long slot, unsigned long function);
 unsigned char is_virtual_box_session_enabled();
 void writer_string_vbox(char *message);
+long *vbox_get_mouse_info();
+void update_drawable_mouse();
 
 /** 
  * Initialize GDT

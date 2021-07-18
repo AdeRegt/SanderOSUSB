@@ -179,7 +179,15 @@ void irq_mouse(){
 			}
 		}
 	}
+	update_drawable_mouse();
 	
+	
+	// EOI
+	outportb(0x20,0x20);
+	outportb(0xA0,0x20);
+}
+
+void update_drawable_mouse(){
 	if(ccr_x<PS2_MOUSE_MIN_X){
 		ccr_x = PS2_MOUSE_MIN_X;
 	}
@@ -249,9 +257,6 @@ void irq_mouse(){
 
 	oldx = ccr_x;
 	oldy = ccr_y;
-	// EOI
-	outportb(0x20,0x20);
-	outportb(0xA0,0x20);
 }
 
 unsigned char kbdus[128] ={
@@ -404,6 +409,16 @@ void init_ps2(){
 }
 
 InputStatus getInputStatus(){
+	if(is_virtual_box_session_enabled()){
+		long *t = vbox_get_mouse_info();
+		if(t[0]){
+			ccr_x = t[0]/100;
+		}
+		if(t[1]){
+			ccr_y = t[1]/100;
+		}
+	}
+	update_drawable_mouse();
 	InputStatus is;
 	is.mouse_x		= ccr_x;
 	is.mouse_y		= ccr_y;

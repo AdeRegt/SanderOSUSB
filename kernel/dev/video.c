@@ -192,7 +192,7 @@ unsigned long show(){
 			
 		}
 		resetTicks();
-		while(getTicks()!=2){}
+		while(getTicks()!=1){}
 	}
 }
 
