@@ -192,7 +192,7 @@ unsigned long show(){
 			
 		}
 		resetTicks();
-		while(getTicks()!=2){}
+		while(getTicks()!=1){}
 	}
 }
 
@@ -1561,10 +1561,14 @@ void debugf(char* format,...){
 	va_list arg; 
 	va_start(arg, format);
 	char* result = vsprintf(format,arg); 
-	writer_string_serial(result,getDefaultSerialPort());
 	#ifdef DEBUG_TO_SCREEN
 	printstring(result);
 	#endif
+	if(is_virtual_box_session_enabled()){
+		writer_string_vbox(result);
+	}else{
+		writer_string_serial(result,getDefaultSerialPort());
+	}
 	free(result);
 	va_end(arg); 
 }
