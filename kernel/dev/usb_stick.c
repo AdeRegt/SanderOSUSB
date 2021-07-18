@@ -2,10 +2,10 @@
 
 // reference https://www.seagate.com/files/staticfiles/support/docs/manual/Interface%20manuals/100293068j.pdf
 
-#define USB_STORAGE_ENABLE_ENQ 1
-#define USB_STORAGE_ENABLE_CAP 1
+#define USB_STORAGE_ENABLE_ENQ 0
+#define USB_STORAGE_ENABLE_CAP 0
 #define USB_STORAGE_ENABLE_SEC 1
-#define USB_STORAGE_ENABLE_SEN 1
+#define USB_STORAGE_ENABLE_SEN 0
 #define USB_STORAGE_SECTOR_SIZE 512
 #define USB_STORAGE_CSW_SIGN 0x53425355
 
@@ -241,7 +241,7 @@ unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
 	//
 	// oke, on real hardware there is a issue on the first sector. I see most systems
 	// always use more then 1 sector to read, this seems to be the right solution
-	unsigned long bufoutsize = 32;//31
+	unsigned long bufoutsize = 31;//31
 	unsigned int sectorcount = 1;
 	usb_stick_preform_on_sector_2_times = 0;
 
@@ -256,7 +256,7 @@ unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
 	bufout->lun = 0;
 	bufout->tag = 5;
 	bufout->sig = 0x43425355;
-	bufout->wcb_len = 10;//10;
+	bufout->wcb_len = 0x0c;//10;
 	bufout->flags = 0x80;
 	bufout->xfer_len = bufinsize;
 	bufout->cmd[0] = opcode;
@@ -269,26 +269,29 @@ unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
 	bufout->cmd[7] = 0;
 	bufout->cmd[8] = sectorcount;//1;
 	bufout->cmd[9] = 0;
-	unsigned long lstatus = usb_send_bulk(device,bufoutsize,bufout);
-	if(lstatus==EHCI_ERROR){
-		// things went wrong...
-		printf("[SMSD] An error occured while sending the results from USB-stick \n");
-		return (unsigned char*)lstatus;
-	}
+	// unsigned long lstatus = usb_send_bulk(device,bufoutsize,bufout);
+	// if(lstatus==EHCI_ERROR){
+	// 	// things went wrong...
+	// 	printf("[SMSD] An error occured while sending the results from USB-stick \n");
+	// 	return (unsigned char*)lstatus;
+	// }
 	
-	unsigned char *buffer = (unsigned char*)malloc(bufinsize);
-	unsigned long c = usb_recieve_bulk(device,512,buffer);
-	if(c==EHCI_ERROR){
-		// things went wrong...
-		printf("[SMSD] An error occured while retrieving the results from USB-stick\n");
-		return (unsigned char*)c;
+	unsigned char* buffer = usb_stick_send_and_recieve_scsi_command(device,(unsigned char*)bufout,bufinsize,bufoutsize);
+	if((unsigned long)buffer==EHCI_ERROR){
+		return EHCI_ERROR;
 	}
+	// unsigned long c = usb_recieve_bulk(device,512,buffer);
+	// if(c==EHCI_ERROR){
+	// 	// things went wrong...
+	// 	printf("[SMSD] An error occured while retrieving the results from USB-stick\n");
+	// 	return (unsigned char*)c;
+	// }
 
-	CommandStatusWrapper* csw = (CommandStatusWrapper*)buffer;
-	if(csw->signature==USB_STORAGE_CSW_SIGN){
-		printf("[SMSD] CSW at the beginning of the result. Mark this mistake for the future\n");
-		usb_stick_preform_on_sector_2 = 1;
-	}
+	// CommandStatusWrapper* csw = (CommandStatusWrapper*)buffer;
+	// if(csw->signature==USB_STORAGE_CSW_SIGN){
+	// 	printf("[SMSD] CSW at the beginning of the result. Mark this mistake for the future\n");
+	// 	usb_stick_preform_on_sector_2 = 1;
+	// }
 
 	return buffer;
 }
@@ -390,8 +393,7 @@ void usb_stick_init(USB_DEVICE *device){
 	}
 	
 	if(USB_STORAGE_ENABLE_SEC){
-		sleep(10);
-		unsigned char* t = usb_stick_read_sector(device,1);
+		unsigned char* t = usb_stick_read_sector(device,0);
 		if((unsigned long)t==(unsigned long)EHCI_ERROR){
 			printf("[SMSD] An error occured while reading a sector \n");
 			SCSIStatus d = usb_stick_get_scsi_status(device);

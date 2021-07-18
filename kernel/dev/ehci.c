@@ -3,6 +3,7 @@
 // bash build.sh 
 // ../../qemu/x86_64-softmmu/qemu-system-x86_64 --cdrom ../cdrom.iso  -trace enable=usb*  -device usb-ehci,id=ehci -drive if=none,id=usbstick,file=../../myos.iso -device usb-storage,bus=ehci.0,drive=usbstick
 // much thanks to https://github.com/dgibson/SLOF and https://github.com/pdoane/osdev and https://github.com/coreboot/seabios
+// ./build.sh --grub && sudo cp ../kernel.bin /media/sander/SOS/kernel.bin && qemu-system-i386 -trace enable=usb* -device usb-ehci -drive if=none,id=usbstick,file=../cdrom.iso -device usb-storage,pcap=test.pcap,drive=usbstick --serial stdio
 
 
 unsigned long periodic_list[EHCI_PERIODIC_FRAME_SIZE] __attribute__ ((aligned (0x1000)));
