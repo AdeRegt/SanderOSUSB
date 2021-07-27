@@ -30,9 +30,9 @@ typedef struct {
 typedef struct {
         vbox_header header;
         long empty[1];
-        unsigned long location_type;
-        unsigned char location[128];
-        volatile unsigned long client_id;
+        long location_type;
+        char location[128];
+        volatile long client_id;
 } vbox_lib_connect;
 
 typedef struct {
@@ -126,20 +126,21 @@ void vb_report_existance(){
         outportl(vbox_port, (unsigned long)&vbox_e);
 }
 
-volatile vbox_lib_connect vbox_ee;
 
 unsigned long vb_enable_shared_folders_lib(){
-        vbox_ee.header.size = sizeof(vbox_lib_connect);
-	vbox_ee.header.version = VBOX_REQUEST_HEADER_VERSION;
-	vbox_ee.header.requestType = 60;
-	vbox_ee.header.rc = 0;
-	vbox_ee.header.reserved1 = 0;
-	vbox_ee.header.reserved2 = 0;
-	vbox_ee.location_type = 2;
-        char* a = "VBoxSharedFolders";
-        memcpy(a,(char*)&vbox_ee.location,strlen(a));
-        outportl(vbox_port, (unsigned long)&vbox_ee);
-        return vbox_ee.client_id;
+        volatile vbox_lib_connect *vbox_ee = (volatile vbox_lib_connect * )malloc_align(sizeof(vbox_lib_connect),0xFFF);
+        vbox_ee->header.size = sizeof(vbox_lib_connect);
+	vbox_ee->header.version = VBOX_REQUEST_HEADER_VERSION;
+	vbox_ee->header.requestType = 60;
+	vbox_ee->header.rc = 0;
+	vbox_ee->header.reserved1 = 0;
+	vbox_ee->header.reserved2 = 0;
+	vbox_ee->location_type = 2;
+        vbox_ee->client_id = 0;
+        char* a = "VBoxSharedFolder";
+        memcpy(a,(char*)&vbox_ee->location,strlen(a));
+        outportl(vbox_port, (unsigned long)vbox_ee);
+        return vbox_ee->client_id;
 }
 
 volatile vbox_lib_query qq;
@@ -152,7 +153,7 @@ void vb_call_queery(unsigned long client_id){
 	qq.header.reserved1 = 0;
 	qq.header.reserved2 = 0;
 
-        qq.type = 0xfff;
+        qq.type = 0;
         qq.function_code = 1;
         qq.parameter_count = 3;
 
@@ -172,7 +173,7 @@ void vb_call_queery(unsigned long client_id){
         
         outportl(vbox_port, (unsigned long)&qq);
 
-        debugf("@ %x %x %x \n",qq.param_1_type,qq.param_2_type,qq.param_3_type);
+        debugf("@ %x | %x | %x \n",qq.param_1_type,qq.param_2_type,qq.param_3_type);
 }
 
 void init_vbox(unsigned long bus, unsigned long slot, unsigned long function){
