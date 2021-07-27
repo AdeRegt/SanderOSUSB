@@ -415,7 +415,7 @@ InputStatus getInputStatus(){
 			ccr_x = t[0]/100;
 		}
 		if(t[1]){
-			ccr_y = t[1]/100;
+			ccr_y = t[1]/200;
 		}
 	}
 	update_drawable_mouse();

@@ -290,7 +290,7 @@ void init_pci(){
 						printstring("UNKNOWN");
 					}
 					printstring("\n");
-					if(vendor==0x80EE){
+					if(vendor==0x80EE&&device==0xCAFE){
 						init_vbox(bus,slot,function);
 					}
 				}

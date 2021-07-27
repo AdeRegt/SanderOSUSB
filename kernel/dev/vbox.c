@@ -27,6 +27,29 @@ typedef struct {
         unsigned long ostype;
 } vbox_guest_info;
 
+typedef struct {
+        vbox_header header;
+        long empty[1];
+        long location_type;
+        char location[128];
+        volatile long client_id;
+} vbox_lib_connect;
+
+typedef struct {
+        vbox_header header;
+        long empty[1];
+        unsigned long type;
+        unsigned long client_id;
+        unsigned long function_code;
+        unsigned long parameter_count;
+        volatile unsigned long param_1_type;
+        volatile unsigned long param_1_value[2];
+        volatile unsigned long param_2_type;
+        volatile unsigned long param_2_value[2];
+        volatile unsigned long param_3_type;
+        volatile unsigned long param_3_value[2];
+} vbox_lib_query ;
+
 typedef struct  {
         vbox_header header;
         unsigned long features;
@@ -103,6 +126,56 @@ void vb_report_existance(){
         outportl(vbox_port, (unsigned long)&vbox_e);
 }
 
+
+unsigned long vb_enable_shared_folders_lib(){
+        volatile vbox_lib_connect *vbox_ee = (volatile vbox_lib_connect * )malloc_align(sizeof(vbox_lib_connect),0xFFF);
+        vbox_ee->header.size = sizeof(vbox_lib_connect);
+	vbox_ee->header.version = VBOX_REQUEST_HEADER_VERSION;
+	vbox_ee->header.requestType = 60;
+	vbox_ee->header.rc = 0;
+	vbox_ee->header.reserved1 = 0;
+	vbox_ee->header.reserved2 = 0;
+	vbox_ee->location_type = 2;
+        vbox_ee->client_id = 0;
+        char* a = "VBoxSharedFolder";
+        memcpy(a,(char*)&vbox_ee->location,strlen(a));
+        outportl(vbox_port, (unsigned long)vbox_ee);
+        return vbox_ee->client_id;
+}
+
+volatile vbox_lib_query qq;
+
+void vb_call_queery(unsigned long client_id){
+        qq.header.size = sizeof(vbox_lib_query);
+	qq.header.version = VBOX_REQUEST_HEADER_VERSION;
+	qq.header.requestType = 62;
+	qq.header.rc = 0;
+	qq.header.reserved1 = 0;
+	qq.header.reserved2 = 0;
+
+        qq.type = 0;
+        qq.function_code = 1;
+        qq.parameter_count = 3;
+
+        qq.client_id = client_id;
+
+        qq.param_1_type = 1;
+        qq.param_1_value[0] = 6;
+        qq.param_1_value[1] = 0;
+
+        qq.param_2_type = 0;
+        qq.param_2_value[0] = 0;
+        qq.param_2_value[1] = 0;
+
+        qq.param_3_type = 0;
+        qq.param_3_value[0] = 0;
+        qq.param_3_value[1] = 0;
+        
+        outportl(vbox_port, (unsigned long)&qq);
+
+        debugf("@ %x | %x | %x \n",qq.param_1_type,qq.param_2_type,qq.param_3_type);
+}
+
 void init_vbox(unsigned long bus, unsigned long slot, unsigned long function){
         set_virtual_box_session_enabled(1);
 	debugf("[VBOX] Virtualbox Guest Additions found!\n");
@@ -123,4 +196,8 @@ void init_vbox(unsigned long bus, unsigned long slot, unsigned long function){
         vb_mouse_on_off(VBOX_MOUSE_ON);
         debugf("[VBOX] Enable mouse\n");
 
+        unsigned long client_id = vb_enable_shared_folders_lib();
+        debugf("[VBOX] Enabled shared folders with clientid %x \n",client_id);
+
+        vb_call_queery(client_id);
 }
