@@ -1228,7 +1228,7 @@ void xhci_probe_port(int i){
 			dc1->bar2 |= (8 << 16); // wlength=0 // 0x80000
 			dc1->bar3 |= 8; // trbtransferlength
 			dc1->bar3 |= (0 << 22); // interrupetertrager
-			dc1->bar4 |= 1; // cyclebit =1
+			dc1->bar4 |= 0; // cyclebit =1 !!!
 			dc1->bar4 |= (0<<5); // ioc=0
 			dc1->bar4 |= (1<<6); // idt=1
 			dc1->bar4 |= (2<<10); // trbtype
@@ -1249,7 +1249,7 @@ void xhci_probe_port(int i){
 			dc2->bar1 = (unsigned long)&devicedescriptor;
 			dc2->bar2 = 0b00000000000000000000000000000000;
 			dc2->bar3 = 0b00000000000000000000000000001000;
-			dc2->bar4 = 1 | 0b00000000000000010000110000000000; // 0b00000000000000010000110000000001
+			dc2->bar4 = 0 | 0b00000000000000010000110000000000; // 0b00000000000000010000110000000001
 			device->localringoffset+=0x10;
 			
 			volatile TRB *dc3 = ((volatile TRB*)((volatile unsigned long)(device->localring)+device->localringoffset));
@@ -1476,6 +1476,9 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	printf("[XHCI] XHCI disabled by programmer\n");
 	return;
 	#endif
+    if(!pci_enable_busmastering_when_needed(bus,slot,function)){
+        return;
+    }
 	unsigned long usbint = getBARaddress(bus,slot,function,0x3C) & 0x000000FF;
 	setNormalInt(usbint,(unsigned long)xhciirq);
 

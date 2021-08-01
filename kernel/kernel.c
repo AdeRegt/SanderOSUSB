@@ -72,6 +72,10 @@ GRUBStatus getGrubStatus(){
 void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 	init_video();
 	printstring("Welcome to the Sanderslando Kernel!!\n");
+	printstring("=> Global Description Table...\n");
+	init_gdt();
+	printstring("=> Interrupt Description Table...\n");
+	init_idt();
 	cpuid_get_details();
 	printstring("Loading core components...\n");
 	if(magic==0x2BADB002){
@@ -154,10 +158,6 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 			debugf("[GRUB] Framebuffer info present!\n");
 		}
 	}
-	printstring("=> Global Description Table...\n");
-	init_gdt();
-	printstring("=> Interrupt Description Table...\n");
-	init_idt();
 	printstring("Loading utilities...\n");
 	printstring("=> Programmable Interrupt Timer...\n");
 	init_timer();
