@@ -458,7 +458,7 @@ int xhci_wait_for_ready(){
  * \returns the cyclebit which must be used
  */
 unsigned char getCycleBit(){
-	return deviceid!=XHCI_DEVICE_QEMU?0:1;
+	return (deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU)?1:0;
 }
 
 /**
@@ -492,7 +492,7 @@ int xhci_seek_end_event_queue(){
 	event_ring_offset = 0;
 	int eventcount = 0;
 	while(1){
-		TRB* trbres2 = ((TRB*)((unsigned long)(&event_ring_queue)+event_ring_offset));
+		volatile TRB* trbres2 = ((TRB*)((unsigned long)(&event_ring_queue)+event_ring_offset));
 		unsigned long completioncode2 = (trbres2->bar3 & 0b111111100000000000000000000000) >> 24;
 		if(completioncode2==0){
 			break;
@@ -531,7 +531,7 @@ TRB* xhci_get_last_event(){
 int xhci_wait(int target){
 	int timeout = 0;
 	while(1){
-		sleep(10);
+		sleep(100);
 		if(xhci_seek_end_event_queue()==target){
 			break;
 		}
@@ -556,7 +556,7 @@ int xhci_ring_and_wait(int number,int callnum){
 	
 	// doorbell
 	((unsigned long*)doorbel)[number] = callnum;
-	sleep(100);
+	sleep(20);
 	
 	// wait
 	int timeout = 0;
@@ -1214,6 +1214,7 @@ void xhci_probe_port(int i){
 			//
 			
 			unsigned char devicedescriptor[12];
+			device->localringoffset = 0;
 			((volatile unsigned long*)&interrupter_1)[0] = 0;
 			volatile TRB *dc1 = ((volatile TRB*)((volatile unsigned long)(device->localring)+device->localringoffset));
 			dc1->bar1 = 0;
@@ -1228,7 +1229,7 @@ void xhci_probe_port(int i){
 			dc1->bar2 |= (8 << 16); // wlength=0 // 0x80000
 			dc1->bar3 |= 8; // trbtransferlength
 			dc1->bar3 |= (0 << 22); // interrupetertrager
-			dc1->bar4 |= 0; // cyclebit =1 !!!
+			dc1->bar4 |= getCycleBit(); // cyclebit =1 !!!
 			dc1->bar4 |= (0<<5); // ioc=0
 			dc1->bar4 |= (1<<6); // idt=1
 			dc1->bar4 |= (2<<10); // trbtype
@@ -1249,14 +1250,14 @@ void xhci_probe_port(int i){
 			dc2->bar1 = (unsigned long)&devicedescriptor;
 			dc2->bar2 = 0b00000000000000000000000000000000;
 			dc2->bar3 = 0b00000000000000000000000000001000;
-			dc2->bar4 = 0 | 0b00000000000000010000110000000000; // 0b00000000000000010000110000000001
+			dc2->bar4 = getCycleBit() | 0b00000000000000010000110000000000; // 0b00000000000000010000110000000001
 			device->localringoffset+=0x10;
 			
 			volatile TRB *dc3 = ((volatile TRB*)((volatile unsigned long)(device->localring)+device->localringoffset));
 			dc3->bar1 = 0;
 			dc3->bar2 = 0;
 			dc3->bar3 = 0;
-			dc3->bar4 = 0b1000000100001;//1 | (4<<10) | 0x20 | (1 << 16); // 1 | (4<<10) | 0x20 | (1 << 16);
+			dc3->bar4 = getCycleBit()?0:1 | 0b1000000100000;//1 | (4<<10) | 0x20 | (1 << 16); // 1 | (4<<10) | 0x20 | (1 << 16);
 			device->localringoffset+=0x10;
 
 			unsigned char completioncode = xhci_ring_and_wait(assignedSloth,1);
