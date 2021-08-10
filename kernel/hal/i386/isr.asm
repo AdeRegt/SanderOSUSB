@@ -255,24 +255,12 @@ ehciirq:
 global xhciirq
 extern irq_xhci
 xhciirq:
-	push byte 0
-	push byte 0
     pusha
-    push ds
-    push es
-    push fs
-    push gs
-    mov eax, esp
-    push eax
+    cli
     mov eax, irq_xhci
     call eax
-    pop eax
-    pop gs
-    pop fs
-    pop es
-    pop ds
+    sti
     popa
-    add esp, 8
     iret
     
 

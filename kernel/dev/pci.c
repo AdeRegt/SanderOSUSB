@@ -100,6 +100,44 @@ unsigned long getBARaddress(int bus,int slot,int function,int barNO){
 	return result;
 }
 
+void dumpPCIConfiguration(int bus,int slot,int function){
+	unsigned long config = getPCIConfiguration(bus,slot,function);
+	printf("[PCI] Config flags: ");
+	if(config & 0b0000000000000001){
+		printf(" I/O");
+	}
+	if(config & 0b0000000000000010){
+		printf(" Memory");
+	}
+	if(config & 0b0000000000000100){
+		printf(" Master");
+	}
+	if(config & 0b0000000000001000){
+		printf(" Special");
+	}
+	printf("\n");
+}
+
+unsigned long getPCIConfiguration(int bus,int slot,int function){
+	return getBARaddress(bus,slot,function,0x04) & 0x0000FFFF;
+}
+
+char pci_enable_busmastering_when_needed(int bus,int slot,int function){
+	if(!(getPCIConfiguration(bus,slot,function)&0x04)){
+        printf("[PCI] PCI bussmaster not enabled!\n");
+        unsigned long setting = getPCIConfiguration(bus,slot,function);
+        setting |= 0x04;
+        setBARaddress(bus,slot,function,4,setting);
+        if(!(getPCIConfiguration(bus,slot,function)&0x04)){
+            printf("[PCI] PCI busmastering still not enabled! Quiting...\n");
+            return 0;
+        }else{
+            printf("[PCI] PCI busmastering is now enabled.\n");
+        }
+    }
+	return 1;
+}
+
 void init_pci(){
 	printstring("PCI: detecting devices....\n");
 	for(int bus = 0 ; bus < 256 ; bus++){

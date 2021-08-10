@@ -779,6 +779,9 @@ void ehci_probe(){
 
 void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
     printf("[EHCI] Entering EHCI module\n");
+    if(!pci_enable_busmastering_when_needed(bus,slot,function)){
+        return;
+    }
     unsigned long baseaddress = getBARaddress(bus,slot,function,0x10);
     printf("[EHCI] The base address of EHCI is %x \n",baseaddress);
     portbaseaddress = baseaddress + ((unsigned char*)baseaddress)[0];

@@ -395,7 +395,7 @@ extern void xhciirq();
 
 unsigned long basebar = 0;
 unsigned long usbcmd = 0;
-unsigned long usbsts = 0;
+static volatile unsigned long usbsts = 0;
 unsigned long pagesize = 0;
 unsigned long config = 0;
 unsigned long bcbaap = 0;
@@ -458,7 +458,7 @@ int xhci_wait_for_ready(){
  * \returns the cyclebit which must be used
  */
 unsigned char getCycleBit(){
-	return deviceid!=XHCI_DEVICE_QEMU?0:1;
+	return (deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU)?1:0;
 }
 
 /**
@@ -492,7 +492,7 @@ int xhci_seek_end_event_queue(){
 	event_ring_offset = 0;
 	int eventcount = 0;
 	while(1){
-		TRB* trbres2 = ((TRB*)((unsigned long)(&event_ring_queue)+event_ring_offset));
+		volatile TRB* trbres2 = ((TRB*)((unsigned long)(&event_ring_queue)+event_ring_offset));
 		unsigned long completioncode2 = (trbres2->bar3 & 0b111111100000000000000000000000) >> 24;
 		if(completioncode2==0){
 			break;
@@ -531,7 +531,7 @@ TRB* xhci_get_last_event(){
 int xhci_wait(int target){
 	int timeout = 0;
 	while(1){
-		sleep(10);
+		sleep(100);
 		if(xhci_seek_end_event_queue()==target){
 			break;
 		}
@@ -556,7 +556,7 @@ int xhci_ring_and_wait(int number,int callnum){
 	
 	// doorbell
 	((unsigned long*)doorbel)[number] = callnum;
-	sleep(100);
+	sleep(20);
 	
 	// wait
 	int timeout = 0;
@@ -837,25 +837,30 @@ int xhci_noop(){
  * Handle interrupt
 */
 void irq_xhci(){
-	unsigned long xhci_usbsts = ((unsigned long*)usbsts)[0];
+	volatile unsigned long xhci_usbsts = ((volatile unsigned long*)usbsts)[0];
 	if(xhci_usbsts&4){
 		printf("[XHCI] Host system error interrupt\n");
+		for(;;);
 	}else if(xhci_usbsts&8){
 		printf("[XHCI] Event interrupt\n");
 	}else if(xhci_usbsts&0x10){
 		printf("[XHCI] Port interrupt\n");
 	}else{
-		printf("[XHCI] Unknown interrupt\n");
+		// printf("[XHCI] Unknown interrupt: %x \n",xhci_usbsts);
+		// for(;;);
 	}
 	((volatile unsigned long*)&interrupter_1)[0] = 0xCD;
+	
+	volatile unsigned long iman_addr = rtsoff + 0x20;
+	((volatile unsigned long*)iman_addr)[0] |= 0b11;
+
+	if(((volatile unsigned long*)iman_addr)[0]&1){
+		printf("[XHCI] Event interrupts detected in device specific ring\n");
+	}
 
 	// acknowledge packages
-	((unsigned long*)usbsts)[0] = xhci_usbsts;
+	((volatile unsigned long*)usbsts)[0] = 0b100011100;
 	
-	//	((unsigned long*)usbsts)[0] |= 0x8;
-	//	((unsigned long*)usbsts)[0] |= 0b10000;
-	unsigned long iman_addr = rtsoff + 0x020;
-	((unsigned long*)iman_addr)[0] |= 0b11;
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
 }
@@ -1167,14 +1172,19 @@ void xhci_probe_port(int i){
 
 			//
 			// and test
-			if(0){
+			device->localringoffset = 0;
+			if(1){
+
 				printf("[XHCI] Port %x : NOOP ring control\n",device->portnumber);
+
+				sleep(100);
+
 				((volatile unsigned long*)&interrupter_1)[0] = 0;
 				TRB *trbx1 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 				trbx1->bar1 = 0;
 				trbx1->bar2 = 0;
 				trbx1->bar3 = 0;
-				trbx1->bar4 = 1 | (8<<10);//8
+				trbx1->bar4 = 1 | (8<<10) ;//| (1<<5);//8
 				device->localringoffset += 0x10;
 
 				TRB *trbx2 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
@@ -1185,7 +1195,10 @@ void xhci_probe_port(int i){
 				device->localringoffset += 0x10;
 				// stop codon
 				TRB *trb6 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
-				xhci_stop_codon_to_trb(trb6);
+				trb6->bar1 = 0;
+				trb6->bar2 = 0;
+				trb6->bar3 = 0;
+				trb6->bar4 = 1 | 0b1000000000000 | (1<<5);
 				device->localringoffset += 0x10;
 				int tres = xhci_ring_and_wait(assignedSloth,1);
 				event_ring_offset += 0x10;
@@ -1228,8 +1241,8 @@ void xhci_probe_port(int i){
 			dc1->bar2 |= (8 << 16); // wlength=0 // 0x80000
 			dc1->bar3 |= 8; // trbtransferlength
 			dc1->bar3 |= (0 << 22); // interrupetertrager
-			dc1->bar4 |= 1; // cyclebit =1
-			dc1->bar4 |= (0<<5); // ioc=0
+			dc1->bar4 |= 1;//getCycleBit(); // cyclebit =1 !!!
+			dc1->bar4 |= (1<<5); // ioc=0
 			dc1->bar4 |= (1<<6); // idt=1
 			dc1->bar4 |= (2<<10); // trbtype
 			dc1->bar4 |= (3<<16); // trt = 3;
@@ -1249,20 +1262,21 @@ void xhci_probe_port(int i){
 			dc2->bar1 = (unsigned long)&devicedescriptor;
 			dc2->bar2 = 0b00000000000000000000000000000000;
 			dc2->bar3 = 0b00000000000000000000000000001000;
-			dc2->bar4 = 1 | 0b00000000000000010000110000000000; // 0b00000000000000010000110000000001
+			dc2->bar4 = 1/*getCycleBit()*/ | 0b00000000000000010000110001000000; // 0b00000000000000010000110000000001
 			device->localringoffset+=0x10;
 			
 			volatile TRB *dc3 = ((volatile TRB*)((volatile unsigned long)(device->localring)+device->localringoffset));
 			dc3->bar1 = 0;
 			dc3->bar2 = 0;
-			dc3->bar3 = 0;
-			dc3->bar4 = 0b1000000100001;//1 | (4<<10) | 0x20 | (1 << 16); // 1 | (4<<10) | 0x20 | (1 << 16);
+			dc3->bar3 = 0 ;
+			dc3->bar4 = 1 | 0b1000000000000 | (1<<5);
 			device->localringoffset+=0x10;
 
 			unsigned char completioncode = xhci_ring_and_wait(assignedSloth,1);
 			printf("[XHCI] Port %x : complection code is %x \n",device->portnumber,completioncode);
 			if(completioncode!=1){
-				printf("[XHCI] Port %x : completioncode is not 1 but %x\n",device->portnumber,completioncode);for(;;);
+				printf("[XHCI] Port %x : completioncode is not 1 but %x\n",device->portnumber,completioncode);
+				for(;;);
 				goto disabledevice;
 			}
 			event_ring_offset += 0x10;
@@ -1476,6 +1490,9 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	printf("[XHCI] XHCI disabled by programmer\n");
 	return;
 	#endif
+    if(!pci_enable_busmastering_when_needed(bus,slot,function)){
+        return;
+    }
 	unsigned long usbint = getBARaddress(bus,slot,function,0x3C) & 0x000000FF;
 	setNormalInt(usbint,(unsigned long)xhciirq);
 
