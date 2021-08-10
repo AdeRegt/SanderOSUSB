@@ -852,10 +852,10 @@ void irq_xhci(){
 	((volatile unsigned long*)&interrupter_1)[0] = 0xCD;
 	
 	volatile unsigned long iman_addr = rtsoff + 0x20;
+	((volatile unsigned long*)iman_addr)[0] |= 0b11;
+
 	if(((volatile unsigned long*)iman_addr)[0]&1){
 		printf("[XHCI] Event interrupts detected in device specific ring\n");
-		((volatile unsigned long*)iman_addr)[0] |= 0b11;
-		printf("[XHCI] Hijloopt hierna niet vast...\n");
 	}
 
 	// acknowledge packages
@@ -1178,10 +1178,6 @@ void xhci_probe_port(int i){
 				printf("[XHCI] Port %x : NOOP ring control\n",device->portnumber);
 
 				sleep(100);
-
-				volatile unsigned long iman_addr = rtsoff + 0x20;
-				((volatile unsigned long*)iman_addr)[0] |= 0b11;
-				((unsigned long*)usbcmd)[0] |= 4;
 
 				((volatile unsigned long*)&interrupter_1)[0] = 0;
 				TRB *trbx1 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
