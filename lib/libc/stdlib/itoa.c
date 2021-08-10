@@ -1,7 +1,3 @@
-#include "../../include/stdlib.h"
-#include "../../include/ctypes.h"
-#include "../../include/assert.h"
-
 char* itoa(int val, int base){
 
     static char buf[32] = {0};
