@@ -574,7 +574,7 @@ unsigned char* ehci_recieve_bulk(USB_DEVICE *device,unsigned long expectedIN,voi
             trans->nextlink = yo;
             trans = (EhciTD*) yo;
         }
-        //printf("pre :: wachtend=%x bytesperkeer=%x expectedin=%x \n",wachtend,bytesperkeer,expectedIN);
+        // printf("pre :: wachtend=%x bytesperkeer=%x expectedin=%x \n",wachtend,bytesperkeer,expectedIN);
         trans->altlink = 1;
         if(bytesperkeer>expectedIN){
             trans->token |= (expectedIN << 16);
@@ -615,7 +615,7 @@ unsigned char* ehci_recieve_bulk(USB_DEVICE *device,unsigned long expectedIN,voi
     qh2->horizontal_link_pointer = ((unsigned long)qh) | 2;
     qh2->curlink = 1; // qdts1
     qh2->characteristics |= 1 << 14; // dtc
-    qh2->characteristics |= 512 << 16; // mplen
+    qh2->characteristics |= bytesperkeer << 16; // mplen
     qh2->characteristics |= 2 << 12; // eps
     qh2->characteristics |= 1 << 8; // endpoint 1
     qh2->characteristics |= device->portnumber; // device
@@ -780,7 +780,7 @@ void ehci_probe(){
 void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
     printf("[EHCI] Entering EHCI module\n");
     if(!pci_enable_busmastering_when_needed(bus,slot,function)){
-        return;
+        // return;
     }
     unsigned long baseaddress = getBARaddress(bus,slot,function,0x10);
     printf("[EHCI] The base address of EHCI is %x \n",baseaddress);

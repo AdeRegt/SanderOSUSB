@@ -337,6 +337,8 @@ void stop_cmd(HBA_PORT *port)
 {
 	// Clear ST (bit0)
 	port->cmd &= ~HBA_PxCMD_ST;
+	// Clear FRE (bit4)
+	port->cmd &= ~HBA_PxCMD_FRE;
  
 	// Wait until FR (bit14), CR (bit15) are cleared
 	while(1)
@@ -356,6 +358,7 @@ void stop_cmd(HBA_PORT *port)
 
 void port_rebase(HBA_PORT *port, int portno)
 {
+	debugf("[AHCI] Portrebase\n");
 	stop_cmd(port);	// Stop command engine
  
 	// Command list offset: 1K*portno
@@ -384,7 +387,6 @@ void port_rebase(HBA_PORT *port, int portno)
 		cmdheader[i].ctbau = 0;
 		memset((void*)cmdheader[i].ctba, 0, 256);
 	}
- 
 	start_cmd(port);	// Start command engine
 }
 
@@ -419,6 +421,9 @@ int ahci_atapi_read(HBA_PORT *port, unsigned long startl, unsigned long starth, 
  
 	HBA_CMD_HEADER *cmdheader = (HBA_CMD_HEADER*)port->clb;
 	cmdheader += slot;
+
+	cmdheader->ctba = (unsigned long)malloc_align(500,0xFF);
+	debugf("[AHCI] DINGES: %x \n\n",cmdheader->ctba);
  
 	HBA_CMD_TBL *cmdtbl = (HBA_CMD_TBL*)(cmdheader->ctba);
 	memset(cmdtbl, 0, sizeof(HBA_CMD_TBL) +
@@ -465,32 +470,41 @@ int ahci_atapi_read(HBA_PORT *port, unsigned long startl, unsigned long starth, 
 	{
 		spin++;
 	}
+
 	if (spin == 1000000)
 	{
 		return 0;
 	}
+	debugf("PORT CI: %x \n",port->ci);
  
 	port->ci = 1<<slot;
+
 	// Wait for completion
+	resetTicks();
 	while (1)
 	{
 		// In some longer duration reads, it may be helpful to spin on the DPS bit 
 		// in the PxIS port field as well (1 << 5)
-		if ((port->ci & (1<<slot)) == 0) 
+		if ((port->ci & (1<<slot)) == 0) {
 			break;
+		}
 		if (port->is & HBA_PxIS_TFES)	// Task file error
 		{
 			return 0;
 		}
-		
+		if(getTicks()>5)
+		{
+			return 0;
+		}
 	}
+
  
 	// Check again
 	if (port->is & HBA_PxIS_TFES)
 	{
 		return 0;
 	}
- 
+
 	return 1;
 }
 
@@ -577,7 +591,7 @@ int ahci_atapi_eject(HBA_PORT *port)
 	return 1;
 }
  
-int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, unsigned long count, unsigned short *buf)
+int ahci_ata_read(volatile HBA_PORT *port, unsigned long startl, unsigned long starth, unsigned long count, unsigned short *buf)
 {
 	port->is = (unsigned long) -1;		// Clear pending interrupt bits
 	int spin = 0; // Spin lock timeout counter
@@ -634,6 +648,7 @@ int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, un
 	{
 		if(getTicks()>5)
 		{
+			debugf("hung port\n");
 			spin = 1000000;
 			break;
 		}
@@ -652,19 +667,18 @@ int ahci_ata_read(HBA_PORT *port, unsigned long startl, unsigned long starth, un
 		// In some longer duration reads, it may be helpful to spin on the DPS bit 
 		// in the PxIS port field as well (1 << 5)
 		if ((port->ci & (1<<slot)) == 0) 
+		{
 			break;
+		}
 		if (port->is & HBA_PxIS_TFES)	// Task file error
 		{
-			debugf("Read disk error\n");
 			return 0;
 		}
-		
 	}
  
 	// Check again
 	if (port->is & HBA_PxIS_TFES)
 	{
-		debugf("Read disk error\n");
 		return 0;
 	}
  
@@ -691,7 +705,7 @@ void ahci_atapi_eject_ext(){}
 
 void ahci_ata_init(HBA_PORT *port,int i){
 	port_rebase(port,i);
-	unsigned char* msg = (unsigned char*) 0x1000;
+	unsigned char* msg = (unsigned char*) malloc(512);
 	if(ahci_ata_read(port, 0, 0, 1, (unsigned short *)msg)==0){
 		return;
 	}
@@ -715,7 +729,7 @@ void ahci_ata_init(HBA_PORT *port,int i){
 
 void ahci_atapi_init(HBA_PORT *port,int i){
 	port_rebase(port,i);
-	unsigned char* buffer = (unsigned char*) 0x1000;
+	unsigned char* buffer = (unsigned char*) malloc(512);
 	for(int z = 0 ; z < 512 ; z++){
 		buffer[z] = 0x00;
 	}
@@ -770,11 +784,10 @@ void ahci_init(int bus,int slot,int function){
 	unsigned long bar3 = getBARaddress(bus,slot,function,0x1C);
 	unsigned long bar4 = getBARaddress(bus,slot,function,0x20);
 	unsigned long bar5 = getBARaddress(bus,slot,function,0x24);
-	unsigned long base = bar5;
-	debugf("[AHCI] AHCI detected based at %x !\n",base);
+	debugf("[AHCI] AHCI detected based at %x !\n",bar5);
 	debugf("[AHCI] 0:%x  1:%x 2:%x 3:%x 4:%x 5:%x!\n",bar0,bar1,bar2,bar3,bar4,bar5);
 	//init_ide2();
-	HBA_MEM *target = (HBA_MEM *)base;
+	HBA_MEM *target = (HBA_MEM *)bar5;
 	
 	//
 	// printing systeminfo
@@ -826,7 +839,7 @@ void ahci_init(int bus,int slot,int function){
 		debugf("PSC ");
 	}
 	if(target->cap & 0b00000000000000000001111100000000){
-		debugf("NCS[%x] ",(target->cap & 0b00000000000000000001111100000000)>>8);
+		debugf("NCS[ %x ] ",(target->cap & 0b00000000000000000001111100000000)>>8);
 	}
 	if(target->cap & 0b00000000000000000000000010000000){
 		debugf("CCCS ");
@@ -838,21 +851,24 @@ void ahci_init(int bus,int slot,int function){
 		debugf("SXS ");
 	}
 	if(target->cap & 0b00000000000000000000000000011111){
-		debugf("NP[%x] ",target->cap & 0b00000000000000000000000000011111);
+		debugf("NP[ %x ] ",target->cap & 0b00000000000000000000000000011111);
 	}
 	debugf("\n");
-	debugf("[AHCI] GHC - Global HBA control : ");
+	debugf("[AHCI] GHC - Global HBA control :\n");
 	if(target->ghc & 0b10000000000000000000000000000000){
-		debugf("AE ");
+		debugf("[AHCI] AHCI Enabled\n");
 	}
 	if(target->ghc & 0b00000000000000000000000000000100){
-		debugf("MRSM ");
+		debugf("[AHCI] MSI Revert to Single Message\n");
 	}
 	if(target->ghc & 0b00000000000000000000000000000010){
-		debugf("IE ");
+		debugf("[AHCI] Interrupt Enable\n");
 	}
-	debugf("\n");
 	debugf("[AHCI] version: %x \n",target->vs);
+	debugf("[AHCI] Interrupters: %x \n",target->is);
+	if(target->cap2&1){
+		debugf("[AHCI] Has BIOS handshake stuff\n");
+	}
 	if(0){
 		debugf("[AHCI] Trigger reset\n");
 		target->ghc |= 1;
