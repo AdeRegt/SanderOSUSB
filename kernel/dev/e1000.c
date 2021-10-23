@@ -335,5 +335,5 @@ void init_e1000(int bus,int slot,int function){
 
     //
     // register driver
-    register_ethernet_device((unsigned long)&e1000_send_package,(unsigned long)&e1000_recieve_package);
+    register_ethernet_device((unsigned long)&e1000_send_package,(unsigned long)&e1000_recieve_package,mac_address);
 }

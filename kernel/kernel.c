@@ -175,6 +175,8 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 	init_acpi();
 	printstring("=> Soundblaster...\n");
 	init_soundblaster16();
+	printstring("Enabeling ethernet connection\n");
+	initialise_ethernet();
 	debugf("Shashwat %d sss %s",1, "test2");
 	printstring("\nEnd of loading system!\n");
 	debugf("The system is compiled at %s %s \n",__DATE__,__TIME__);

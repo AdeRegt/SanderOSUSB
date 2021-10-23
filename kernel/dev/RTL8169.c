@@ -36,7 +36,7 @@ unsigned volatile long package_send_ack = 0;
 extern void rtl8169irq();
 
 void irq_rtl8169(){
-	debugf("[RTL81] Interrupt detected\n");
+	printf("[RTL81] Interrupt detected\n");
 	unsigned short status = inportw(bar1 + 0x3E);
 	if(status&0x20){
 		debugf("[RTL81] Link change detected!\n");
@@ -181,6 +181,6 @@ void init_rtl(int bus,int slot,int function){
 	outportb(bar1 + 0x37, 0x0C); /* Enable Rx/Tx in the Command register */
 	outportb(bar1 + 0x50, 0x00); /* Lock config registers */
 	
-	register_ethernet_device((unsigned long)&rtl_sendPackage,(unsigned long)&rtl_recievePackage);
+	register_ethernet_device((unsigned long)&rtl_sendPackage,(unsigned long)&rtl_recievePackage,macaddress);
 	debugf("[RTL81] Setup finished\n");
 }
