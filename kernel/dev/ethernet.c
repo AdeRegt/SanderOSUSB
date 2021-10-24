@@ -1,6 +1,60 @@
 //
 // includes.... everything in one file for simplicity
 #include "../kernel.h"
+#define SIZE_OF_MAC 6
+#define SIZE_OF_IP 4
+#define ETHERNET_TYPE_ARP 0x0608
+#define ETHERNET_TYPE_IP4 0x0008
+
+struct EthernetHeader{
+    unsigned char to[SIZE_OF_MAC];
+    unsigned char from[SIZE_OF_MAC];
+    unsigned short type;
+} __attribute__ ((packed));
+
+struct ARPHeader{
+    struct EthernetHeader ethernetheader;
+    unsigned short hardware_type;
+    unsigned short protocol_type;
+    unsigned char hardware_address_length;
+    unsigned char protocol_address_length;
+    unsigned short operation;
+
+    unsigned char source_mac[SIZE_OF_MAC];
+    unsigned char source_ip[SIZE_OF_IP];
+
+    unsigned char dest_mac[SIZE_OF_MAC];
+    unsigned char dest_ip[SIZE_OF_IP];
+} __attribute__ ((packed));
+
+struct IPv4Header{
+    struct EthernetHeader ethernetheader;
+    unsigned char version:4;
+    unsigned char internet_header_length:4;
+    unsigned char type_of_service;
+    unsigned short total_length;
+    unsigned short id;
+    unsigned short flags:3;
+    unsigned short fragment_offset:13;
+    unsigned char time_to_live;
+    unsigned char protocol;
+    unsigned short checksum;
+    unsigned long source_addr;
+    unsigned long dest_addr;
+} __attribute__ ((packed));
+
+struct UDPHeader{
+    struct IPv4Header ipv4header;
+    unsigned short source_port;
+    unsigned short destination_port;
+    unsigned short length;
+    unsigned short checksum;
+} __attribute__ ((packed));
+
+struct DHCPDISCOVERHeader{
+    struct UDPHeader udpheader;
+} __attribute__ ((packed));
+
 
 void ethernet_detect(int bus,int slot,int function,int device,int vendor){
     if((device==0x8168||device==0x8139)&&vendor==0x10ec){ 
@@ -15,6 +69,11 @@ void ethernet_detect(int bus,int slot,int function,int device,int vendor){
 }
 
 EthernetDevice defaultEthernetDevice;
+unsigned char our_ip[SIZE_OF_IP];
+
+void ethernet_set_link_status(unsigned long a){
+    defaultEthernetDevice.is_online = a;
+}
 
 void register_ethernet_device(unsigned long sendPackage,unsigned long recievePackage,unsigned char mac[8]){
     defaultEthernetDevice.recievePackage = recievePackage;
@@ -38,31 +97,6 @@ void sendEthernetPackage(PackageRecievedDescriptor desc,unsigned char first,unsi
     void (*sendPackage)(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp) = (void*)defaultEthernetDevice.sendPackage;
     sendPackage(desc,first,last,ip,udp,tcp);
 }
-
-#define SIZE_OF_MAC 6
-#define SIZE_OF_IP 4
-#define ETHERNET_TYPE_ARP 0x0608
-
-struct EthernetHeader{
-    unsigned char to[SIZE_OF_MAC];
-    unsigned char from[SIZE_OF_MAC];
-    unsigned short type;
-} __attribute__ ((packed));
-
-struct ARPHeader{
-    struct EthernetHeader ethernetheader;
-    unsigned short hardware_type;
-    unsigned short protocol_type;
-    unsigned char hardware_address_length;
-    unsigned char protocol_address_length;
-    unsigned short operation;
-
-    unsigned char source_mac[SIZE_OF_MAC];
-    unsigned char source_ip[SIZE_OF_IP];
-
-    unsigned char dest_mac[SIZE_OF_MAC];
-    unsigned char dest_ip[SIZE_OF_IP];
-} __attribute__ ((packed));
 
 void fillMac(unsigned char* to,unsigned char* from){
     for(int i = 0 ; i < SIZE_OF_MAC ; i++){
@@ -114,12 +148,62 @@ unsigned char* getMACFromIp(unsigned char* ip){
     return ah->source_mac;
 }
 
+void fillIpv4Header(struct IPv4Header *ipv4header, unsigned char* destmac, unsigned short length,unsigned char protocol,unsigned long from, unsigned long to){
+    fillEthernetHeader((struct EthernetHeader*)&ipv4header->ethernetheader,destmac,ETHERNET_TYPE_IP4);
+    ipv4header->version = 4;
+    ipv4header->internet_header_length = 5;
+    ipv4header->type_of_service = 0;
+    ipv4header->total_length = 20 + length;
+    ipv4header->id = 1;
+    ipv4header->flags = 4;
+    ipv4header->fragment_offset= 0;
+    ipv4header->time_to_live = 64;
+    ipv4header->protocol = protocol;
+    ipv4header->checksum = 0;
+    ipv4header->source_addr = from;
+    ipv4header->dest_addr = to;
 
+    unsigned short checksum = 0;
+    unsigned short *dt = (unsigned short*) ipv4header + sizeof(struct EthernetHeader);
+    for(unsigned int i = 0 ; i < ((sizeof(struct IPv4Header)-sizeof(struct EthernetHeader))/sizeof(unsigned short)) ; i++ ){
+        checksum += dt[i];
+    }
+    checksum = (checksum >> 16) + (checksum & 0xffff);
+    checksum += (checksum >> 16);
+    ipv4header->checksum = (unsigned short) (~checksum);
+}
+
+void fillUdpHeader(struct UDPHeader *udpheader, unsigned char *destmac, unsigned short size,unsigned long from, unsigned long to,unsigned short source_port, unsigned short destination_port){
+    fillIpv4Header((struct IPv4Header*)&udpheader->ipv4header,destmac,sizeof(struct UDPHeader)+size,17,from,to);
+    udpheader->length = sizeof(struct UDPHeader)+size;
+    udpheader->destination_port = destination_port;
+    udpheader->source_port = source_port;
+
+    unsigned short checksum = 0;
+    udpheader->checksum = checksum;
+}
+
+void fillDhcpDiscoverHeader(struct DHCPDISCOVERHeader *dhcpheader){
+    unsigned char destmac[SIZE_OF_MAC] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+    unsigned short size = sizeof(struct DHCPDISCOVERHeader);
+    fillUdpHeader((struct UDPHeader*)&dhcpheader->udpheader,(unsigned char*)&destmac,size,0,0xFFFFFFFF,68,67);
+}
+
+unsigned char* getIpAddressFromDHCPServer(){
+    struct DHCPDISCOVERHeader *dhcpheader = (struct DHCPDISCOVERHeader *)malloc(sizeof(struct DHCPDISCOVERHeader));
+    fillDhcpDiscoverHeader(dhcpheader);
+    unsigned char* ip = (unsigned char*) malloc(SIZE_OF_IP);
+    return ip;
+}
 
 void initialise_ethernet(){
     printf("[ETH] Ethernet module reached!\n");
     EthernetDevice ed = getDefaultEthernetDevice();
     if(ed.is_enabled){
         printf("[ETH] There is a ethernet device present on the system!\n");
+        printf("[ETH] Looking for DHCP server....\n");
+        fillIP((unsigned char*)&our_ip,getIpAddressFromDHCPServer());
+        printf("[ETH] Our IP is %d:%d:%d:%d \n",our_ip[0],our_ip[1],our_ip[2],our_ip[3]);
     }
+    for(;;);
 }

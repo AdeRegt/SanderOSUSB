@@ -158,17 +158,18 @@ unsigned char e1000_is_eeprom(){
 }
 
 void irq_e1000(){
+	printf("[E1000] Interrupt detected\n");
     e1000_write_in_space(0xD0,1);
     unsigned long to = e1000_read_in_space(0xC0);
 	if(to&0x04){
-        debugf("[E1000] Link change!\n");
+        printf("[E1000] Link change!\n");
     }else if(to&0x80){
-        debugf("[E1000] Package recieved!\n");
+        printf("[E1000] Package recieved!\n");
 		((unsigned volatile long*)((unsigned volatile long)&e1000_package_recieved_ack))[0] = 1;
     }else if(to&0x10){
-        debugf("[E1000] THG!\n");
+        printf("[E1000] THG!\n");
     }else{
-        debugf("[E1000] Unknown interrupt: %x !\n",to);
+        printf("[E1000] Unknown interrupt: %x !\n",to);
     }
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
