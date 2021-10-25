@@ -161,7 +161,11 @@ void irq_e1000(){
 	printf("[E1000] Interrupt detected\n");
     e1000_write_in_space(0xD0,1);
     unsigned long to = e1000_read_in_space(0xC0);
-	if(to&0x04){
+    if(to&0x01){
+        printf("[E1000] Transmit completed!\n");
+    }else if(to&0x02){
+        printf("[E1000] Transmit queue empty!\n");
+    }else if(to&0x04){
         printf("[E1000] Link change!\n");
     }else if(to&0x80){
         printf("[E1000] Package recieved!\n");
@@ -255,7 +259,7 @@ void init_e1000(int bus,int slot,int function){
         mac_address[4] = ((tg[1] & 0x000000FF)>>0) & 0xFF;
         mac_address[5] = ((tg[1] & 0x0000FF00)>>8) & 0xFF;
     }
-    debugf("[E1000] MAC: %x:%x:%x:%x:%x:%x \n",mac_address[0],mac_address[1],mac_address[2],mac_address[3],mac_address[4],mac_address[5]);
+    printf("[E1000] MAC: %x:%x:%x:%x:%x:%x \n",mac_address[0],mac_address[1],mac_address[2],mac_address[3],mac_address[4],mac_address[5]);
 
     if(!(getBARaddress(bus,slot,function,0x04)&0x04)){
         unsigned long to = pciConfigReadWord(bus,slot,function,0x04) | 0x04;

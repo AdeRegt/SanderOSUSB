@@ -53,6 +53,21 @@ struct UDPHeader{
 
 struct DHCPDISCOVERHeader{
     struct UDPHeader udpheader;
+    unsigned char op;
+    unsigned char htype;
+    unsigned char hlen;
+    unsigned char hops;
+    unsigned long xid;
+    unsigned short timing;
+    unsigned short flags;
+    unsigned long address_of_machine;
+    unsigned long dhcp_offered_machine;
+    unsigned long ip_addr_of_dhcp_server;
+    unsigned long ip_addr_of_relay;
+    unsigned char chaddr [16];
+    char sname [64];
+    char file [128];
+    char options[312];
 } __attribute__ ((packed));
 
 
@@ -191,9 +206,23 @@ void fillDhcpDiscoverHeader(struct DHCPDISCOVERHeader *dhcpheader){
 
 unsigned char* getIpAddressFromDHCPServer(){
     struct DHCPDISCOVERHeader *dhcpheader = (struct DHCPDISCOVERHeader *)malloc(sizeof(struct DHCPDISCOVERHeader));
+    dhcpheader->op = 1;
+    dhcpheader->htype = 1;
+    dhcpheader->hlen = 6;
+    dhcpheader->hops = 0;
+    dhcpheader->xid = 0xCDCD;
+    dhcpheader->timing = 0;
+    dhcpheader->flags = 0;
+    
     fillDhcpDiscoverHeader(dhcpheader);
-    unsigned char* ip = (unsigned char*) malloc(SIZE_OF_IP);
-    return ip;
+    PackageRecievedDescriptor sec;
+    sec.buffersize = sizeof(struct DHCPDISCOVERHeader);
+    sec.high_buf = 0;
+    sec.low_buf = (unsigned long)dhcpheader;
+    sendEthernetPackage(sec,1,1,1,0,0);
+    PackageRecievedDescriptor prd = getEthernetPackage();
+    struct DHCPDISCOVERHeader *hd = ( struct DHCPDISCOVERHeader*) prd.low_buf;
+    return (unsigned char*) &hd->dhcp_offered_machine;
 }
 
 void initialise_ethernet(){

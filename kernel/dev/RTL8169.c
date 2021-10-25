@@ -135,6 +135,9 @@ void init_rtl(int bus,int slot,int function){
 	debugf("[RTL81] Set interrupter\n");
 	unsigned long usbint = getBARaddress(bus,slot,function,0x3C) & 0x000000FF;
 	setNormalInt(usbint,(unsigned long)rtl8169irq);
+
+	// enable device
+	outportb( bar1 + 0x52, 0x0);
 	
 	//
 	// trigger reset
