@@ -29,8 +29,8 @@ struct ARPHeader{
 
 struct IPv4Header{
     struct EthernetHeader ethernetheader;
-    unsigned char version:4;
     unsigned char internet_header_length:4;
+    unsigned char version:4;
     unsigned char type_of_service;
     unsigned short total_length;
     unsigned short id;
@@ -70,6 +70,9 @@ struct DHCPDISCOVERHeader{
     char options[312];
 } __attribute__ ((packed));
 
+unsigned short switch_endian16(unsigned short nb) {
+    return (nb>>8) | (nb<<8);
+}
 
 void ethernet_detect(int bus,int slot,int function,int device,int vendor){
     if((device==0x8168||device==0x8139)&&vendor==0x10ec){ 
@@ -168,31 +171,36 @@ void fillIpv4Header(struct IPv4Header *ipv4header, unsigned char* destmac, unsig
     ipv4header->version = 4;
     ipv4header->internet_header_length = 5;
     ipv4header->type_of_service = 0;
-    ipv4header->total_length = 20 + length;
-    ipv4header->id = 1;
-    ipv4header->flags = 4;
-    ipv4header->fragment_offset= 0;
+    ipv4header->total_length = switch_endian16( length );
+    ipv4header->id = switch_endian16(1);
+    ipv4header->flags = 0;
+    ipv4header->fragment_offset= 0b01000;
     ipv4header->time_to_live = 64;
     ipv4header->protocol = protocol;
     ipv4header->checksum = 0;
     ipv4header->source_addr = from;
     ipv4header->dest_addr = to;
 
-    unsigned short checksum = 0;
-    unsigned short *dt = (unsigned short*) ipv4header + sizeof(struct EthernetHeader);
-    for(unsigned int i = 0 ; i < ((sizeof(struct IPv4Header)-sizeof(struct EthernetHeader))/sizeof(unsigned short)) ; i++ ){
-        checksum += dt[i];
-    }
+    unsigned long checksum = 0;
+    checksum += 0x4500;
+    checksum += length;
+    checksum += 1;
+    checksum += 0x4000;
+    checksum += 0x4000 + protocol;
+    checksum += (from >> 16) & 0xFFFF;
+    checksum += from & 0xFFFF; 
+    checksum += (to >> 16) & 0xFFFF;
+    checksum += to & 0xFFFF;
     checksum = (checksum >> 16) + (checksum & 0xffff);
     checksum += (checksum >> 16);
-    ipv4header->checksum = (unsigned short) (~checksum);
+    ipv4header->checksum = switch_endian16((unsigned short) (~checksum));
 }
 
 void fillUdpHeader(struct UDPHeader *udpheader, unsigned char *destmac, unsigned short size,unsigned long from, unsigned long to,unsigned short source_port, unsigned short destination_port){
-    fillIpv4Header((struct IPv4Header*)&udpheader->ipv4header,destmac,sizeof(struct UDPHeader)+size,17,from,to);
-    udpheader->length = sizeof(struct UDPHeader)+size;
-    udpheader->destination_port = destination_port;
-    udpheader->source_port = source_port;
+    fillIpv4Header((struct IPv4Header*)&udpheader->ipv4header,destmac,size,17,from,to);
+    udpheader->length = switch_endian16(size - (sizeof(struct IPv4Header)-sizeof(struct EthernetHeader)));
+    udpheader->destination_port = switch_endian16(destination_port);
+    udpheader->source_port = switch_endian16(source_port);
 
     unsigned short checksum = 0;
     udpheader->checksum = checksum;
@@ -200,7 +208,7 @@ void fillUdpHeader(struct UDPHeader *udpheader, unsigned char *destmac, unsigned
 
 void fillDhcpDiscoverHeader(struct DHCPDISCOVERHeader *dhcpheader){
     unsigned char destmac[SIZE_OF_MAC] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
-    unsigned short size = sizeof(struct DHCPDISCOVERHeader);
+    unsigned short size = sizeof(struct DHCPDISCOVERHeader) - sizeof(struct EthernetHeader);
     fillUdpHeader((struct UDPHeader*)&dhcpheader->udpheader,(unsigned char*)&destmac,size,0,0xFFFFFFFF,68,67);
 }
 
