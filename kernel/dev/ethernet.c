@@ -64,10 +64,11 @@ struct DHCPDISCOVERHeader{
     unsigned long dhcp_offered_machine;
     unsigned long ip_addr_of_dhcp_server;
     unsigned long ip_addr_of_relay;
-    unsigned char chaddr [16];
-    char sname [64];
-    char file [128];
-    char options[312];
+    unsigned char client_mac_addr [16];
+    unsigned char sname [64];
+    unsigned char file [128];
+    unsigned long magic_cookie;
+    unsigned char options[32];
 } __attribute__ ((packed));
 
 unsigned short switch_endian16(unsigned short nb) {
@@ -174,7 +175,7 @@ void fillIpv4Header(struct IPv4Header *ipv4header, unsigned char* destmac, unsig
     ipv4header->total_length = switch_endian16( length );
     ipv4header->id = switch_endian16(1);
     ipv4header->flags = 0;
-    ipv4header->fragment_offset= 0b01000;
+    ipv4header->fragment_offset= 0;//0b01000;
     ipv4header->time_to_live = 64;
     ipv4header->protocol = protocol;
     ipv4header->checksum = 0;
@@ -185,7 +186,7 @@ void fillIpv4Header(struct IPv4Header *ipv4header, unsigned char* destmac, unsig
     checksum += 0x4500;
     checksum += length;
     checksum += 1;
-    checksum += 0x4000;
+    checksum += 0;//0x4000;
     checksum += 0x4000 + protocol;
     checksum += (from >> 16) & 0xFFFF;
     checksum += from & 0xFFFF; 
@@ -198,6 +199,7 @@ void fillIpv4Header(struct IPv4Header *ipv4header, unsigned char* destmac, unsig
 
 void fillUdpHeader(struct UDPHeader *udpheader, unsigned char *destmac, unsigned short size,unsigned long from, unsigned long to,unsigned short source_port, unsigned short destination_port){
     fillIpv4Header((struct IPv4Header*)&udpheader->ipv4header,destmac,size,17,from,to);
+
     udpheader->length = switch_endian16(size - (sizeof(struct IPv4Header)-sizeof(struct EthernetHeader)));
     udpheader->destination_port = switch_endian16(destination_port);
     udpheader->source_port = switch_endian16(source_port);
@@ -218,9 +220,37 @@ unsigned char* getIpAddressFromDHCPServer(){
     dhcpheader->htype = 1;
     dhcpheader->hlen = 6;
     dhcpheader->hops = 0;
-    dhcpheader->xid = 0xCDCD;
+    dhcpheader->xid = 0x26F30339;
     dhcpheader->timing = 0;
     dhcpheader->flags = 0;
+
+    fillMac((unsigned char*)&dhcpheader->client_mac_addr,(unsigned char*)&defaultEthernetDevice.mac);
+    dhcpheader->magic_cookie = 0x63538263;
+    // DHCP Message Type
+    dhcpheader->options[0] = 0x35;
+    dhcpheader->options[1] = 0x01;
+    dhcpheader->options[2] = 0x01;
+    // client identifier
+    dhcpheader->options[3] = 0x3D;
+    dhcpheader->options[4] = 0x07;
+    dhcpheader->options[5] = 0x01;
+    fillMac((unsigned char*)(&dhcpheader->options)+6,(unsigned char*)&defaultEthernetDevice.mac);
+    // requested address
+    dhcpheader->options[12] = 0x32;
+    dhcpheader->options[13] = 0x04;
+    dhcpheader->options[14] = 0x00;
+    dhcpheader->options[15] = 0x00;
+    dhcpheader->options[16] = 0x00;
+    dhcpheader->options[17] = 0x00;
+    //parameter request list
+    dhcpheader->options[18] = 0x37;
+    dhcpheader->options[19] = 0x04;
+    dhcpheader->options[20] = 0x01;
+    dhcpheader->options[21] = 0x03;
+    dhcpheader->options[22] = 0x06;
+    dhcpheader->options[23] = 0x2a;
+    // end
+    dhcpheader->options[24] = 0xFF;
     
     fillDhcpDiscoverHeader(dhcpheader);
     PackageRecievedDescriptor sec;

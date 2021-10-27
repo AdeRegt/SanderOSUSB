@@ -42,16 +42,16 @@ void irq_rtl8169(){
 		printf("[RTL81] Link change detected!\n");
 		ethernet_set_link_status(1);
 		status |= 0x20;
-	}else if(status&0x01){
+	}
+	if(status&0x01){
 		printf("[RTL81] Package recieved!\n");
 		((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0] = 1;
 		status |= 0x01;
-	}else if(status&0x04){
+	}
+	if(status&0x04){
 		printf("[RTL81] Package send!\n");
 		((unsigned volatile long*)((unsigned volatile long)&package_send_ack))[0] = 1;
 		status |= 0x04;
-	}else{
-		printf("[RTL81] Unknown INT %x \n",status);
 	}
 	outportw(bar1 + 0x3E,status);
 	
