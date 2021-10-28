@@ -98,7 +98,6 @@ void rtl_sendPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned
 }
 
 PackageRecievedDescriptor rtl_recievePackage(){
-	((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0] = 0;
 	while(1){ // wait of arival of interrupt
 		unsigned volatile long x = ((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0];
 		if(x==1){
@@ -112,6 +111,7 @@ PackageRecievedDescriptor rtl_recievePackage(){
 	res.buffersize = buffer_size;
 	res.low_buf = desc.low_buf;
 	res.high_buf = desc.high_buf;
+	((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0] = 0;
 	return res;
 }
 

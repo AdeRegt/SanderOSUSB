@@ -3,13 +3,13 @@ kernel.bin:     file format elf32-i386
 
 SYMBOL TABLE:
 00100000 l    d  .text	00000000 .text
-00114cc0 l    d  .text.__x86.get_pc_thunk.dx	00000000 .text.__x86.get_pc_thunk.dx
-00114cc4 l    d  .text.__x86.get_pc_thunk.bx	00000000 .text.__x86.get_pc_thunk.bx
-00114cc8 l    d  .text.__x86.get_pc_thunk.si	00000000 .text.__x86.get_pc_thunk.si
-00114ccc l    d  .text.__x86.get_pc_thunk.ax	00000000 .text.__x86.get_pc_thunk.ax
-00114cd0 l    d  .text.__x86.get_pc_thunk.di	00000000 .text.__x86.get_pc_thunk.di
-00114cd4 l    d  .text.__x86.get_pc_thunk.cx	00000000 .text.__x86.get_pc_thunk.cx
-00114cd8 l    d  .text.__x86.get_pc_thunk.bp	00000000 .text.__x86.get_pc_thunk.bp
+00114cd0 l    d  .text.__x86.get_pc_thunk.dx	00000000 .text.__x86.get_pc_thunk.dx
+00114cd4 l    d  .text.__x86.get_pc_thunk.bx	00000000 .text.__x86.get_pc_thunk.bx
+00114cd8 l    d  .text.__x86.get_pc_thunk.si	00000000 .text.__x86.get_pc_thunk.si
+00114cdc l    d  .text.__x86.get_pc_thunk.ax	00000000 .text.__x86.get_pc_thunk.ax
+00114ce0 l    d  .text.__x86.get_pc_thunk.di	00000000 .text.__x86.get_pc_thunk.di
+00114ce4 l    d  .text.__x86.get_pc_thunk.cx	00000000 .text.__x86.get_pc_thunk.cx
+00114ce8 l    d  .text.__x86.get_pc_thunk.bp	00000000 .text.__x86.get_pc_thunk.bp
 00115000 l    d  .rodata	00000000 .rodata
 00117b3e l    d  .interp	00000000 .interp
 00117b54 l    d  .note.gnu.build-id	00000000 .note.gnu.build-id
@@ -19,8 +19,8 @@ SYMBOL TABLE:
 00117ba4 l    d  .rodata.str1.4	00000000 .rodata.str1.4
 001191ec l    d  .rodata.str1.1	00000000 .rodata.str1.1
 0011a920 l    d  .eh_frame	00000000 .eh_frame
-00121230 l    d  .rodata.cst4	00000000 .rodata.cst4
-00121234 l    d  .rel.dyn	00000000 .rel.dyn
+00121238 l    d  .rodata.cst4	00000000 .rodata.cst4
+0012123c l    d  .rel.dyn	00000000 .rel.dyn
 00122000 l    d  .data	00000000 .data
 001230ec l    d  .dynamic	00000000 .dynamic
 0012317c l    d  .got	00000000 .got
@@ -116,7 +116,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 00000000 l    df *ABS*	00000000 
 001230ec l     O .dynamic	00000000 _DYNAMIC
 001231b8 l     O .got.plt	00000000 _GLOBAL_OFFSET_TABLE_
-00114cd4 g     F .text.__x86.get_pc_thunk.cx	00000000 .hidden __x86.get_pc_thunk.cx
+00114ce4 g     F .text.__x86.get_pc_thunk.cx	00000000 .hidden __x86.get_pc_thunk.cx
 0010ca60 g     F .text	00000024 charstoint
 00111010 g     F .text	00000050 acpiCheckHeader
 00102e72 g     F .text	00000335 ehci_recieve_bulk
@@ -147,7 +147,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 0010ae50 g     F .text	00000057 printf
 00109a90 g     F .text	00000454 vsprintf
 0010463e g     F .text	000000e5 usb_stick_read_raw_sector
-00114cc8 g     F .text.__x86.get_pc_thunk.si	00000000 .hidden __x86.get_pc_thunk.si
+00114cd8 g     F .text.__x86.get_pc_thunk.si	00000000 .hidden __x86.get_pc_thunk.si
 00107090 g     F .text	000000f1 sfs_new_file
 00111330 g     F .text	00000185 acpiEnable
 00145254 g     O .bss	00000002 SCI_EN
@@ -172,7 +172,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 00144ca4 g     O .bss	0000001e pathpart
 00103806 g     F .text	00000559 init_ehci
 00105d80 g     F .text	00000015 resetIDEFire
-00114cd0 g     F .text.__x86.get_pc_thunk.di	00000000 .hidden __x86.get_pc_thunk.di
+00114ce0 g     F .text.__x86.get_pc_thunk.di	00000000 .hidden __x86.get_pc_thunk.di
 00114670 g     F .text	00000018 ethernet_set_link_status
 00145258 g     O .bss	00000001 ACPI_DISABLE
 00145000 g     O .bss	00000140 command_ring_control
@@ -240,7 +240,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 00122040 g     O .data	00000001 u_background
 0010bb80 g     F .text	0000001b getPS2StatusRegisterText
 0014c128 g     O .bss	00000004 deviceid
-00114ccc g     F .text.__x86.get_pc_thunk.ax	00000000 .hidden __x86.get_pc_thunk.ax
+00114cdc g     F .text.__x86.get_pc_thunk.ax	00000000 .hidden __x86.get_pc_thunk.ax
 00124060 g     O .bss	00000001 is_eeprom
 00101a35 g     F .text	0000014a irq_ehci
 00109fe0 g     F .text	00000027 itoa
@@ -284,7 +284,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 00129360 g     O .bss	00000460 filesymboltable
 00146008 g     O .bss	00000004 PORT02
 0014526c g     O .bss	00000004 selected_file_size
-00114cc0 g     F .text.__x86.get_pc_thunk.dx	00000000 .hidden __x86.get_pc_thunk.dx
+00114cd0 g     F .text.__x86.get_pc_thunk.dx	00000000 .hidden __x86.get_pc_thunk.dx
 0012a700 g     O .bss	00018000 memreg
 00100aa0 g     F .text	0000003a soundblaster16_reset
 0010a560 g     F .text	000000dd message
@@ -372,7 +372,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 001230e0 g     O .data	00000004 num_of_rx_descriptors
 0010d810 g     F .text	0000002b irq_vb
 00103d5f g     F .text	000000b6 usb_stick_get_max_lun
-00113f20 g     F .text	00000072 rtl_recievePackage
+00113f20 g     F .text	00000074 rtl_recievePackage
 0010c820 g     F .text	00000024 getNextFreeDevice
 00125014 g     O .bss	00000004 usbctr_addr
 001135b0 g     F .text	00000029 pow
@@ -387,12 +387,12 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 001008b0 g     F .text	00000029 cpuid_get_details
 00100ed0 g     F .text	000000b1 cmos_update_datetime_to_variables
 0010575e g     F .text	00000161 init_idt
-00114b00 g     F .text	000000fa getIpAddressFromDHCPServer
+00114b00 g     F .text	00000106 getIpAddressFromDHCPServer
 00109570 g     F .text	000000a8 init_video
 0010432a g     F .text	0000009b usb_stick_get_scsi_status
 0014c0dc g     O .bss	00000004 ccr_b
 001114c0 g     F .text	000000ac poweroff
-00114cc4 g     F .text.__x86.get_pc_thunk.bx	00000000 .hidden __x86.get_pc_thunk.bx
+00114cd4 g     F .text.__x86.get_pc_thunk.bx	00000000 .hidden __x86.get_pc_thunk.bx
 00145260 g     O .bss	00000001 ACPI_ENABLE
 00111940 g     F .text	00000122 ahci_atapi_eject
 00108dc0 g     F .text	00000050 memcmp
@@ -423,7 +423,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 0010c7e0 g     F .text	00000017 setcwd
 00122014 g     O .data	00000006 ata3
 0010a040 g     F .text	00000023 getpixel
-00114cd8 g     F .text.__x86.get_pc_thunk.bp	00000000 .hidden __x86.get_pc_thunk.bp
+00114ce8 g     F .text.__x86.get_pc_thunk.bp	00000000 .hidden __x86.get_pc_thunk.bp
 001125b0 g     F .text	00000476 detectFilesystemsOnMBR
 00108d90 g     F .text	0000002c memset
 0010105c g     F .text	00000029 e1000_read_in_space
@@ -511,7 +511,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 00146014 g     O .bss	00000004 FRNUM
 0014c0ec g     O .bss	00000004 dummy
 0010e2f4 g     F .text	00000155 xhci_ring_and_wait
-00114c00 g     F .text	000000c0 initialise_ethernet
+00114c10 g     F .text	000000c0 initialise_ethernet
 0012a220 g     O .bss	00000200 tabletable
 0014527c g     O .bss	00000004 last_file_selected_index
 0010ca00 g     F .text	00000050 fwrite

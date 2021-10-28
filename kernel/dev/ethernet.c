@@ -68,7 +68,7 @@ struct DHCPDISCOVERHeader{
     unsigned char sname [64];
     unsigned char file [128];
     unsigned long magic_cookie;
-    unsigned char options[32];
+    unsigned char options[76];
 } __attribute__ ((packed));
 
 unsigned short switch_endian16(unsigned short nb) {
@@ -175,7 +175,7 @@ void fillIpv4Header(struct IPv4Header *ipv4header, unsigned char* destmac, unsig
     ipv4header->total_length = switch_endian16( length );
     ipv4header->id = switch_endian16(1);
     ipv4header->flags = 0;
-    ipv4header->fragment_offset= 0;//0b01000;
+    ipv4header->fragment_offset= 0b01000;
     ipv4header->time_to_live = 64;
     ipv4header->protocol = protocol;
     ipv4header->checksum = 0;
@@ -186,7 +186,7 @@ void fillIpv4Header(struct IPv4Header *ipv4header, unsigned char* destmac, unsig
     checksum += 0x4500;
     checksum += length;
     checksum += 1;
-    checksum += 0;//0x4000;
+    checksum += 0x4000;
     checksum += 0x4000 + protocol;
     checksum += (from >> 16) & 0xFFFF;
     checksum += from & 0xFFFF; 
@@ -222,7 +222,7 @@ unsigned char* getIpAddressFromDHCPServer(){
     dhcpheader->hops = 0;
     dhcpheader->xid = 0x26F30339;
     dhcpheader->timing = 0;
-    dhcpheader->flags = 0;
+    dhcpheader->flags = switch_endian16(0x8000);
 
     fillMac((unsigned char*)&dhcpheader->client_mac_addr,(unsigned char*)&defaultEthernetDevice.mac);
     dhcpheader->magic_cookie = 0x63538263;
@@ -230,37 +230,41 @@ unsigned char* getIpAddressFromDHCPServer(){
     dhcpheader->options[0] = 0x35;
     dhcpheader->options[1] = 0x01;
     dhcpheader->options[2] = 0x01;
-    // client identifier
-    dhcpheader->options[3] = 0x3D;
-    dhcpheader->options[4] = 0x07;
-    dhcpheader->options[5] = 0x01;
-    fillMac((unsigned char*)(&dhcpheader->options)+6,(unsigned char*)&defaultEthernetDevice.mac);
-    // requested address
-    dhcpheader->options[12] = 0x32;
-    dhcpheader->options[13] = 0x04;
-    dhcpheader->options[14] = 0x00;
-    dhcpheader->options[15] = 0x00;
-    dhcpheader->options[16] = 0x00;
-    dhcpheader->options[17] = 0x00;
-    //parameter request list
-    dhcpheader->options[18] = 0x37;
-    dhcpheader->options[19] = 0x04;
-    dhcpheader->options[20] = 0x01;
-    dhcpheader->options[21] = 0x03;
-    dhcpheader->options[22] = 0x06;
-    dhcpheader->options[23] = 0x2a;
+    // parameter request list
+    dhcpheader->options[3] = 0x37;
+    dhcpheader->options[4] = 0x40;
+    dhcpheader->options[5] = 0xfc;
+    for(unsigned char i = 1 ; i < 0x43 ; i++){
+        dhcpheader->options[5+i] = i;
+    }
+    // dhcpheader->options[68] = 0x00;
+    // ip address lease time
+    dhcpheader->options[69] = 0x33;
+    dhcpheader->options[70] = 0x04;
+    dhcpheader->options[71] = 0x00;
+    dhcpheader->options[72] = 0x00;
+    dhcpheader->options[73] = 0x00;
+    dhcpheader->options[74] = 0x01;
     // end
-    dhcpheader->options[24] = 0xFF;
+    dhcpheader->options[75] = 0xFF;
     
     fillDhcpDiscoverHeader(dhcpheader);
     PackageRecievedDescriptor sec;
     sec.buffersize = sizeof(struct DHCPDISCOVERHeader);
     sec.high_buf = 0;
     sec.low_buf = (unsigned long)dhcpheader;
-    sendEthernetPackage(sec,1,1,1,0,0);
-    PackageRecievedDescriptor prd = getEthernetPackage();
+    sendEthernetPackage(sec,1,1,1,0,0); // send package
+    PackageRecievedDescriptor prd;
+    while(1){
+        prd = getEthernetPackage(); 
+        struct EthernetHeader *eh = (struct EthernetHeader*) prd.low_buf;
+        if(eh->type==ETHERNET_TYPE_IP4){
+            break;
+        } 
+    }
     struct DHCPDISCOVERHeader *hd = ( struct DHCPDISCOVERHeader*) prd.low_buf;
-    return (unsigned char*) &hd->dhcp_offered_machine;
+    unsigned char* offeredip = (unsigned char*) &hd->dhcp_offered_machine;
+    return offeredip;
 }
 
 void initialise_ethernet(){
