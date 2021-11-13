@@ -71,6 +71,26 @@ struct DHCPDISCOVERHeader{
     unsigned char options[76];
 } __attribute__ ((packed));
 
+struct DHCPREQUESTHeader{
+    struct UDPHeader udpheader;
+    unsigned char op;
+    unsigned char htype;
+    unsigned char hlen;
+    unsigned char hops;
+    unsigned long xid;
+    unsigned short timing;
+    unsigned short flags;
+    unsigned long address_of_machine;
+    unsigned long dhcp_offered_machine;
+    unsigned long ip_addr_of_dhcp_server;
+    unsigned long ip_addr_of_relay;
+    unsigned char client_mac_addr [16];
+    unsigned char sname [64];
+    unsigned char file [128];
+    unsigned long magic_cookie;
+    unsigned char options[25];
+} __attribute__ ((packed));
+
 unsigned short switch_endian16(unsigned short nb) {
     return (nb>>8) | (nb<<8);
 }
@@ -214,6 +234,12 @@ void fillDhcpDiscoverHeader(struct DHCPDISCOVERHeader *dhcpheader){
     fillUdpHeader((struct UDPHeader*)&dhcpheader->udpheader,(unsigned char*)&destmac,size,0,0xFFFFFFFF,68,67);
 }
 
+void fillDhcpRequestHeader(struct DHCPREQUESTHeader *dhcpheader){
+    unsigned char destmac[SIZE_OF_MAC] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+    unsigned short size = sizeof(struct DHCPREQUESTHeader) - sizeof(struct EthernetHeader);
+    fillUdpHeader((struct UDPHeader*)&dhcpheader->udpheader,(unsigned char*)&destmac,size,0,0xFFFFFFFF,68,67);
+}
+
 unsigned char* getIpAddressFromDHCPServer(){
     struct DHCPDISCOVERHeader *dhcpheader = (struct DHCPDISCOVERHeader *)malloc(sizeof(struct DHCPDISCOVERHeader));
     dhcpheader->op = 1;
@@ -262,8 +288,62 @@ unsigned char* getIpAddressFromDHCPServer(){
             break;
         } 
     }
+    printf("[ETH] Got offer\n");
     struct DHCPDISCOVERHeader *hd = ( struct DHCPDISCOVERHeader*) prd.low_buf;
     unsigned char* offeredip = (unsigned char*) &hd->dhcp_offered_machine;
+
+    free(dhcpheader);
+
+    struct DHCPREQUESTHeader *dhcp2header = (struct DHCPREQUESTHeader *)malloc(sizeof(struct DHCPREQUESTHeader));
+    dhcp2header->op = 1;
+    dhcp2header->htype = 1;
+    dhcp2header->hlen = 6;
+    dhcp2header->hops = 0;
+    dhcp2header->xid = 0x2CF30339;
+    dhcp2header->timing = 0;
+    dhcp2header->flags = switch_endian16(0x8000);
+
+    fillMac((unsigned char*)&dhcp2header->client_mac_addr,(unsigned char*)&defaultEthernetDevice.mac);
+    dhcp2header->magic_cookie = 0x63538263;
+
+    // DHCP Message Type
+    dhcp2header->options[0] = 0x35;
+    dhcp2header->options[1] = 0x01;
+    dhcp2header->options[2] = 0x03;
+    // Client identifier
+    dhcp2header->options[3] = 0x3d;
+    dhcp2header->options[4] = 0x07;
+    dhcp2header->options[5] = 0x01;
+    fillMac((unsigned char*)(&dhcp2header->options)+6,(unsigned char*)&defaultEthernetDevice.mac);
+    // Requested IP addr
+    dhcp2header->options[12] = 0x32;
+    dhcp2header->options[13] = 0x04;
+    fillMac((unsigned char*)(&dhcp2header->options)+14,offeredip);
+    // DHCP Server identifier
+    dhcp2header->options[18] = 0x36;
+    dhcp2header->options[19] = 0x04;
+    fillMac((unsigned char*)(&dhcp2header->options)+20,(unsigned char*)&hd->ip_addr_of_dhcp_server);
+    dhcp2header->options[22] = 0xFF;
+
+    fillDhcpRequestHeader(dhcp2header);
+
+    PackageRecievedDescriptor s3c;
+    s3c.buffersize = sizeof(struct DHCPREQUESTHeader);
+    s3c.high_buf = 0;
+    s3c.low_buf = (unsigned long)dhcp2header;
+    printf("__WPA\n");
+    sendEthernetPackage(s3c,1,1,1,0,0); // send package
+    printf("__WPB\n");
+    PackageRecievedDescriptor p3d;
+    while(1){
+        p3d = getEthernetPackage(); 
+        struct EthernetHeader *eh = (struct EthernetHeader*) p3d.low_buf;
+        if(eh->type==ETHERNET_TYPE_IP4){
+            break;
+        } 
+    }
+    printf("[ETH] Got Approval\n");
+
     return offeredip;
 }
 

@@ -119,7 +119,7 @@ struct e1000_tx_desc {
 #define TSTA_LC                         (1 << 2)    // Late Collision
 #define LSTA_TU                         (1 << 3)    // Transmit Underrun
 
-#define E1000_NUM_RX_DESC 32
+#define E1000_NUM_RX_DESC 512
 #define E1000_NUM_TX_DESC 8
 
 unsigned long base_addr;
@@ -187,8 +187,8 @@ void e1000_send_package(PackageRecievedDescriptor desc,unsigned char first,unsig
     tx_descs[tx_cur]->status = 0;
     unsigned char old_cur = tx_cur;
     tx_cur = (tx_cur + 1) % E1000_NUM_TX_DESC;
-    e1000_write_in_space(REG_TXDESCTAIL, tx_cur);   
-    while(!(tx_descs[old_cur]->status & 0xff));    
+    e1000_write_in_space(REG_TXDESCTAIL, tx_cur);
+    while(!(tx_descs[old_cur]->status & 0xff));     
     debugf(" Stuff sended! (loc=%x, %x %x %x %x %x)\n",desc.low_buf,first,last,ip,udp,tcp);
     return;
 }
@@ -203,7 +203,7 @@ void e1000_enable_int(){
 void e1000_link_up(){
     unsigned long ty = e1000_read_in_space(0);
     e1000_write_in_space(0, ty | 0x40);
-    debugf("[E1000] Link is up!\n");
+    printf("[E1000] Link is up!\n");
 }
 
 PackageRecievedDescriptor e1000_recieve_package(){
@@ -272,6 +272,8 @@ void init_e1000(int bus,int slot,int function){
     for(int i = 0; i < 0x80; i++){
         e1000_write_in_space(0x5200 + (i * 4), 0);
     }
+    e1000_write_in_space(0xD0,0x1F6DC);
+    e1000_read_in_space(0xC0);
 
     //
     // set reciever
@@ -281,11 +283,12 @@ void init_e1000(int bus,int slot,int function){
     ptr = (unsigned char *)(malloc(sizeof(struct e1000_rx_desc)*E1000_NUM_RX_DESC + 16));
  
     descs = (struct e1000_rx_desc *)ptr;
-    for(int i = 0; i < E1000_NUM_RX_DESC; i++)
+    for(int i = 0; i < 8; i++)
     {
         rx_descs[i] = (struct e1000_rx_desc *)((unsigned char *)descs + i*16);
         rx_descs[i]->addr_1 = (unsigned long)(unsigned char *)(malloc(8192 + 16));
         rx_descs[i]->status = 0;
+        rx_descs[i]->length = 0x3000;
     }
  
     e1000_write_in_space(REG_TXDESCLO, (unsigned long) ptr);
@@ -297,7 +300,7 @@ void init_e1000(int bus,int slot,int function){
     e1000_write_in_space(REG_RXDESCLEN, E1000_NUM_RX_DESC * 16);
  
     e1000_write_in_space(REG_RXDESCHEAD, 0);
-    e1000_write_in_space(REG_RXDESCTAIL, E1000_NUM_RX_DESC-1);
+    e1000_write_in_space(REG_RXDESCTAIL, 31);
     rx_cur = 0;
     e1000_write_in_space(REG_RCTRL, RCTL_EN| RCTL_SBP| RCTL_UPE | RCTL_MPE | RCTL_LBM_NONE | RTCL_RDMTS_HALF | RCTL_BAM | RCTL_SECRC  | RCTL_BSIZE_8192);
     
@@ -311,31 +314,27 @@ void init_e1000(int bus,int slot,int function){
     for(int i = 0; i < E1000_NUM_TX_DESC; i++)
     {
         tx_descs[i] = (struct e1000_tx_desc *)((unsigned char*)descs2 + i*16);
-        tx_descs[i]->addr_1 = 0;
+        tx_descs[i]->addr_1 = (unsigned long)malloc(0x3000);
         tx_descs[i]->cmd = 0;
+        tx_descs[i]->length = 0x3000;
         tx_descs[i]->status = TSTA_DD;
     }
  
-    e1000_write_in_space(REG_TXDESCHI, (unsigned long)ptr2 );
-    e1000_write_in_space(REG_TXDESCLO, 0);
+    e1000_write_in_space(REG_TXDESCLO, (unsigned long)ptr2 );
+    e1000_write_in_space(REG_TXDESCHI, 0);
  
     e1000_write_in_space(REG_TXDESCLEN, E1000_NUM_TX_DESC * 16);
  
     e1000_write_in_space( REG_TXDESCHEAD, 0);
-    e1000_write_in_space( REG_TXDESCTAIL, 0);
+    e1000_write_in_space( REG_TXDESCTAIL, 7);
     tx_cur = 0;
-    e1000_write_in_space(REG_TCTRL,  TCTL_EN
-        | TCTL_PSP
-        | (15 << TCTL_CT_SHIFT)
-        | (64 << TCTL_COLD_SHIFT)
-        | TCTL_RTLC);
- 
-    e1000_write_in_space(REG_TCTRL,  0b0110000000000111111000011111010);
+    e1000_write_in_space(0x3828,  (0x01000000 | 0x003F0000));
+    e1000_write_in_space(REG_TCTRL,  ( 0x00000ff0 | 0x003ff000 | 0x00000008 | 0x00000002));
     e1000_write_in_space(REG_TIPG,  0x0060200A);
 
     //
     // set interrupts
-    e1000_enable_int();
+    // e1000_enable_int();
     e1000_link_up();
 
     //

@@ -137,7 +137,7 @@ void init_rtl(int bus,int slot,int function){
 	setNormalInt(usbint,(unsigned long)rtl8169irq);
 
 	// enable device
-	outportb( bar1 + 0x52, 0x0);
+	// outportb( bar1 + 0x52, 0x0);
 	
 	//
 	// trigger reset
