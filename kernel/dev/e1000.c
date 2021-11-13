@@ -158,22 +158,22 @@ unsigned char e1000_is_eeprom(){
 }
 
 void irq_e1000(){
-	printf("[E1000] Interrupt detected\n");
+	// printf("[E1000] Interrupt detected\n");
     e1000_write_in_space(0xD0,1);
     unsigned long to = e1000_read_in_space(0xC0);
     if(to&0x01){
-        printf("[E1000] Transmit completed!\n");
+        debugf("[E1000] Transmit completed!\n");
     }else if(to&0x02){
-        printf("[E1000] Transmit queue empty!\n");
+        debugf("[E1000] Transmit queue empty!\n");
     }else if(to&0x04){
-        printf("[E1000] Link change!\n");
+        debugf("[E1000] Link change!\n");
     }else if(to&0x80){
-        printf("[E1000] Package recieved!\n");
+        debugf("[E1000] Package recieved!\n");
 		((unsigned volatile long*)((unsigned volatile long)&e1000_package_recieved_ack))[0] = 1;
     }else if(to&0x10){
-        printf("[E1000] THG!\n");
+        debugf("[E1000] THG!\n");
     }else{
-        printf("[E1000] Unknown interrupt: %x !\n",to);
+        debugf("[E1000] Unknown interrupt: %x !\n",to);
     }
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
@@ -207,7 +207,6 @@ void e1000_link_up(){
 }
 
 PackageRecievedDescriptor e1000_recieve_package(){
-    ((unsigned volatile long*)((unsigned volatile long)&e1000_package_recieved_ack))[0] = 0;
 	while(1){ // wait of arival of interrupt
 		unsigned volatile long x = ((unsigned volatile long*)((unsigned volatile long)&e1000_package_recieved_ack))[0];
 		if(x==1){
@@ -231,6 +230,7 @@ PackageRecievedDescriptor e1000_recieve_package(){
         rx_cur = (rx_cur + 1) % E1000_NUM_RX_DESC;
         e1000_write_in_space(REG_RXDESCTAIL, old_cur );
     }
+    ((unsigned volatile long*)((unsigned volatile long)&e1000_package_recieved_ack))[0] = 0;
 	return prd;
 }
 

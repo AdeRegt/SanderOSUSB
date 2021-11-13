@@ -285,7 +285,10 @@ unsigned char* getIpAddressFromDHCPServer(){
         prd = getEthernetPackage(); 
         struct EthernetHeader *eh = (struct EthernetHeader*) prd.low_buf;
         if(eh->type==ETHERNET_TYPE_IP4){
-            break;
+            struct DHCPDISCOVERHeader *hd5 = ( struct DHCPDISCOVERHeader*) prd.low_buf;
+            if(hd5->options[2]==2&&hd5->xid==dhcpheader->xid){
+                break;
+            }
         } 
     }
     printf("[ETH] Got offer\n");
@@ -323,7 +326,7 @@ unsigned char* getIpAddressFromDHCPServer(){
     dhcp2header->options[18] = 0x36;
     dhcp2header->options[19] = 0x04;
     fillMac((unsigned char*)(&dhcp2header->options)+20,(unsigned char*)&hd->ip_addr_of_dhcp_server);
-    dhcp2header->options[22] = 0xFF;
+    dhcp2header->options[24] = 0xFF;
 
     fillDhcpRequestHeader(dhcp2header);
 
@@ -331,15 +334,16 @@ unsigned char* getIpAddressFromDHCPServer(){
     s3c.buffersize = sizeof(struct DHCPREQUESTHeader);
     s3c.high_buf = 0;
     s3c.low_buf = (unsigned long)dhcp2header;
-    printf("__WPA\n");
     sendEthernetPackage(s3c,1,1,1,0,0); // send package
-    printf("__WPB\n");
     PackageRecievedDescriptor p3d;
     while(1){
         p3d = getEthernetPackage(); 
         struct EthernetHeader *eh = (struct EthernetHeader*) p3d.low_buf;
         if(eh->type==ETHERNET_TYPE_IP4){
-            break;
+            struct DHCPDISCOVERHeader *hd5 = ( struct DHCPDISCOVERHeader*) p3d.low_buf;
+            if(hd5->options[2]==5&&hd5->xid==dhcp2header->xid){
+                break;
+            }
         } 
     }
     printf("[ETH] Got Approval\n");
