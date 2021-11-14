@@ -356,9 +356,16 @@ void initialise_ethernet(){
     EthernetDevice ed = getDefaultEthernetDevice();
     if(ed.is_enabled){
         printf("[ETH] There is a ethernet device present on the system!\n");
-        printf("[ETH] Looking for DHCP server....\n");
-        fillIP((unsigned char*)&our_ip,getIpAddressFromDHCPServer());
+        printf("[ETH] Asking DHCP server for our address....\n");
+        unsigned char *dhcpid = getIpAddressFromDHCPServer();
+        if(dhcpid){
+            fillIP((unsigned char*)&our_ip,dhcpid);
+            printf("[ETH] DHCP is present\n");
+        }else{
+            printf("[ETH] No DHCP server present here, using static address\n");
+            unsigned char dinges[8] = {192,168,178,15};   
+            fillIP((unsigned char*)&our_ip,(unsigned char*)&dinges);
+        }
         printf("[ETH] Our IP is %d:%d:%d:%d \n",our_ip[0],our_ip[1],our_ip[2],our_ip[3]);
     }
-    for(;;);
 }
