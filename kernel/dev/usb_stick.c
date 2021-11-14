@@ -147,7 +147,7 @@ char usb_stick_abort_commands(USB_DEVICE *device){
 	bufout->cmd[3] = 0;
 	bufout->cmd[4] = bufinsize;
 	bufout->cmd[5] = 0;
-	unsigned char* bufin = usb_stick_send_and_recieve_scsi_command(device,(unsigned char*)bufout,bufinsize,bufoutsize);
+	usb_stick_send_and_recieve_scsi_command(device,(unsigned char*)bufout,bufinsize,bufoutsize);
 	return 1;
 }
 
