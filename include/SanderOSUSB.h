@@ -1,5 +1,8 @@
 #define STDIO 1
-#define NULL 0
+
+#ifndef NULL
+    #define NULL 0
+#endif 
 
 #ifndef D_EXIT
 	#define D_EXIT
