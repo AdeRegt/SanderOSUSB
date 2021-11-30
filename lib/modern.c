@@ -17,20 +17,36 @@ int strcmp(const char *str1, const char *str2){
     return 0;
 }
 
+// defined in other lib
+void *malloc(size_t size);
+
 void *calloc(size_t nitems, size_t size){
-    return (void *)malloc(size);
+    return (void *)malloc(nitems*size);
 }
 
 void *memcpy(void *dest, const void * src, size_t n){
-    
+    char *d = dest;
+    const char *s = src;
+    while (n--){
+        *d++ = *s++;
+    }
+    return dest;
 }
 
 void *memset(void *str, int c, size_t n){
-
+    unsigned char *ptr = str;
+    while (n-- > 0){
+        *ptr++ = c;
+    }
+    return str;
 }
 
 char *strncpy(char *dest, const char *src, size_t n){
-
+    size_t size = strlen (src);
+    if (size != n){
+        memset (dest + size, '\0', n - size);
+    }
+    return memcpy (dest, src, size);
 }
 
 typedef int FILE;
@@ -46,7 +62,12 @@ int getc(FILE *stream){}
 
 char *realpath(const char * file_name,char * resolved_name){}
 
-int printf(const char *format, ...){}
+// defined in other lib
+signed long write(int fd, const char *buf, unsigned long nbytes);
+
+int printf(const char *format, ...){
+    return write(1,format,strlen(format));
+}
 
 int sprintf(char *str, const char *format, ...){}
 
@@ -71,14 +92,26 @@ void *realloc(void *ptr, size_t size){}
 
 char* stpcpy(char *a, const char *b){}
 
-int tolower(int c){}
+int tolower(int c){
+    return c+32;
+}
 
 long int strtol(const char *str, char **endptr, int base){}
 
-int isalpha(int c){}
+int isalpha(int c){
+    return c > 64 && c < 123;
+}
 
 long long atoll(const char *nptr){}
 
-int isdigit(int c){}
+int isdigit(int c){
+    return c > 47 && c < 58;
+}
 
-int system(const char *string){}
+int system(const char *string){
+    if(string==0){
+        return 0; // show command processor is not avialable
+    }else{
+        return 0xCD; // function not found!
+    }
+}

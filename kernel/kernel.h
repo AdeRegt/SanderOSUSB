@@ -401,7 +401,7 @@ void ethernet_set_link_status(unsigned long a);
 void register_ethernet_device(unsigned long sendPackage,unsigned long recievePackage,unsigned char mac[8]);
 EthernetDevice getDefaultEthernetDevice();
 PackageRecievedDescriptor getEthernetPackage();
-void sendEthernetPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp);
+int sendEthernetPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp);
 void initialise_ethernet();
 //void dirdev();
 

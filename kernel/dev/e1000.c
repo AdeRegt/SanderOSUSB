@@ -179,7 +179,7 @@ void irq_e1000(){
 	outportb(0x20,0x20);
 }
 
-void e1000_send_package(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp){
+int e1000_send_package(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp){
     tx_descs[tx_cur]->addr_1 = (unsigned long)desc.low_buf;
     tx_descs[tx_cur]->addr_2 = (unsigned long)desc.high_buf;
     tx_descs[tx_cur]->length = desc.buffersize;
@@ -188,9 +188,16 @@ void e1000_send_package(PackageRecievedDescriptor desc,unsigned char first,unsig
     unsigned char old_cur = tx_cur;
     tx_cur = (tx_cur + 1) % E1000_NUM_TX_DESC;
     e1000_write_in_space(REG_TXDESCTAIL, tx_cur);
-    while(!(tx_descs[old_cur]->status & 0xff));     
+    int to = 0;
+    while(!(tx_descs[old_cur]->status & 0xff)){
+        sleep(1);
+        to++;
+        if(to>500){
+            return 0;
+        }
+    }     
     debugf(" Stuff sended! (loc=%x, %x %x %x %x %x)\n",desc.low_buf,first,last,ip,udp,tcp);
-    return;
+    return 1;
 }
 
 void e1000_enable_int(){

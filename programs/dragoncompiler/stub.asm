@@ -10,11 +10,13 @@ section '.text' executable
 	
 _start:
 	push _char_c
-	push 3
+	push 5
 	call main
 	ret
 
-filenamebuffer: db 'A@PRGS/TEGT.C', 0
+filenamebuffer: db 'A@PRGS/CODE.C', 0
 fileoutbuffer: db 'A@PRGS/TEGT.ASM', 0
 fasm: db './compiler.bin', 0
-_char_c dd fasm, filenamebuffer, fileoutbuffer
+dashm: db '-m', 0
+ten: db '10', 0
+_char_c dd fasm, filenamebuffer, fileoutbuffer, dashm, ten
