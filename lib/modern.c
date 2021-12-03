@@ -1,4 +1,5 @@
 #include "../include/string.h"
+#define NULL 0
 
 int strcmp(const char *str1, const char *str2){
     int p = 0;
@@ -90,19 +91,58 @@ size_t strlen(const char *str){
 
 void *realloc(void *ptr, size_t size){}
 
-char* stpcpy(char *a, const char *b){}
+char* stpcpy(char *dest, const char *src){
+    while((*dest++ = *src++) != '\0');
+    return --dest;
+}
 
 int tolower(int c){
     return c+32;
 }
 
-long int strtol(const char *str, char **endptr, int base){}
+long int strtol(const char *str, char **endptr, int base){
+    long int result = 0;
+        int pointer = strlen(str)-1;
+        int min = -1;
+        if(base==16){
+                for(size_t i = 0 ; i < strlen(str) ; i++){
+                        if(str[i]=='x'){
+                                min = i;
+                        }
+                }
+        }
+        int power = 1;
+        for(int i = pointer ; i > min ; i--){
+                char deze = str[i];
+                if(base==10){
+                        if(deze>='0'&&deze<='9'){
+                                char t = deze-'0';
+                                result += (t*power);
+                        }
+                        power *= 10;
+                }else if(base==16){
+                        int t = 0;
+                        if(deze>='0'&&deze<='9'){
+                                t = deze-'0';
+                        }else if(deze>='A'&&deze<='Z'){
+                                t = 10+(deze-'A');
+                        }else if(deze>='a'&&deze<='z'){
+                                t = 10+(deze-'a');
+                        }
+                        result += t*(16^(power-1));
+                        power++;
+                }
+        }
+        return result;
+}
 
 int isalpha(int c){
     return c > 64 && c < 123;
 }
 
-long long atoll(const char *nptr){}
+long long atoll(const char *nptr){
+    return strtol (nptr, (char **) NULL, 10);
+}
 
 int isdigit(int c){
     return c > 47 && c < 58;

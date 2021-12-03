@@ -5,6 +5,7 @@
 	format	ELF
 	public	_start
 	extrn main
+	extrn exit
 	
 section '.text' executable
 	
@@ -12,6 +13,9 @@ _start:
 	push _char_c
 	push 5
 	call main
+	; exit
+	push 0
+	call exit
 	ret
 
 filenamebuffer: db 'A@PRGS/CODE.C', 0
