@@ -95,6 +95,7 @@ void fault_handler(Register *r){
     }
 	debugf("+------------------------------------------------\n");
 	printf("\n\n System halted \n\n");
+	asm volatile("cli");
 	asm volatile("hlt");
 }
 

@@ -191,7 +191,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 00109407 g     F .text	00000027 getTicks
 00112190 g     F .text	000000c4 ahci_ata_init
 001145b0 g     F .text	0000014b irq_rtl8169
-00104e78 g     F .text	0000025b fault_handler
+00104e78 g     F .text	0000025c fault_handler
 00100df0 g     F .text	00000082 usb_device_install
 0012a328 g     O .bss	00000006 idtp
 0010b980 g     F .text	0000003f hexdump
@@ -292,7 +292,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 00111a80 g     F .text	00000030 stop_cmd
 0014d03c g     O .bss	00000004 usb_stick_preform_on_sector_2_times
 00104990 g     F .text	0000002e paging_clear_directory_pages
-00105cc4 g     F .text	000000c4 gdt_set_gate
+00105cc5 g     F .text	000000c4 gdt_set_gate
 0014d068 g     O .bss	00000004 curx
 00114250 g     F .text	00000011 usb_get_keyboard
 00102c5f g     F .text	0000021d ehci_send_bulk
@@ -359,7 +359,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 0010c860 g     F .text	00000053 irq_keyboard
 0014d0d8 g     O .bss	00000004 oldx
 0014700c g     O .bss	00000004 USBINT
-0010515b g     F .text	00000a08 special_handler
+0010515c g     F .text	00000a08 special_handler
 00114470 g     F .text	0000013a rtl_sendPackage
 0014d130 g     O .bss	00000004 interrupter_1
 0014d0cc g     O .bss	00000001 old11z
@@ -388,7 +388,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 00109f50 g     F .text	00000024 drawchar
 001008b0 g     F .text	00000029 cpuid_get_details
 00100ed0 g     F .text	000000b1 cmos_update_datetime_to_variables
-00105b63 g     F .text	00000161 init_idt
+00105b64 g     F .text	00000161 init_idt
 00115000 g     F .text	000002a8 getIpAddressFromDHCPServer
 00109a80 g     F .text	000000a8 init_video
 00104334 g     F .text	0000009b usb_stick_get_scsi_status
@@ -398,7 +398,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 00146260 g     O .bss	00000001 ACPI_ENABLE
 00111e10 g     F .text	00000122 ahci_atapi_eject
 001091d0 g     F .text	00000050 memcmp
-00105d88 g     F .text	0000007b init_gdt
+00105d89 g     F .text	0000007b init_gdt
 0010bfd9 g       .text	00000000 timerirq
 00106850 g     F .text	000000e7 ata_read_sector
 00114c70 g     F .text	0000001c fillIP
@@ -432,7 +432,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 0010b380 g     F .text	0000019b browse
 0014d144 g     O .bss	00000001 framelistpointer
 00106bc0 g     F .text	00000626 init_ide_device
-0010510c g     F .text	0000004f exit_program_and_wait_for_keypress
+0010510d g     F .text	0000004f exit_program_and_wait_for_keypress
 0010be8d g       .text	00000000 idt_load
 0014d11c g     O .bss	00000004 erstsz
 001240c4 g     O .data	00000004 ccr_y
@@ -492,7 +492,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 0010bf6a g       .text	00000000 rtl8169irq
 00125884 g     O .bss	00000004 base_addr
 0014d104 g     O .bss	00000004 pagesize
-001050d3 g     F .text	00000039 irq_handler
+001050d4 g     F .text	00000039 irq_handler
 00146261 g     O .bss	00000001 PM1_CNT_LEN
 0010135f g     F .text	0000005b e1000_enable_int
 0010e2d9 g     F .text	0000007d xhci_seek_end_event_queue
