@@ -196,7 +196,7 @@ int e1000_send_package(PackageRecievedDescriptor desc,unsigned char first,unsign
             return 0;
         }
     }     
-    debugf(" Stuff sended! (loc=%x, %x %x %x %x %x)\n",desc.low_buf,first,last,ip,udp,tcp);
+    // debugf(" Stuff sended! (loc=%x, %x %x %x %x %x)\n",desc.low_buf,first,last,ip,udp,tcp);
     return 1;
 }
 
@@ -214,31 +214,48 @@ void e1000_link_up(){
 }
 
 PackageRecievedDescriptor e1000_recieve_package(){
-	while(1){ // wait of arival of interrupt
-		unsigned volatile long x = ((unsigned volatile long*)((unsigned volatile long)&e1000_package_recieved_ack))[0];
-		if(x==1){
-			break;
-		}
-	}
-
     PackageRecievedDescriptor prd;
-    unsigned short old_cur;
+    while(1){
+        for(int i = 0 ; i < E1000_NUM_RX_DESC ; i++){
+            if((rx_descs[i]->status & 0x1))
+            {
+                unsigned char *buf = (unsigned char *)rx_descs[i]->addr_1;
+                unsigned short len = rx_descs[i]->length;
+                prd.buffersize = len;
+                prd.high_buf = 0;
+                prd.low_buf = (unsigned long)buf;
 
-    if((rx_descs[rx_cur]->status & 0x1))
-    {
-        unsigned char *buf = (unsigned char *)rx_descs[rx_cur]->addr_1;
-        unsigned short len = rx_descs[rx_cur]->length;
-        prd.buffersize = len;
-        prd.high_buf = 0;
-        prd.low_buf = (unsigned long)buf;
-
-        rx_descs[rx_cur]->status = 0;
-        old_cur = rx_cur;
-        rx_cur = (rx_cur + 1) % E1000_NUM_RX_DESC;
-        e1000_write_in_space(REG_RXDESCTAIL, old_cur );
+                rx_descs[i]->status &= ~1;
+                e1000_write_in_space(REG_RXDESCTAIL, i );
+                return prd;
+            }
+        }
     }
-    ((unsigned volatile long*)((unsigned volatile long)&e1000_package_recieved_ack))[0] = 0;
-	return prd;
+	// while(1){ // wait of arival of interrupt
+	// 	unsigned volatile long x = ((unsigned volatile long*)((unsigned volatile long)&e1000_package_recieved_ack))[0];
+	// 	if(x==1){
+	// 		break;
+	// 	}
+	// }
+
+    // PackageRecievedDescriptor prd;
+    // unsigned short old_cur;
+
+    // if((rx_descs[rx_cur]->status & 0x1))
+    // {
+    //     unsigned char *buf = (unsigned char *)rx_descs[rx_cur]->addr_1;
+    //     unsigned short len = rx_descs[rx_cur]->length;
+    //     prd.buffersize = len;
+    //     prd.high_buf = 0;
+    //     prd.low_buf = (unsigned long)buf;
+
+    //     rx_descs[rx_cur]->status = 0;
+    //     old_cur = rx_cur;
+    //     rx_cur = (rx_cur + 1) % E1000_NUM_RX_DESC;
+    //     e1000_write_in_space(REG_RXDESCTAIL, old_cur );
+    // }
+    // ((unsigned volatile long*)((unsigned volatile long)&e1000_package_recieved_ack))[0] = 0;
+	// return prd;
 }
 
 void init_e1000(int bus,int slot,int function){

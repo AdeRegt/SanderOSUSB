@@ -113,6 +113,8 @@ if [ "$1" = "--grub" ]
 		mkdir mnt
 		mkdir mnt/prgs
 		cp programs/*.bin mnt/prgs
+		echo "int main(){return 1;}" >> mnt/prgs/code.c # this is a example code to test Daniels compiler
+		echo "ret" >> mnt/prgs/tegt.asm
 		mkdir mnt/boot
 		mkdir mnt/boot/grub
 		cp kernel.bin mnt/kernel.bin

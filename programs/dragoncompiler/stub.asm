@@ -14,7 +14,7 @@ _start:
 	push 5
 	call main
 	; exit
-	push 0
+	push eax ; exitcode van main zit in eax
 	call exit
 	ret
 

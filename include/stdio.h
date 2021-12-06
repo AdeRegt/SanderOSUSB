@@ -8,7 +8,7 @@
 #ifndef lock_filepointer
 	#define lock_filepointer
 	typedef int FILE;
-	#define EOF -1
+	#define EOF 0
 	FILE *stdout;
 	FILE *stderr;
 #endif

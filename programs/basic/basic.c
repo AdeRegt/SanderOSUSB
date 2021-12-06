@@ -1,6 +1,7 @@
 #include <symbols.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define BUFFER_INIT_SIZE 0x1000
 #define MAX_SIZE_STRING 128
@@ -188,7 +189,7 @@ int nativeFunctionIsPresent(char* name,int strlen){
 	int result = 0;
 	for(int i = 0 ; i < functiontablepointer ; i++){
 		if(functiontable[i].length==strlen){
-			if(strcmp(name,functiontable[i].name,strlen)){
+			if(strcmp(name,functiontable[i].name)){
 				result = i+1;
 			}
 		}

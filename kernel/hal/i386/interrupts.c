@@ -79,11 +79,21 @@ void fault_handler(Register *r){
 	struct stackframe *stk = NULL;
 	__asm__("movl %%ebp, %[stk]" :  /* output */ [stk] "=r" (stk));
     // asm volatile ("movl %%ebp,%0" : "r"(stk) ::);
+	debugf("\n\n");
+	debugf("/===============================================\\\n");
+	debugf("| K E R N E L   P A N I C   S T A C K T R A C E |\n");
+	debugf("+===============================================+\n");
+	debugf("| EIP=%x \n",r->eip);
+	debugf("| EAX=%x EBX=%x ECX=%x EDX=%x \n",r->eax,r->ebx,r->ecx,r->edx);
+	debugf("+------------------------------------------------\n");
+	debugf("| Stacktrace:\n");
     for(int i = 0; i < 5 && stk != NULL; stk = stk->ebp, i++)
     {
         // Unwind to previous stack frame
         printf("[ %x ]> %x \n", i, ((unsigned long)stk->eip) & 0xFFFFFFFF);
+		debugf("| --> %x \n",((unsigned long)stk->eip) & 0xFFFFFFFF);
     }
+	debugf("+------------------------------------------------\n");
 	printf("\n\n System halted \n\n");
 	asm volatile("hlt");
 }
@@ -112,6 +122,7 @@ typedef struct {
 	unsigned char inuse;
 	void *pointer;
 	char filename[100];
+	unsigned long maxsize;
 }FileSymbol;
 
 #define MAX_FILE_SYMBOLS 10
@@ -119,10 +130,11 @@ FileSymbol filesymboltable[MAX_FILE_SYMBOLS];
 
 void special_handler(Register *r){
 	outportb(0xA0,0x20);
-	outportb(0x20,0x20);//printf("OKE: eax=%x \n",r->eax);__asm__ __volatile__("cli\nhlt"); for(;;);
+	outportb(0x20,0x20);// printf("OKE: eax=%x \n",r->eax);__asm__ __volatile__("cli\nhlt"); for(;;);
+	debugf("INT0x80: EIP=%x \n",r->eip);
 
 	if(r->eax==0x01){ // EXIT
-    		printf("\nProgram finished!\n");
+    		printf("INT0x80: PROGRAM FINISHED\n");
 			if(r->ebx){
 				r->eip = (unsigned long)exit_program_and_wait_for_keypress;
 			}else{
@@ -130,7 +142,7 @@ void special_handler(Register *r){
 			}
 	}
 	else if(r->eax==0x03){ // F-READ
-		printf("INT0x80: READ\n");
+		debugf("INT0x80: READ\n");
 		if(r->ebx==1){ // FROM STDOUT
 			volatile unsigned char kt = ((volatile unsigned char*)&keyword)[0];
 			((unsigned char*)r->ecx)[0] = kt;
@@ -138,9 +150,12 @@ void special_handler(Register *r){
 		}else{ // TO FILE
 			if(filesymboltable[r->ebx-3].inuse){
 				memset((char*)r->ecx,r->edx,0);
-				memcpy((char*)filesymboltable[r->ebx-3].pointer,(char*)r->ecx,r->edx);
+				memcpy((char*)(filesymboltable[r->ebx-3].pointer + filesymboltable[r->ebx-3].ftell) ,(char*)r->ecx,r->edx);
 				r->eax = r->edx;
 				((char*)r->ecx)[r->edx+0] = 0x00;
+				((char*)r->ecx)[r->edx+1] = 0x00;
+				((char*)r->ecx)[r->edx+3] = 0x00;
+				((char*)r->ecx)[r->edx+4] = 0xCD;
 			}else{
 				printf("not allowed call\n");for(;;);
 			}
@@ -148,6 +163,7 @@ void special_handler(Register *r){
 		r->eax=r->edx;
 	}
 	else if(r->eax==0x04){ // F-WRITE
+		debugf("INT0x80: WRITE\n");
 		if(r->ebx==1||r->ebx==2){ // TO STDOUT OR STDERR
 			const char *buf = (const char *)r->ecx;
 			for(unsigned long i = 0 ; i < r->edx ; i++){
@@ -162,7 +178,7 @@ void special_handler(Register *r){
 	}
 	else if(r->eax==0x05){ // OPEN FILE
 		unsigned char* file = ((unsigned char*)r->ebx);
-		printf("INT0x80: OPEN %s \n",file);
+		debugf("INT0x80: OPEN %s \n",file);
 		if(((unsigned char*)r->ecx)[0]=='w'){
 			char* file2 = ((char*)r->ebx);
 			int fileloc = 3;
@@ -194,6 +210,15 @@ void special_handler(Register *r){
 				fread(file2,dataset);
 				filesymboltable[fileloc-3].pointer = dataset;
 				memcpy(file2,filesymboltable[fileloc-3].filename,strlen(file2));
+				unsigned long nieuwetel = 0;
+				while(1){
+					unsigned char t = ((unsigned char*)(filesymboltable[fileloc-3].pointer))[nieuwetel];
+					if(t==0){
+						break;
+					}
+					nieuwetel++;
+				}
+				filesymboltable[fileloc-3].maxsize = nieuwetel;
 				r->eax = fileloc;
 			}else{
 				r->eax = 0;
@@ -204,20 +229,20 @@ void special_handler(Register *r){
 		unsigned int file = r->ebx;
 		filesymboltable[file-3].inuse = 0;
 		free(filesymboltable[file-3].pointer);
-		printf("INT0x80: Closing file\n");
+		debugf("INT0x80: Closing file\n");
 		r->eax = 0;
 	}
 	else if(r->eax==0x4E){ // GET SYSTEMTIME
-		printf("INT0x80: SYSTIME\n");
+		debugf("INT0x80: SYSTIME\n");
 		r->eax=0;
 	}
 	else if(r->eax==0xC0){ // MALLOC
-		printf("INT0x80: MALLOC\n");
+		debugf("INT0x80: MALLOC\n");
 		unsigned long size = r->ebx;
 		r->eax = (unsigned long) malloc(size);
 	}
 	else if(r->eax==0xC1){ // FREE
-		printf("INT0x80: FREE\n");
+		debugf("INT0x80: FREE\n");
 		unsigned long location = r->ebx;
 		free((void*)location);
 	}
@@ -225,7 +250,7 @@ void special_handler(Register *r){
 		unsigned long location = r->ebx;
 		unsigned long offset = r->ecx;
 		unsigned long whence = r->edx;
-		printf("About to seek\n");
+		// printf("About to seek\n");
 		if(whence==0){
 			filesymboltable[location-3].ftell = offset;
 		}else if(whence==1){
@@ -241,16 +266,48 @@ void special_handler(Register *r){
 			}
 			filesymboltable[location-3].ftell = nieuwetel;
 		}
-		printf("INT0x80: SEEK %x %x %x \n",location,offset,whence);//for(;;);
+		debugf("INT0x80: SEEK %x %x %x \n",location,offset,whence);//for(;;);
 		r->eax = 0;
 	}
 	else if(r->eax==0xC3){ // TELL
 		unsigned long location = r->ebx;
-		printf("INT0x80: TELL %x with %x \n",location,filesymboltable[location-3].ftell);//for(;;);
+		debugf("INT0x80: TELL %x with %x \n",location,filesymboltable[location-3].ftell);//for(;;);
 		r->eax = filesymboltable[location-3].ftell;
+	}
+	else if(r->eax==0xC4){ // UNGETC
+		debugf("INT0x80: UNGETC\n");
+		if(filesymboltable[r->ebx-3].inuse){
+			filesymboltable[r->ebx-3].ftell++;
+			((unsigned char*)(filesymboltable[r->ebx-3].pointer + filesymboltable[r->ebx-3].ftell))[0] = (unsigned char)(r->ecx & 0xFF);
+			r->eax = 1;
+		}else{
+			r->eax = 0;
+		}
+	}
+	else if(r->eax==0xC5){ // GETC
+		debugf("INT0x80: GETC\n");
+		if(filesymboltable[r->ebx-3].inuse){
+			r->eax = 0;
+			r->eax = ((unsigned char*)(filesymboltable[r->ebx-3].pointer + filesymboltable[r->ebx-3].ftell))[0] & 0xFF;
+			if(filesymboltable[r->ebx-3].ftell>=filesymboltable[r->ebx-3].maxsize){
+				r->eax = 0;
+			}
+			filesymboltable[r->ebx-3].ftell++;
+		}else{
+			r->eax = 0;
+		}
+	}
+	else if(r->eax==0xC6){ // REALPATH
+		debugf("INT0x80: REALPATH\n");
+		r->eax = r->ebx;
+	}
+	else if(r->eax==0xC7){ // REALLOC
+		debugf("INT0x80: REALLOC\n");
+		r->eax = (unsigned int) realloc((void *)r->ebx,r->ecx);
 	}
 	else{
 		printf("INT0x80: UNKNOWN SYSCALL %x \n",r->eax);
+		debugf("INT0x80: UNKNOWN SYSCALL %x \n",r->eax);
 		for(;;);
 	}
 }

@@ -16,7 +16,10 @@ public fseek
 public ftell
 public write
 public free
-extrn main 
+public ungetc
+public getc
+public realpath
+public realloc
 
 section '.text' executable
 ;
@@ -243,4 +246,74 @@ free:
     int 0x80
 
     pop ebp
+    ret
+
+;
+; Get first available character from stream
+; int getc(FILE *stream)
+; stream = 8
+; ebp
+getc:
+    push ebp 
+    mov ebp,esp 
+
+    mov ebx, dword [ebp +8]
+    mov eax,0xC5
+    int 0x80
+
+    pop ebp
+    ret
+
+;
+; Put first available character to stream
+; int ungetc(int chartoadd, FILE *stream)
+; chartoadd = 8
+; stream = 12
+; ebp
+ungetc:
+    push ebp
+    mov ebp,esp 
+
+    mov ebx, dword [ebp + 12]
+    mov ecx, dword [ebp + 8]
+    mov eax,0xC4
+    int 0x80 
+
+    pop ebp 
+    ret
+
+;
+; Gets full path from relative path
+; char *realpath(const char * file_name,char * resolved_name)
+; file_name = 8
+; resolved_name = 12
+; ebp
+realpath:
+    push ebp
+    mov ebp,esp 
+
+    mov ebx, dword [ebp + 8]
+    mov ecx, dword [ebp + 12]
+    mov eax,0xC6
+    int 0x80 
+
+    pop ebp 
+    ret
+
+;
+; Reallocates block
+; void *realloc(void *ptr, size_t size)
+; ptr = 8
+; size = 12
+; ebp
+realloc:
+    push ebp
+    mov ebp,esp 
+
+    mov ebx, dword [ebp + 8]
+    mov ecx, dword [ebp + 12]
+    mov eax,0xC7
+    int 0x80 
+
+    pop ebp 
     ret

@@ -111,6 +111,7 @@ void *memset(void *str, int c, int n);
 int memcmp( char *str1, char *str2, int n);
 void *malloc_align(unsigned long size,unsigned long tag);
 void free(void *loc);
+void *realloc(void *ptr, int size);
 int strlen(char *str);
 int memcmp( char *str1, char *str2, int size);
 void memcpy( char *str1,  char *str2, int size);
