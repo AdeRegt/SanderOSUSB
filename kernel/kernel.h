@@ -111,6 +111,7 @@ void *memset(void *str, int c, int n);
 int memcmp( char *str1, char *str2, int n);
 void *malloc_align(unsigned long size,unsigned long tag);
 void free(void *loc);
+void *realloc(void *ptr, int size);
 int strlen(char *str);
 int memcmp( char *str1, char *str2, int size);
 void memcpy( char *str1,  char *str2, int size);
@@ -401,7 +402,7 @@ void ethernet_set_link_status(unsigned long a);
 void register_ethernet_device(unsigned long sendPackage,unsigned long recievePackage,unsigned char mac[8]);
 EthernetDevice getDefaultEthernetDevice();
 PackageRecievedDescriptor getEthernetPackage();
-void sendEthernetPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp);
+int sendEthernetPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp);
 void initialise_ethernet();
 //void dirdev();
 

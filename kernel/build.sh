@@ -64,7 +64,10 @@ cd ..
 
 echo "Build SDK"
 cd lib
+echo "Assembly functions"
 fasm user32.inc user32.o
+echo "C functions"
+gcc -c modern.c -m32 -o modern.o -std=gnu99 -ffreestanding -O0 -Wall -Wextra
 cd ..
 
 echo "Build programs"

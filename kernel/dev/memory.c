@@ -197,6 +197,27 @@ int strlen(char *str){
 	return count;
 }
 
+int getallocsize(void *ptr){
+	for(int i = 0 ; i < MEMORY_BLOCK_LIMIT ; i++){
+		MemoryBlock *mb = (MemoryBlock*) (&memreg)+(sizeof(MemoryBlock)*i);
+		if(mb->from==ptr){
+			return mb->to - mb->from;
+		}
+	}
+	return -1;
+}
+
+void *realloc(void *ptr, int size){
+	if(!ptr){
+		return malloc(size);
+	}
+	int cursize = getallocsize(ptr);
+	void *st = malloc(size);
+	memcpy(ptr,st,cursize);
+	free(ptr);
+	return st;
+}
+
 ArrayListElement* createArrayList(void *initialitem){
 	ArrayListElement *element = (ArrayListElement*)malloc(sizeof(ArrayListElement));
 	element->locationToItem = initialitem;

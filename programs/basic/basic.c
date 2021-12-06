@@ -1,7 +1,7 @@
 #include <symbols.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <SanderOSUSB.h>
+#include <string.h>
 
 #define BUFFER_INIT_SIZE 0x1000
 #define MAX_SIZE_STRING 128
@@ -174,13 +174,6 @@ Token getNextToken(){
 	return tok;
 }
 
-int strcmp(char* a,char* b,int c){
-	for(int i = 0 ; i < c ; i++){
-		if(a[i]!=b[i]){return 0;}
-	}
-	return 1;
-}
-
 void walkTillEndOfLine(){
 	char deze;
 	while(1){
@@ -192,22 +185,11 @@ void walkTillEndOfLine(){
 	}
 }
 
-int strlen(char* t){
-	int result = 0;
-	while(1){
-		if(t[result]==0){
-			break;
-		}
-		result++;
-	}
-	return result;
-}
-
 int nativeFunctionIsPresent(char* name,int strlen){
 	int result = 0;
 	for(int i = 0 ; i < functiontablepointer ; i++){
 		if(functiontable[i].length==strlen){
-			if(strcmp(name,functiontable[i].name,strlen)){
+			if(strcmp(name,functiontable[i].name)){
 				result = i+1;
 			}
 		}
@@ -240,15 +222,15 @@ void handleREM(){
 void handleECHO(){
 	Token keyword = getNextToken();
 	if(keyword.type==TOK_IS_STRING){
-		msg(keyword.definition);
+		printf(keyword.definition);
 	}else if(keyword.type==TOK_IS_VARIABLE){
-		msg((char*)get_variable(keyword.definition[0],TOK_IS_STRING));
+		printf((char*)get_variable(keyword.definition[0],TOK_IS_STRING));
 	}
 	walkTillEndOfLine();
 }
 
 void handleEXIT(){
-	msg("END OF BASIC");
+	printf("END OF BASIC");
 	int mode = 1;
         __asm__ __volatile__ (
             "int $0x80"
@@ -266,7 +248,7 @@ void handleSET(){
 	char def = keyword.definition[0];
 	Token keyword2 = getNextToken();
 	set_string_variable(def,keyword2.definition);
-	msg("OK");
+	printf("OK");
 }
 
 void main(){

@@ -132,9 +132,9 @@ PackageRecievedDescriptor getEthernetPackage(){
     return getPackage();
 }
 
-void sendEthernetPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp){
-    void (*sendPackage)(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp) = (void*)defaultEthernetDevice.sendPackage;
-    sendPackage(desc,first,last,ip,udp,tcp);
+int sendEthernetPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp){
+    int (*sendPackage)(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp) = (void*)defaultEthernetDevice.sendPackage;
+    return sendPackage(desc,first,last,ip,udp,tcp);
 }
 
 void fillMac(unsigned char* to,unsigned char* from){
@@ -279,7 +279,10 @@ unsigned char* getIpAddressFromDHCPServer(){
     sec.buffersize = sizeof(struct DHCPDISCOVERHeader);
     sec.high_buf = 0;
     sec.low_buf = (unsigned long)dhcpheader;
-    sendEthernetPackage(sec,1,1,1,0,0); // send package
+    int res_fs = sendEthernetPackage(sec,1,1,1,0,0); // send package
+    if(res_fs==0){
+        return 0;
+    }
     PackageRecievedDescriptor prd;
     while(1){
         prd = getEthernetPackage(); 
