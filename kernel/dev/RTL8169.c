@@ -21,8 +21,8 @@ struct Descriptor{
 };
 
 // The recieve and transmit queue
-struct Descriptor *Rx_Descriptors = (struct Descriptor *)0x1000; /* 1MB Base Address of Rx Descriptors */
-struct Descriptor *Tx_Descriptors = (struct Descriptor *)0x2000; /* 2MB Base Address of Tx Descriptors */
+struct Descriptor *Rx_Descriptors; /* 1MB Base Address of Rx Descriptors */
+struct Descriptor *Tx_Descriptors; /* 2MB Base Address of Tx Descriptors */
 
 // For loops
 unsigned long num_of_rx_descriptors = 1024;
@@ -36,20 +36,20 @@ unsigned volatile long package_send_ack = 0;
 extern void rtl8169irq();
 
 void irq_rtl8169(){
-	printf("[RTL81] Interrupt detected\n");
+	debugf("[RTL81] Interrupt detected\n");
 	unsigned short status = inportw(bar1 + 0x3E);
 	if(status&0x20){
-		printf("[RTL81] Link change detected!\n");
+		debugf("[RTL81] Link change detected!\n");
 		ethernet_set_link_status(1);
 		status |= 0x20;
 	}
 	if(status&0x01){
-		printf("[RTL81] Package recieved!\n");
+		debugf("[RTL81] Package recieved!\n");
 		((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0] = 1;
 		status |= 0x01;
 	}
 	if(status&0x04){
-		printf("[RTL81] Package send!\n");
+		debugf("[RTL81] Package send!\n");
 		((unsigned volatile long*)((unsigned volatile long)&package_send_ack))[0] = 1;
 		status |= 0x04;
 	}
@@ -65,12 +65,12 @@ void irq_rtl8169(){
 }
 
 void rtl_sendPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp){
-	unsigned long ms1 = 0x80000000 | (ip==1?0x40000:0) | (udp==1?0x20000:0) | (tcp==1?0x10000:0) | (first==1?0x20000000:0) | (last==1?0x10000000:0) | (desc.buffersize & 0x3FFF); // 0x80000000 | ownbit=yes | firstsegment | lastsegment | length
+	unsigned long ms1 = 0x80000000 | 0x40000000 | (ip==1?0x40000:0) | (udp==1?0x20000:0) | (tcp==1?0x10000:0) | (first==1?0x20000000:0) | (last==1?0x10000000:0) | (desc.buffersize & 0x3FFF); // 0x80000000 | ownbit=yes | firstsegment | lastsegment | length
 	unsigned long ms2 = 0 ;
 	unsigned long ms3 = desc.low_buf;
 	unsigned long ms4 = desc.high_buf;
 	
-	struct Descriptor *desz = ((struct Descriptor*)(Tx_Descriptors+(sizeof(struct Descriptor)*tx_pointer)));
+	volatile struct Descriptor *desz = ((volatile struct Descriptor*)(Tx_Descriptors+(sizeof(struct Descriptor)*tx_pointer)));
 	if(desz->command!=0x80000064){ // a check if we somehow lost the count
 		debugf("[RTL81] Unexpected default value: %x \n",desz->command);
 	}
@@ -78,8 +78,6 @@ void rtl_sendPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned
 	desz->low_buf = ms3;
 	desz->vlan = ms2;
 	desz->command = ms1;
-	
-	tx_pointer++;
 	
 	((unsigned volatile long*)((unsigned volatile long)&package_send_ack))[0] = 0;
 	outportb(bar1 + 0x38, 0x40); // ring the doorbell
@@ -153,6 +151,9 @@ void init_rtl(int bus,int slot,int function){
 		macaddress[i] = inportb(bar1+i);
 	}
 	debugf("[RTL81] MAC-address %x %x %x %x %x %x \n",macaddress[0],macaddress[1],macaddress[2],macaddress[3],macaddress[4],macaddress[5]);
+
+	Rx_Descriptors = (struct Descriptor*)malloc_align(sizeof(struct Descriptor)*num_of_rx_descriptors,0xFFFF);
+	Tx_Descriptors = (struct Descriptor*)malloc_align(sizeof(struct Descriptor)*num_of_tx_descriptors,0xFFFF);
 	
 	//
 	// setup rx descriptor
