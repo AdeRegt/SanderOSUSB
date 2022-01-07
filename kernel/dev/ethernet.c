@@ -91,6 +91,16 @@ struct DHCPREQUESTHeader{
     unsigned char options[25];
 } __attribute__ ((packed));
 
+struct DNSREQUESTHeader{
+    struct UDPHeader udpheader;
+    unsigned short transaction_id;
+    unsigned short flags;
+    unsigned short question_count;
+    unsigned short answer_rr;
+    unsigned short authority_rr;
+    unsigned short aditional_rr;
+} __attribute__ ((packed));
+
 unsigned short switch_endian16(unsigned short nb) {
     return (nb>>8) | (nb<<8);
 }
@@ -109,6 +119,9 @@ void ethernet_detect(int bus,int slot,int function,int device,int vendor){
 
 EthernetDevice defaultEthernetDevice;
 unsigned char our_ip[SIZE_OF_IP];
+unsigned char router_ip[SIZE_OF_IP];
+unsigned char dns_ip[SIZE_OF_IP];
+unsigned char dhcp_ip[SIZE_OF_IP];
 
 void ethernet_set_link_status(unsigned long a){
     defaultEthernetDevice.is_online = a;
@@ -132,9 +145,9 @@ PackageRecievedDescriptor getEthernetPackage(){
     return getPackage();
 }
 
-int sendEthernetPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp){
-    int (*sendPackage)(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp) = (void*)defaultEthernetDevice.sendPackage;
-    return sendPackage(desc,first,last,ip,udp,tcp);
+int sendEthernetPackage(PackageRecievedDescriptor desc){
+    int (*sendPackage)(PackageRecievedDescriptor desc) = (void*)defaultEthernetDevice.sendPackage;
+    return sendPackage(desc);
 }
 
 void fillMac(unsigned char* to,unsigned char* from){
@@ -179,7 +192,7 @@ unsigned char* getMACFromIp(unsigned char* ip){
     sec.low_buf = (unsigned long)arpie;
 
     sleep(10);
-    sendEthernetPackage(sec,1,1,1,0,0);
+    sendEthernetPackage(sec);
     sleep(10);
     PackageRecievedDescriptor prd = getEthernetPackage();
     sleep(10);
@@ -208,10 +221,10 @@ void fillIpv4Header(struct IPv4Header *ipv4header, unsigned char* destmac, unsig
     checksum += 1;
     checksum += 0x4000;
     checksum += 0x4000 + protocol;
-    checksum += (from >> 16) & 0xFFFF;
-    checksum += from & 0xFFFF; 
-    checksum += (to >> 16) & 0xFFFF;
-    checksum += to & 0xFFFF;
+    checksum += switch_endian16((from >> 16) & 0xFFFF);
+    checksum += switch_endian16(from & 0xFFFF); 
+    checksum += switch_endian16((to >> 16) & 0xFFFF);
+    checksum += switch_endian16(to & 0xFFFF);
     checksum = (checksum >> 16) + (checksum & 0xffff);
     checksum += (checksum >> 16);
     ipv4header->checksum = switch_endian16((unsigned short) (~checksum));
@@ -224,8 +237,7 @@ void fillUdpHeader(struct UDPHeader *udpheader, unsigned char *destmac, unsigned
     udpheader->destination_port = switch_endian16(destination_port);
     udpheader->source_port = switch_endian16(source_port);
 
-    unsigned short checksum = 0;
-    udpheader->checksum = checksum;
+    udpheader->checksum = 0;
 }
 
 void fillDhcpDiscoverHeader(struct DHCPDISCOVERHeader *dhcpheader){
@@ -279,7 +291,7 @@ unsigned char* getIpAddressFromDHCPServer(){
     sec.buffersize = sizeof(struct DHCPDISCOVERHeader);
     sec.high_buf = 0;
     sec.low_buf = (unsigned long)dhcpheader;
-    int res_fs = sendEthernetPackage(sec,1,1,1,0,0); // send package
+    int res_fs = sendEthernetPackage(sec); // send package
     if(res_fs==0){
         return 0;
     }
@@ -289,14 +301,35 @@ unsigned char* getIpAddressFromDHCPServer(){
         struct EthernetHeader *eh = (struct EthernetHeader*) prd.low_buf;
         if(eh->type==ETHERNET_TYPE_IP4){
             struct DHCPDISCOVERHeader *hd5 = ( struct DHCPDISCOVERHeader*) prd.low_buf;
-            if(hd5->options[2]==2&&hd5->xid==dhcpheader->xid){
+            if(hd5->options[2]==2&&hd5->xid==dhcpheader->xid&&hd5->op==2){
                 break;
             }
         } 
     }
-    printf("[ETH] Got offer\n");
+    debugf("[ETH] Got offer\n");
     struct DHCPDISCOVERHeader *hd = ( struct DHCPDISCOVERHeader*) prd.low_buf;
     unsigned char* offeredip = (unsigned char*) &hd->dhcp_offered_machine;
+    int a = 0;
+    while(1){
+        unsigned char t = hd->options[a++];
+        if(t==0xFF||t==0x00){
+            break;
+        }
+        unsigned char z = hd->options[a++];
+        if( t==0x03){ // router
+            unsigned char* re = (unsigned char*)&hd->options[a];
+            fillIP((unsigned char*)&router_ip,re);
+        }
+        if (t==0x06 ){ // dns
+            unsigned char* re = (unsigned char*)&hd->options[a];
+            fillIP((unsigned char*)&dns_ip,re);
+        }
+        if (t==54 ){ // dhcp
+            unsigned char* re = (unsigned char*)&hd->options[a];
+            fillIP((unsigned char*)&dhcp_ip,re);
+        }
+        a += z;
+    }
 
     free(dhcpheader);
 
@@ -337,21 +370,111 @@ unsigned char* getIpAddressFromDHCPServer(){
     s3c.buffersize = sizeof(struct DHCPREQUESTHeader);
     s3c.high_buf = 0;
     s3c.low_buf = (unsigned long)dhcp2header;
-    sendEthernetPackage(s3c,1,1,1,0,0); // send package
+    sendEthernetPackage(s3c); // send package
     PackageRecievedDescriptor p3d;
     while(1){
         p3d = getEthernetPackage(); 
         struct EthernetHeader *eh = (struct EthernetHeader*) p3d.low_buf;
         if(eh->type==ETHERNET_TYPE_IP4){
             struct DHCPDISCOVERHeader *hd5 = ( struct DHCPDISCOVERHeader*) p3d.low_buf;
-            if(hd5->options[2]==5&&hd5->xid==dhcp2header->xid){
+            if(hd5->options[2]==5&&hd5->xid==dhcp2header->xid&&hd5->op==2){
                 break;
             }
         } 
     }
-    printf("[ETH] Got Approval\n");
+    debugf("[ETH] Got Approval\n");
 
     return offeredip;
+}
+
+unsigned char* getIPFromName(char* name){
+    int str = strlen(name);
+    int ourheadersize = sizeof(struct DNSREQUESTHeader)+str+2+4;
+    struct DNSREQUESTHeader *dnsreqheader = (struct DNSREQUESTHeader*) malloc(ourheadersize);
+    unsigned char *destmac = getMACFromIp((unsigned char*)&dns_ip);
+    unsigned short size = ourheadersize - sizeof(struct EthernetHeader);
+    dnsreqheader->transaction_id = 0xe0e7;
+    dnsreqheader->flags = 0x1;
+    dnsreqheader->question_count = 0x100;
+    unsigned char *t4 = (unsigned char*)(dnsreqheader);
+    t4[sizeof(struct DNSREQUESTHeader)] = 0;
+    int i = 0;
+    for(i = 0 ; i < str ; i++){
+        t4[sizeof(struct DNSREQUESTHeader)+i+1] = name[i];
+    }
+    i = 0;
+    while( i < (str + 2) ){
+        int z = 0;
+        for(int t = i+1 ; t < str+2 ; t++){
+            unsigned char deze = t4[sizeof(struct DNSREQUESTHeader)+t];
+            if(deze==0||deze=='.'){
+                break;
+            }
+            z++;
+        }
+        t4[sizeof(struct DNSREQUESTHeader)+i] = z;
+        i += z + 1;
+    }
+    t4[sizeof(struct DNSREQUESTHeader)+str+3] = 1;
+    t4[sizeof(struct DNSREQUESTHeader)+str+5] = 1;
+    
+    fillUdpHeader((struct UDPHeader*)&dnsreqheader->udpheader,destmac,size,((unsigned long*)&our_ip)[0],((unsigned long*)&dns_ip)[0],56331,53);
+    
+    PackageRecievedDescriptor sec;
+    sec.buffersize = ourheadersize;
+    sec.high_buf = 0;
+    sec.low_buf = (unsigned long)dnsreqheader;
+    sendEthernetPackage(sec);
+    struct DNSREQUESTHeader* de;
+    PackageRecievedDescriptor ep;
+    while(1){
+        ep = getEthernetPackage();
+        de = (struct DNSREQUESTHeader*) ep.low_buf;
+        if(de->transaction_id==0xe0e7){
+            break;
+        }
+    }
+    unsigned char* targetip = (unsigned char*) malloc(SIZE_OF_IP);
+    if(de->answer_rr==0x0100){
+        targetip[0] = ((unsigned char*)de + (ep.buffersize-4))[0];
+        targetip[1] = ((unsigned char*)de + (ep.buffersize-3))[0];
+        targetip[2] = ((unsigned char*)de + (ep.buffersize-2))[0];
+        targetip[3] = ((unsigned char*)de + (ep.buffersize-1))[0];
+    }
+    return targetip; 
+}
+
+int ethernet_handle_package(PackageRecievedDescriptor desc){
+    struct EthernetHeader *eh = (struct EthernetHeader*) desc.low_buf;
+    if(eh->type==ETHERNET_TYPE_ARP){
+        struct ARPHeader *ah = (struct ARPHeader*) desc.low_buf;
+        if( ah->operation==0x0100 && memcmp((char*) ah->dest_ip,(char*) &our_ip, SIZE_OF_IP)==0 ){
+            debugf("[ETH] ARP recieved with our IP\n");
+
+            struct ARPHeader* arpie = (struct ARPHeader*)malloc(sizeof(struct ARPHeader));
+            unsigned char everyone[SIZE_OF_MAC] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+            fillEthernetHeader((struct EthernetHeader*) &arpie->ethernetheader,everyone,ETHERNET_TYPE_ARP);
+            arpie->hardware_type = 0x0100;
+            arpie->protocol_type = 0x0008;
+            arpie->hardware_address_length = SIZE_OF_MAC;
+            arpie->protocol_address_length = SIZE_OF_IP;
+            arpie->operation = 0x0200;
+
+            fillMac((unsigned char*)&arpie->source_mac,(unsigned char*)&defaultEthernetDevice.mac);
+            fillIP((unsigned char*)&arpie->source_ip,(unsigned char*)&our_ip);
+
+            fillMac((unsigned char*)&arpie->dest_mac,(unsigned char*)ah->source_mac);
+            fillIP((unsigned char*)&arpie->dest_ip,(unsigned char*)ah->source_ip);
+            
+            PackageRecievedDescriptor sec;
+            sec.buffersize = sizeof(struct ARPHeader);
+            sec.high_buf = 0;
+            sec.low_buf = (unsigned long)arpie;
+
+            sendEthernetPackage(sec);
+        }
+    }
+    return 0;
 }
 
 void initialise_ethernet(){
@@ -360,15 +483,25 @@ void initialise_ethernet(){
     if(ed.is_enabled){
         printf("[ETH] There is a ethernet device present on the system!\n");
         printf("[ETH] Asking DHCP server for our address....\n");
+
         unsigned char *dhcpid = getIpAddressFromDHCPServer();
         if(dhcpid){
             fillIP((unsigned char*)&our_ip,dhcpid);
             printf("[ETH] DHCP is present\n");
         }else{
             printf("[ETH] No DHCP server present here, using static address\n");
-            unsigned char dinges[8] = {192,168,178,15};   
+            unsigned char dinges[SIZE_OF_IP] = {192,168,178,15};   
             fillIP((unsigned char*)&our_ip,(unsigned char*)&dinges);
         }
-        printf("[ETH] Our IP is %d:%d:%d:%d \n",our_ip[0],our_ip[1],our_ip[2],our_ip[3]);
+
+        printf("[ETH] Our     IP is %d.%d.%d.%d \n",our_ip[0],our_ip[1],our_ip[2],our_ip[3]);
+        printf("[ETH] Gateway IP is %d.%d.%d.%d \n",router_ip[0],router_ip[1],router_ip[2],router_ip[3]);
+        printf("[ETH] DNS     IP is %d.%d.%d.%d \n",dns_ip[0],dns_ip[1],dns_ip[2],dns_ip[3]);
+        printf("[ETH] DHCP    IP is %d.%d.%d.%d \n",dhcp_ip[0],dhcp_ip[1],dhcp_ip[2],dhcp_ip[3]);
+
+        debugf("[ETH] Our     IP is %d.%d.%d.%d \n",our_ip[0],our_ip[1],our_ip[2],our_ip[3]);
+        debugf("[ETH] Gateway IP is %d.%d.%d.%d \n",router_ip[0],router_ip[1],router_ip[2],router_ip[3]);
+        debugf("[ETH] DNS     IP is %d.%d.%d.%d \n",dns_ip[0],dns_ip[1],dns_ip[2],dns_ip[3]);
+        debugf("[ETH] DHCP    IP is %d.%d.%d.%d \n",dhcp_ip[0],dhcp_ip[1],dhcp_ip[2],dhcp_ip[3]);
     }
 }

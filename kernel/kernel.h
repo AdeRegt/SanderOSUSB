@@ -402,8 +402,9 @@ void ethernet_set_link_status(unsigned long a);
 void register_ethernet_device(unsigned long sendPackage,unsigned long recievePackage,unsigned char mac[8]);
 EthernetDevice getDefaultEthernetDevice();
 PackageRecievedDescriptor getEthernetPackage();
-int sendEthernetPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp);
+int sendEthernetPackage(PackageRecievedDescriptor desc);
 void initialise_ethernet();
+int ethernet_handle_package(PackageRecievedDescriptor desc);
 //void dirdev();
 
 typedef struct  {

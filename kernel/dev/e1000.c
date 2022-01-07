@@ -128,8 +128,8 @@ unsigned char mac_address[6];
 unsigned volatile long e1000_package_recieved_ack = 0;
 int rx_cur;
 int tx_cur;
-struct e1000_rx_desc *rx_descs[E1000_NUM_RX_DESC];
-struct e1000_tx_desc *tx_descs[E1000_NUM_TX_DESC];
+volatile struct e1000_rx_desc *rx_descs[E1000_NUM_RX_DESC];
+volatile struct e1000_tx_desc *tx_descs[E1000_NUM_TX_DESC];
 
 extern void e1000irq();
 
@@ -169,7 +169,21 @@ void irq_e1000(){
         debugf("[E1000] Link change!\n");
     }else if(to&0x80){
         debugf("[E1000] Package recieved!\n");
-		((unsigned volatile long*)((unsigned volatile long)&e1000_package_recieved_ack))[0] = 1;
+        PackageRecievedDescriptor prd;
+		for(int i = 0 ; i < E1000_NUM_RX_DESC ; i++){
+            if((rx_descs[i]->status & 0x1))
+            {
+                unsigned char *buf = (unsigned char *)rx_descs[i]->addr_1;
+                unsigned short len = rx_descs[i]->length;
+                prd.buffersize = len;
+                prd.high_buf = 0;
+                prd.low_buf = (unsigned long)buf;
+                if(ethernet_handle_package(prd)){
+                    rx_descs[i]->status &= ~1;
+                    e1000_write_in_space(REG_RXDESCTAIL, i );
+                }
+            }
+        }
     }else if(to&0x10){
         debugf("[E1000] THG!\n");
     }else{
@@ -179,24 +193,14 @@ void irq_e1000(){
 	outportb(0x20,0x20);
 }
 
-int e1000_send_package(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp){
+int e1000_send_package(PackageRecievedDescriptor desc){
     tx_descs[tx_cur]->addr_1 = (unsigned long)desc.low_buf;
     tx_descs[tx_cur]->addr_2 = (unsigned long)desc.high_buf;
     tx_descs[tx_cur]->length = desc.buffersize;
     tx_descs[tx_cur]->cmd = CMD_EOP | CMD_IFCS | CMD_RS;
     tx_descs[tx_cur]->status = 0;
-    unsigned char old_cur = tx_cur;
     tx_cur = (tx_cur + 1) % E1000_NUM_TX_DESC;
     e1000_write_in_space(REG_TXDESCTAIL, tx_cur);
-    int to = 0;
-    while(!(tx_descs[old_cur]->status & 0xff)){
-        sleep(1);
-        to++;
-        if(to>500){
-            return 0;
-        }
-    }     
-    // debugf(" Stuff sended! (loc=%x, %x %x %x %x %x)\n",desc.low_buf,first,last,ip,udp,tcp);
     return 1;
 }
 

@@ -45,7 +45,7 @@ void irq_rtl8169(){
 	}
 	if(status&0x01){
 		debugf("[RTL81] Package recieved!\n");
-		((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0] = 1;
+		((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0]++;
 		status |= 0x01;
 	}
 	if(status&0x04){
@@ -64,8 +64,8 @@ void irq_rtl8169(){
 	outportb(0x20,0x20);
 }
 
-void rtl_sendPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned char last,unsigned char ip,unsigned char udp, unsigned char tcp){
-	unsigned long ms1 = 0x80000000 | 0x40000000 | (ip==1?0x40000:0) | (udp==1?0x20000:0) | (tcp==1?0x10000:0) | (first==1?0x20000000:0) | (last==1?0x10000000:0) | (desc.buffersize & 0x3FFF); // 0x80000000 | ownbit=yes | firstsegment | lastsegment | length
+void rtl_sendPackage(PackageRecievedDescriptor desc){
+	unsigned long ms1 = 0x80000000 | 0x40000000 | 0x40000 | 0x20000000 | 0x10000000 | (desc.buffersize & 0x3FFF); // 0x80000000 | ownbit=yes | firstsegment | lastsegment | length
 	unsigned long ms2 = 0 ;
 	unsigned long ms3 = desc.low_buf;
 	unsigned long ms4 = desc.high_buf;
@@ -98,18 +98,18 @@ void rtl_sendPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned
 PackageRecievedDescriptor rtl_recievePackage(){
 	while(1){ // wait of arival of interrupt
 		unsigned volatile long x = ((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0];
-		if(x==1){
+		if(x>0){
 			break;
 		}
 	}
-	((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0] = 0;
+	((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0]--;
 	struct Descriptor desc = Rx_Descriptors[rx_pointer++];
 	PackageRecievedDescriptor res;
 	unsigned long buffer_size = desc.command & 0x3FFF;
 	res.buffersize = buffer_size;
 	res.low_buf = desc.low_buf;
 	res.high_buf = desc.high_buf;
-	((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0] = 0;
+	// ((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0] = 0;
 	return res;
 }
 
@@ -121,7 +121,7 @@ void rtl_test(){
 	resx.buffersize = res.buffersize;
 	resx.low_buf = res.low_buf;
 	resx.high_buf = 0;
-	rtl_sendPackage(resx,1,1,0,0,0);
+	rtl_sendPackage(resx);
 	debugf("[RTL81] Package send\n");
 }
 
