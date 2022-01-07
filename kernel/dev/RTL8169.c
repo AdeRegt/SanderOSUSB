@@ -45,7 +45,7 @@ void irq_rtl8169(){
 	}
 	if(status&0x01){
 		debugf("[RTL81] Package recieved!\n");
-		((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0] = 1;
+		((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0]++;
 		status |= 0x01;
 	}
 	if(status&0x04){
@@ -98,18 +98,18 @@ void rtl_sendPackage(PackageRecievedDescriptor desc,unsigned char first,unsigned
 PackageRecievedDescriptor rtl_recievePackage(){
 	while(1){ // wait of arival of interrupt
 		unsigned volatile long x = ((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0];
-		if(x==1){
+		if(x>0){
 			break;
 		}
 	}
-	((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0] = 0;
+	((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0]--;
 	struct Descriptor desc = Rx_Descriptors[rx_pointer++];
 	PackageRecievedDescriptor res;
 	unsigned long buffer_size = desc.command & 0x3FFF;
 	res.buffersize = buffer_size;
 	res.low_buf = desc.low_buf;
 	res.high_buf = desc.high_buf;
-	((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0] = 0;
+	// ((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0] = 0;
 	return res;
 }
 

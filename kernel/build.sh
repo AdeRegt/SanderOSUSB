@@ -127,5 +127,8 @@ if [ "$1" = "--pxe" ]
 		nasm -fbin pxe_entry_point.asm -o pxestub.bin 
 		cat pxestub.bin ../../kernel.bin > pxeentry.bin
 		cp pxeentry.bin ../../SanderOSUSB.0
+		echo "Adding PXE to PXE locations"
+		cp ../../SanderOSUSB.0 /srv/tftp/SanderOSUSB.0
+		cp ../../kernel.bin /srv/tftp/kernel.bin
 		exit
 fi
