@@ -63,6 +63,7 @@ EFI-MBR | :white_check_mark: | :x:
 EXT2 (very basic) | :white_check_mark: | :x: 
 FAT 12,16,32 | :white_check_mark: | :white_check_mark: 
 SFS | :white_check_mark: | :white_check_mark: 
+TFTP | :white_check_mark: | :x: 
 
 the following executable formats are supported:
 * 32-ELF (relocation and executable type)
