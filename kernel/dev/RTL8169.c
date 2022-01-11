@@ -13,6 +13,8 @@
 //
 // FROM: https://wiki.osdev.org/RTL8169
 // This is a entry in the queue of the recieve and transmit descriptor queue
+#define OWN 0x80000000
+#define EOR 0x40000000
 struct Descriptor{
 	unsigned int command;  /* command/status uint32_t */
 	unsigned int vlan;     /* currently unused */
@@ -158,8 +160,6 @@ void init_rtl(int bus,int slot,int function){
 	//
 	// setup rx descriptor
 	debugf("[RTL81] Setup RX descriptor\n");
-	unsigned int OWN = 0x80000000;
-	unsigned int EOR = 0x40000000;
 	for(unsigned long i = 0; i < num_of_rx_descriptors; i++){
 		unsigned long rx_buffer_len = 100;
 		unsigned long packet_buffer_address = (unsigned long)malloc(rx_buffer_len);

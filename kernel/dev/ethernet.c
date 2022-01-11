@@ -416,17 +416,56 @@ void initialise_ethernet(){
         debugf("[ETH] DNS     IP is %d.%d.%d.%d \n",dns_ip[0],dns_ip[1],dns_ip[2],dns_ip[3]);
         debugf("[ETH] DHCP    IP is %d.%d.%d.%d \n",dhcp_ip[0],dhcp_ip[1],dhcp_ip[2],dhcp_ip[3]);
 
-        unsigned char* srve = getIPFromName("tftp.local");
-        if(srve[0]){
+        // unsigned char* srve = getIPFromName("tftp.local");
+        // if(srve[0]){
             unsigned char ipfs[SIZE_OF_IP];
-            ipfs[0] = srve[0];
-            ipfs[1] = srve[1];
-            ipfs[2] = srve[2];
-            ipfs[3] = srve[3];
+            ipfs[0] = dhcp_ip[0];
+            ipfs[1] = dhcp_ip[1];
+            ipfs[2] = dhcp_ip[2];
+            ipfs[3] = dhcp_ip[3];
             Device *dev = getNextFreeDevice();
             dev->arg4 = (unsigned long)&ipfs;
             dev->arg5 = (unsigned long)getMACFromIp((unsigned char*)&ipfs);
             initialiseTFTP(dev);
-        }
+        // }
+        // printf("Im ready for it!\n");
+        // while(1){
+        //     int packagelength = sizeof(struct UDPHeader) + 25;
+        //     unsigned char* package = (unsigned char*) malloc(packagelength);
+        //     struct UDPHeader *rpackage = (struct UDPHeader*) package;
+        //     unsigned char destmac[SIZE_OF_MAC] = {0xE0,0x94,0x67,0xF8,0x1E,0xFC};
+        //     unsigned char ipaddr[SIZE_OF_IP] = {192,168,2,68};
+        //     fillUdpHeader(rpackage,(unsigned char*)&destmac,packagelength-sizeof(struct EthernetHeader),getOurIpAsLong(),((unsigned long*)ipaddr)[0],45324,45324);
+        //     package[sizeof(struct UDPHeader)+0] = 'H';
+        //     package[sizeof(struct UDPHeader)+1] = 'E';
+        //     package[sizeof(struct UDPHeader)+2] = 'L';
+        //     package[sizeof(struct UDPHeader)+3] = 'L';
+        //     package[sizeof(struct UDPHeader)+4] = 'O';
+
+        //     PackageRecievedDescriptor sec;
+        //     sec.buffersize = packagelength;
+        //     sec.high_buf = 0;
+        //     sec.low_buf = (unsigned long)package;
+        //     sendEthernetPackage(sec);
+        //     unsigned char* m;
+        //     agt:
+        //         sec = getEthernetPackage();
+        //         struct EthernetHeader* eh = (struct EthernetHeader*) sec.low_buf;
+        //         if(eh->type==ETHERNET_TYPE_IP4){
+        //             struct IPv4Header* ip = (struct IPv4Header*) sec.low_buf;
+        //             if(ip->protocol==17){
+        //                 struct UDPHeader* udp = (struct UDPHeader*) sec.low_buf;
+        //                 if(udp->destination_port==0xCB1){
+        //                     goto stp;
+        //                 }
+        //             }
+        //         }
+        //     goto agt;
+        //     stp:
+        //     m = (unsigned char*) sec.low_buf;
+        //     printf("Message: %s \n",(unsigned char*)&m[sizeof(struct UDPHeader)]);
+        // }
+        // for(;;);
+
     }
 }

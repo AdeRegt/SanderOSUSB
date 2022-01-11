@@ -69,6 +69,8 @@ echo "Assembly functions"
 fasm user32.inc user32.o
 echo "C functions"
 gcc -c modern.c -m32 -o modern.o -std=gnu99 -ffreestanding -O0 -Wall -Wextra
+echo "Stub"
+fasm stub.inc stub.o
 cd ..
 
 echo "Build programs"
@@ -114,6 +116,8 @@ if [ "$1" = "--grub" ]
 		mkdir mnt
 		mkdir mnt/prgs
 		cp programs/*.bin mnt/prgs
+		echo "intz main(){return;}" >> mnt/prgs/code.c
+		echo "int main(){return;}" >> mnt/prgs/tegt.asm
 		mkdir mnt/boot
 		mkdir mnt/boot/grub
 		cp kernel.bin mnt/kernel.bin

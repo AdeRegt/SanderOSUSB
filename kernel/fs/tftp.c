@@ -90,8 +90,8 @@ char tftp_exists(Device *device,char* path){
 void initialiseTFTP(Device *device){
     // arg4 = IP
     // arg5 = MAC
-    ipaddr = (unsigned char*) memdup(device->arg4,4);
-    macaddr = (unsigned char*) memdup(device->arg5,6);
+    ipaddr = (unsigned char*) memdup((void *)device->arg4,4);
+    macaddr = (unsigned char*) memdup((void *)device->arg5,6);
     debugf("[TFTP] TFTP Module loaded for IP %d.%d.%d.%d and MAC %x:%x:%x:%x:%x:%x \n",ipaddr[0],ipaddr[1],ipaddr[2],ipaddr[3],macaddr[0],macaddr[1],macaddr[2],macaddr[3],macaddr[4],macaddr[5]);
 
 	device->dir = (unsigned long)&tftp_dir;
