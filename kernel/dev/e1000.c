@@ -219,6 +219,7 @@ void e1000_link_up(){
 
 PackageRecievedDescriptor e1000_recieve_package(){
     PackageRecievedDescriptor prd;
+    resetTicks();
     while(1){
         for(int i = 0 ; i < E1000_NUM_RX_DESC ; i++){
             if((rx_descs[i]->status & 0x1))
@@ -233,6 +234,10 @@ PackageRecievedDescriptor e1000_recieve_package(){
                 e1000_write_in_space(REG_RXDESCTAIL, i );
                 return prd;
             }
+        }
+        if(getTicks()>10){
+            prd.low_buf = 0;
+            return prd;
         }
     }
 	// while(1){ // wait of arival of interrupt

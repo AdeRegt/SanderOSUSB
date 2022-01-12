@@ -197,6 +197,14 @@ int strlen(char *str){
 	return count;
 }
 
+void *memdup(void* from,int n){
+	void* to = malloc(n);
+	for(int i = 0 ; i < n ; i++){
+		((unsigned char*)to)[i] = ((unsigned char*)from)[i];
+	}
+	return to;
+}
+
 int getallocsize(void *ptr){
 	for(int i = 0 ; i < MEMORY_BLOCK_LIMIT ; i++){
 		MemoryBlock *mb = (MemoryBlock*) (&memreg)+(sizeof(MemoryBlock)*i);

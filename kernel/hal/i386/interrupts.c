@@ -179,8 +179,9 @@ void special_handler(Register *r){
 	}
 	else if(r->eax==0x05){ // OPEN FILE
 		unsigned char* file = ((unsigned char*)r->ebx);
-		debugf("INT0x80: OPEN %s \n",file);
-		if(((unsigned char*)r->ecx)[0]=='w'){
+		unsigned char filemode = ((unsigned char*)r->ecx)[0];
+		debugf("INT0x80: OPEN [ %s ] with method [ %c ] \n",file,filemode);
+		if(filemode!='r'){
 			char* file2 = ((char*)r->ebx);
 			int fileloc = 3;
 			int z = 0;

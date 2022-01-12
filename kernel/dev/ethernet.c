@@ -1,105 +1,6 @@
 //
 // includes.... everything in one file for simplicity
 #include "../kernel.h"
-#define SIZE_OF_MAC 6
-#define SIZE_OF_IP 4
-#define ETHERNET_TYPE_ARP 0x0608
-#define ETHERNET_TYPE_IP4 0x0008
-
-struct EthernetHeader{
-    unsigned char to[SIZE_OF_MAC];
-    unsigned char from[SIZE_OF_MAC];
-    unsigned short type;
-} __attribute__ ((packed));
-
-struct ARPHeader{
-    struct EthernetHeader ethernetheader;
-    unsigned short hardware_type;
-    unsigned short protocol_type;
-    unsigned char hardware_address_length;
-    unsigned char protocol_address_length;
-    unsigned short operation;
-
-    unsigned char source_mac[SIZE_OF_MAC];
-    unsigned char source_ip[SIZE_OF_IP];
-
-    unsigned char dest_mac[SIZE_OF_MAC];
-    unsigned char dest_ip[SIZE_OF_IP];
-} __attribute__ ((packed));
-
-struct IPv4Header{
-    struct EthernetHeader ethernetheader;
-    unsigned char internet_header_length:4;
-    unsigned char version:4;
-    unsigned char type_of_service;
-    unsigned short total_length;
-    unsigned short id;
-    unsigned short flags:3;
-    unsigned short fragment_offset:13;
-    unsigned char time_to_live;
-    unsigned char protocol;
-    unsigned short checksum;
-    unsigned long source_addr;
-    unsigned long dest_addr;
-} __attribute__ ((packed));
-
-struct UDPHeader{
-    struct IPv4Header ipv4header;
-    unsigned short source_port;
-    unsigned short destination_port;
-    unsigned short length;
-    unsigned short checksum;
-} __attribute__ ((packed));
-
-struct DHCPDISCOVERHeader{
-    struct UDPHeader udpheader;
-    unsigned char op;
-    unsigned char htype;
-    unsigned char hlen;
-    unsigned char hops;
-    unsigned long xid;
-    unsigned short timing;
-    unsigned short flags;
-    unsigned long address_of_machine;
-    unsigned long dhcp_offered_machine;
-    unsigned long ip_addr_of_dhcp_server;
-    unsigned long ip_addr_of_relay;
-    unsigned char client_mac_addr [16];
-    unsigned char sname [64];
-    unsigned char file [128];
-    unsigned long magic_cookie;
-    unsigned char options[76];
-} __attribute__ ((packed));
-
-struct DHCPREQUESTHeader{
-    struct UDPHeader udpheader;
-    unsigned char op;
-    unsigned char htype;
-    unsigned char hlen;
-    unsigned char hops;
-    unsigned long xid;
-    unsigned short timing;
-    unsigned short flags;
-    unsigned long address_of_machine;
-    unsigned long dhcp_offered_machine;
-    unsigned long ip_addr_of_dhcp_server;
-    unsigned long ip_addr_of_relay;
-    unsigned char client_mac_addr [16];
-    unsigned char sname [64];
-    unsigned char file [128];
-    unsigned long magic_cookie;
-    unsigned char options[25];
-} __attribute__ ((packed));
-
-struct DNSREQUESTHeader{
-    struct UDPHeader udpheader;
-    unsigned short transaction_id;
-    unsigned short flags;
-    unsigned short question_count;
-    unsigned short answer_rr;
-    unsigned short authority_rr;
-    unsigned short aditional_rr;
-} __attribute__ ((packed));
 
 unsigned short switch_endian16(unsigned short nb) {
     return (nb>>8) | (nb<<8);
@@ -296,15 +197,19 @@ unsigned char* getIpAddressFromDHCPServer(){
         return 0;
     }
     PackageRecievedDescriptor prd;
+    resetTicks();
     while(1){
         prd = getEthernetPackage(); 
+        if(prd.low_buf==0){
+            return 0;
+        }
         struct EthernetHeader *eh = (struct EthernetHeader*) prd.low_buf;
         if(eh->type==ETHERNET_TYPE_IP4){
             struct DHCPDISCOVERHeader *hd5 = ( struct DHCPDISCOVERHeader*) prd.low_buf;
             if(hd5->options[2]==2&&hd5->xid==dhcpheader->xid&&hd5->op==2){
                 break;
             }
-        } 
+        }
     }
     debugf("[ETH] Got offer\n");
     struct DHCPDISCOVERHeader *hd = ( struct DHCPDISCOVERHeader*) prd.low_buf;
@@ -427,14 +332,17 @@ unsigned char* getIPFromName(char* name){
     sendEthernetPackage(sec);
     struct DNSREQUESTHeader* de;
     PackageRecievedDescriptor ep;
+    unsigned char* targetip = (unsigned char*) malloc(SIZE_OF_IP);
     while(1){
         ep = getEthernetPackage();
+        if(ep.low_buf==0){
+            return targetip;
+        }
         de = (struct DNSREQUESTHeader*) ep.low_buf;
         if(de->transaction_id==0xe0e7){
             break;
         }
     }
-    unsigned char* targetip = (unsigned char*) malloc(SIZE_OF_IP);
     if(de->answer_rr==0x0100){
         targetip[0] = ((unsigned char*)de + (ep.buffersize-4))[0];
         targetip[1] = ((unsigned char*)de + (ep.buffersize-3))[0];
@@ -477,6 +385,10 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
     return 0;
 }
 
+unsigned long getOurIpAsLong(){
+    return ((unsigned long*)&our_ip)[0];
+}
+
 void initialise_ethernet(){
     printf("[ETH] Ethernet module reached!\n");
     EthernetDevice ed = getDefaultEthernetDevice();
@@ -503,5 +415,57 @@ void initialise_ethernet(){
         debugf("[ETH] Gateway IP is %d.%d.%d.%d \n",router_ip[0],router_ip[1],router_ip[2],router_ip[3]);
         debugf("[ETH] DNS     IP is %d.%d.%d.%d \n",dns_ip[0],dns_ip[1],dns_ip[2],dns_ip[3]);
         debugf("[ETH] DHCP    IP is %d.%d.%d.%d \n",dhcp_ip[0],dhcp_ip[1],dhcp_ip[2],dhcp_ip[3]);
+
+        // unsigned char* srve = getIPFromName("tftp.local");
+        // if(srve[0]){
+            unsigned char ipfs[SIZE_OF_IP];
+            ipfs[0] = dhcp_ip[0];
+            ipfs[1] = dhcp_ip[1];
+            ipfs[2] = dhcp_ip[2];
+            ipfs[3] = dhcp_ip[3];
+            Device *dev = getNextFreeDevice();
+            dev->arg4 = (unsigned long)&ipfs;
+            dev->arg5 = (unsigned long)getMACFromIp((unsigned char*)&ipfs);
+            initialiseTFTP(dev);
+        // }
+        // printf("Im ready for it!\n");
+        // while(1){
+        //     int packagelength = sizeof(struct UDPHeader) + 25;
+        //     unsigned char* package = (unsigned char*) malloc(packagelength);
+        //     struct UDPHeader *rpackage = (struct UDPHeader*) package;
+        //     unsigned char destmac[SIZE_OF_MAC] = {0xE0,0x94,0x67,0xF8,0x1E,0xFC};
+        //     unsigned char ipaddr[SIZE_OF_IP] = {192,168,2,68};
+        //     fillUdpHeader(rpackage,(unsigned char*)&destmac,packagelength-sizeof(struct EthernetHeader),getOurIpAsLong(),((unsigned long*)ipaddr)[0],45324,45324);
+        //     package[sizeof(struct UDPHeader)+0] = 'H';
+        //     package[sizeof(struct UDPHeader)+1] = 'E';
+        //     package[sizeof(struct UDPHeader)+2] = 'L';
+        //     package[sizeof(struct UDPHeader)+3] = 'L';
+        //     package[sizeof(struct UDPHeader)+4] = 'O';
+
+        //     PackageRecievedDescriptor sec;
+        //     sec.buffersize = packagelength;
+        //     sec.high_buf = 0;
+        //     sec.low_buf = (unsigned long)package;
+        //     sendEthernetPackage(sec);
+        //     unsigned char* m;
+        //     agt:
+        //         sec = getEthernetPackage();
+        //         struct EthernetHeader* eh = (struct EthernetHeader*) sec.low_buf;
+        //         if(eh->type==ETHERNET_TYPE_IP4){
+        //             struct IPv4Header* ip = (struct IPv4Header*) sec.low_buf;
+        //             if(ip->protocol==17){
+        //                 struct UDPHeader* udp = (struct UDPHeader*) sec.low_buf;
+        //                 if(udp->destination_port==0xCB1){
+        //                     goto stp;
+        //                 }
+        //             }
+        //         }
+        //     goto agt;
+        //     stp:
+        //     m = (unsigned char*) sec.low_buf;
+        //     printf("Message: %s \n",(unsigned char*)&m[sizeof(struct UDPHeader)]);
+        // }
+        // for(;;);
+
     }
 }

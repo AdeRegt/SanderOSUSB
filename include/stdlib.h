@@ -2,6 +2,8 @@
 
 #ifndef D_EXIT
 	#define D_EXIT
+	#define EXIT_SUCCESS 0
+	#define EXIT_FAILURE 1
 	void exit(int status);
 #endif
 

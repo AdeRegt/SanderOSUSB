@@ -13,6 +13,8 @@
 //
 // FROM: https://wiki.osdev.org/RTL8169
 // This is a entry in the queue of the recieve and transmit descriptor queue
+#define OWN 0x80000000
+#define EOR 0x40000000
 struct Descriptor{
 	unsigned int command;  /* command/status uint32_t */
 	unsigned int vlan;     /* currently unused */
@@ -45,7 +47,17 @@ void irq_rtl8169(){
 	}
 	if(status&0x01){
 		debugf("[RTL81] Package recieved!\n");
-		((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0]++;
+		PackageRecievedDescriptor prd;
+		for(int z = 0 ; z < 100 ; z++){
+			if(!(Rx_Descriptors[z].command & OWN)){
+				prd.buffersize = Rx_Descriptors[z].command & 0x3FFF;
+				prd.low_buf = Rx_Descriptors[z].low_buf;
+				prd.high_buf = Rx_Descriptors[z].high_buf;
+				if(ethernet_handle_package(prd)){
+					Rx_Descriptors[z].command |= OWN;
+				}
+			}
+		}
 		status |= 0x01;
 	}
 	if(status&0x04){
@@ -96,21 +108,29 @@ void rtl_sendPackage(PackageRecievedDescriptor desc){
 }
 
 PackageRecievedDescriptor rtl_recievePackage(){
-	while(1){ // wait of arival of interrupt
-		unsigned volatile long x = ((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0];
-		if(x>0){
+	PackageRecievedDescriptor prd;
+	resetTicks();
+	while(1){
+		int i = -1;
+		for(int z = 0 ; z < 100 ; z++){
+			if(!(Rx_Descriptors[z].command & OWN)){
+				Rx_Descriptors[z].command |= OWN;
+				prd.buffersize = Rx_Descriptors[z].command & 0x3FFF;
+				prd.low_buf = Rx_Descriptors[z].low_buf;
+				prd.high_buf = Rx_Descriptors[z].high_buf;
+				i = z;
+				break;
+			}
+		}
+		if(i!=-1){
+			break;
+		}
+		if(getTicks()>10){
+			prd.low_buf = 0;
 			break;
 		}
 	}
-	((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0]--;
-	struct Descriptor desc = Rx_Descriptors[rx_pointer++];
-	PackageRecievedDescriptor res;
-	unsigned long buffer_size = desc.command & 0x3FFF;
-	res.buffersize = buffer_size;
-	res.low_buf = desc.low_buf;
-	res.high_buf = desc.high_buf;
-	// ((unsigned volatile long*)((unsigned volatile long)&package_recieved_ack))[0] = 0;
-	return res;
+	return prd;
 }
 
 void rtl_test(){
@@ -158,8 +178,6 @@ void init_rtl(int bus,int slot,int function){
 	//
 	// setup rx descriptor
 	debugf("[RTL81] Setup RX descriptor\n");
-	unsigned int OWN = 0x80000000;
-	unsigned int EOR = 0x40000000;
 	for(unsigned long i = 0; i < num_of_rx_descriptors; i++){
 		unsigned long rx_buffer_len = 100;
 		unsigned long packet_buffer_address = (unsigned long)malloc(rx_buffer_len);

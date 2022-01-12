@@ -31,6 +31,7 @@ gcc -c fs/mbr.c -m32 -o mbr.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exi
 gcc -c fs/ext.c -m32 -o ext.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c fs/fat.c -m32 -o fat.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c fs/sfs.c -m32 -o sfs.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
+gcc -c fs/tftp.c -m32 -o tftp.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c exec/elf.c -m32 -o elf.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c dev/math.c -m32 -o math.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c dev/uhci.c -m32 -o uhci.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
@@ -45,7 +46,7 @@ gcc -c dev/soundblaster16.c -m32 -o soundblaster16.o -std=gnu99 -ffreestanding -
 gcc -c dev/ethernet.c -m32 -o ethernet.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c exec/program.c -m32 -o program.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 
-gcc -T linker.ld -o myos.bin -m32 -ffreestanding -O2 -nostdlib boot.o kernel.o io_ports.o cpuid.o soundblaster16.o usb.o cmos.o e1000.o ehci.o ehci_stick.o paging.o paging2.o multitasking.o interrupts.o com_port.o ide.o sfs.o pci.o memory.o timer.o video.o videoasm.o isr.o ps2.o device.o iso9660.o elf.o vbox.o xhci.o acpi.o ahci.o mbr.o ext.o fat.o math.o uhci.o xhci_hid.o RTL8169.o ethernet.o || exit
+gcc -T linker.ld -o myos.bin -m32 -ffreestanding -O2 -nostdlib boot.o kernel.o io_ports.o cpuid.o soundblaster16.o usb.o cmos.o e1000.o ehci.o ehci_stick.o paging.o paging2.o multitasking.o interrupts.o com_port.o ide.o sfs.o pci.o memory.o timer.o video.o videoasm.o isr.o ps2.o device.o iso9660.o elf.o vbox.o xhci.o acpi.o ahci.o mbr.o ext.o fat.o math.o uhci.o xhci_hid.o RTL8169.o ethernet.o tftp.o || exit
 
 rm *.o
 
@@ -68,6 +69,8 @@ echo "Assembly functions"
 fasm user32.inc user32.o
 echo "C functions"
 gcc -c modern.c -m32 -o modern.o -std=gnu99 -ffreestanding -O0 -Wall -Wextra
+echo "Stub"
+fasm stub.inc stub.o
 cd ..
 
 echo "Build programs"
@@ -113,6 +116,8 @@ if [ "$1" = "--grub" ]
 		mkdir mnt
 		mkdir mnt/prgs
 		cp programs/*.bin mnt/prgs
+		echo "intz main(){return;}" >> mnt/prgs/code.c
+		echo "int main(){return;}" >> mnt/prgs/tegt.asm
 		mkdir mnt/boot
 		mkdir mnt/boot/grub
 		cp kernel.bin mnt/kernel.bin
