@@ -101,13 +101,18 @@ unsigned char* getMACFromIp(unsigned char* ip){
     return ah->source_mac;
 }
 
+unsigned char* getOurRouterIp(){
+    return (unsigned char*) &router_ip;
+}
+
+unsigned short ipv4count = 1;
 void fillIpv4Header(struct IPv4Header *ipv4header, unsigned char* destmac, unsigned short length,unsigned char protocol,unsigned long from, unsigned long to){
     fillEthernetHeader((struct EthernetHeader*)&ipv4header->ethernetheader,destmac,ETHERNET_TYPE_IP4);
     ipv4header->version = 4;
     ipv4header->internet_header_length = 5;
     ipv4header->type_of_service = 0;
     ipv4header->total_length = switch_endian16( length );
-    ipv4header->id = switch_endian16(1);
+    ipv4header->id = switch_endian16(ipv4count);
     ipv4header->flags = 0;
     ipv4header->fragment_offset= 0b01000;
     ipv4header->time_to_live = 64;
@@ -119,7 +124,7 @@ void fillIpv4Header(struct IPv4Header *ipv4header, unsigned char* destmac, unsig
     unsigned long checksum = 0;
     checksum += 0x4500;
     checksum += length;
-    checksum += 1;
+    checksum += ipv4count++;
     checksum += 0x4000;
     checksum += 0x4000 + protocol;
     checksum += switch_endian16((from >> 16) & 0xFFFF);
@@ -427,43 +432,6 @@ void initialise_ethernet(){
             dev->arg4 = (unsigned long)&ipfs;
             dev->arg5 = (unsigned long)getMACFromIp((unsigned char*)&ipfs);
             initialiseTFTP(dev);
-        // }
-        // printf("Im ready for it!\n");
-        // while(1){
-        //     int packagelength = sizeof(struct UDPHeader) + 25;
-        //     unsigned char* package = (unsigned char*) malloc(packagelength);
-        //     struct UDPHeader *rpackage = (struct UDPHeader*) package;
-        //     unsigned char destmac[SIZE_OF_MAC] = {0xE0,0x94,0x67,0xF8,0x1E,0xFC};
-        //     unsigned char ipaddr[SIZE_OF_IP] = {192,168,2,68};
-        //     fillUdpHeader(rpackage,(unsigned char*)&destmac,packagelength-sizeof(struct EthernetHeader),getOurIpAsLong(),((unsigned long*)ipaddr)[0],45324,45324);
-        //     package[sizeof(struct UDPHeader)+0] = 'H';
-        //     package[sizeof(struct UDPHeader)+1] = 'E';
-        //     package[sizeof(struct UDPHeader)+2] = 'L';
-        //     package[sizeof(struct UDPHeader)+3] = 'L';
-        //     package[sizeof(struct UDPHeader)+4] = 'O';
-
-        //     PackageRecievedDescriptor sec;
-        //     sec.buffersize = packagelength;
-        //     sec.high_buf = 0;
-        //     sec.low_buf = (unsigned long)package;
-        //     sendEthernetPackage(sec);
-        //     unsigned char* m;
-        //     agt:
-        //         sec = getEthernetPackage();
-        //         struct EthernetHeader* eh = (struct EthernetHeader*) sec.low_buf;
-        //         if(eh->type==ETHERNET_TYPE_IP4){
-        //             struct IPv4Header* ip = (struct IPv4Header*) sec.low_buf;
-        //             if(ip->protocol==17){
-        //                 struct UDPHeader* udp = (struct UDPHeader*) sec.low_buf;
-        //                 if(udp->destination_port==0xCB1){
-        //                     goto stp;
-        //                 }
-        //             }
-        //         }
-        //     goto agt;
-        //     stp:
-        //     m = (unsigned char*) sec.low_buf;
-        //     printf("Message: %s \n",(unsigned char*)&m[sizeof(struct UDPHeader)]);
         // }
         // for(;;);
 

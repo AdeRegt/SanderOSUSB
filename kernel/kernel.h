@@ -407,6 +407,8 @@ PackageRecievedDescriptor getEthernetPackage();
 int sendEthernetPackage(PackageRecievedDescriptor desc);
 void initialise_ethernet();
 int ethernet_handle_package(PackageRecievedDescriptor desc);
+unsigned char* getMACFromIp(unsigned char* ip);
+unsigned char* getOurRouterIp();
 //void dirdev();
 void initialiseTFTP(Device *device);
 #define SIZE_OF_MAC 6

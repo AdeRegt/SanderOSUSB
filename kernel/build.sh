@@ -109,7 +109,7 @@ if [ $# -eq 0 ]
 		exit
 fi 
 
-if [ "$1" = "--grub" ]
+if [ "$1" = "--grub" ] || [ "$1" = "--all" ]
 	then
 		echo "Build ISO"
 		rm cdrom.iso
@@ -126,7 +126,7 @@ if [ "$1" = "--grub" ]
 		rm -rf mnt
 fi
 
-if [ "$1" = "--pxe" ]
+if [ "$1" = "--pxe" ] || [ "$1" = "--all" ]
 	then
 		cd boot/pxe 
 		nasm -fbin pxe_entry_point.asm -o pxestub.bin 

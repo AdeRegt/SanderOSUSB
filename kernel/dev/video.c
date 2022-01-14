@@ -1494,7 +1494,11 @@ char* vsprintf(char* format,va_list arg){
 						buffer = malloc(buffersize);
 						memcpy(buffertmp,buffer,oldsize);
 						free(buffertmp);
-						buffer[travelpointer++] = i;
+						if(i==0){
+							buffer[travelpointer++] = '0';
+						}else{
+							buffer[travelpointer++] = i;
+						}
 						break; 
 						
 			case 'd' : t = va_arg(arg,int); 		//Fetch Decimal/Integer argument

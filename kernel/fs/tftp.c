@@ -5,7 +5,7 @@ unsigned char *macaddr;
 
 void tftp_read(Device *device,char* path,char *buffer){
     int pathlength = strlen(path);
-    char* type = "netascii";
+    char* type = "octet";
     int typelength = strlen(type);
     int packagelength = sizeof(struct UDPHeader) + pathlength + 4 + typelength;
     unsigned char* package = (unsigned char*) malloc(packagelength);
@@ -76,7 +76,6 @@ void tftp_read(Device *device,char* path,char *buffer){
         goto again;
     }
     buffer[memcopoffset++] = 0;
-    debugf("[TFTP] endofcopy\n");
 }
 
 void tftp_dir(Device *device,char* path,char *buffer){

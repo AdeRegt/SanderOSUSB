@@ -21,6 +21,9 @@ public getc
 public realpath
 public realloc
 
+public getnetworkpackage
+public sendnetworkpackage
+
 section '.text' executable
 ;
 ; SanderOSUSB Standard Libary
@@ -316,4 +319,42 @@ realloc:
     int 0x80 
 
     pop ebp 
+    ret
+
+;
+; Gets a package from the network
+; void *getethetnerpackage()
+; ebp
+getnetworkpackage:
+    push ebp
+    mov ebp,esp 
+
+    mov eax,0xC8
+    int 0x80 
+
+    pop ebp
+    ret
+
+;
+; Sends a package to the network
+; void sendnetworkpackage(int type,int size,unsigned char *to,void *where,int port);
+; type    =   8
+; size    =  12
+; to      =  16
+; where   =  20
+; port   =  24
+; ebp
+sendnetworkpackage:
+    push ebp 
+    mov ebp,esp 
+
+    mov eax,0xC9
+    mov ebx,dword [ebp+8]
+    mov ecx,dword [ebp+12]
+    mov edx,dword [ebp+16]
+    mov esi,dword [ebp+20]
+    mov edi,dword [ebp+24]
+    int 0x80 
+
+    pop ebp
     ret
