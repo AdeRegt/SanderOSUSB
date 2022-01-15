@@ -421,8 +421,10 @@ void initialise_ethernet(){
         debugf("[ETH] DNS     IP is %d.%d.%d.%d \n",dns_ip[0],dns_ip[1],dns_ip[2],dns_ip[3]);
         debugf("[ETH] DHCP    IP is %d.%d.%d.%d \n",dhcp_ip[0],dhcp_ip[1],dhcp_ip[2],dhcp_ip[3]);
 
-        // unsigned char* srve = getIPFromName("tftp.local");
-        // if(srve[0]){
+        unsigned char* srve = getIPFromName("tftp.local");
+        if(srve[0]){
+            printf("[ETH] TFTP    IP is %d.%d.%d.%d \n",srve[0],srve[1],srve[2],srve[3]);
+            debugf("[ETH] TFTP    IP is %d.%d.%d.%d \n",srve[0],srve[1],srve[2],srve[3]);
             unsigned char ipfs[SIZE_OF_IP];
             ipfs[0] = dhcp_ip[0];
             ipfs[1] = dhcp_ip[1];
@@ -432,8 +434,7 @@ void initialise_ethernet(){
             dev->arg4 = (unsigned long)&ipfs;
             dev->arg5 = (unsigned long)getMACFromIp((unsigned char*)&ipfs);
             initialiseTFTP(dev);
-        // }
-        // for(;;);
+        }
 
     }
 }

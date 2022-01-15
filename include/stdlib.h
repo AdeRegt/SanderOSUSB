@@ -50,3 +50,5 @@
 	#define D_SYSTEM
 	int system(const char *string);
 #endif
+
+unsigned short switch_endian16(unsigned short nb);

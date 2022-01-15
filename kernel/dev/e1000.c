@@ -240,31 +240,6 @@ PackageRecievedDescriptor e1000_recieve_package(){
             return prd;
         }
     }
-	// while(1){ // wait of arival of interrupt
-	// 	unsigned volatile long x = ((unsigned volatile long*)((unsigned volatile long)&e1000_package_recieved_ack))[0];
-	// 	if(x==1){
-	// 		break;
-	// 	}
-	// }
-
-    // PackageRecievedDescriptor prd;
-    // unsigned short old_cur;
-
-    // if((rx_descs[rx_cur]->status & 0x1))
-    // {
-    //     unsigned char *buf = (unsigned char *)rx_descs[rx_cur]->addr_1;
-    //     unsigned short len = rx_descs[rx_cur]->length;
-    //     prd.buffersize = len;
-    //     prd.high_buf = 0;
-    //     prd.low_buf = (unsigned long)buf;
-
-    //     rx_descs[rx_cur]->status = 0;
-    //     old_cur = rx_cur;
-    //     rx_cur = (rx_cur + 1) % E1000_NUM_RX_DESC;
-    //     e1000_write_in_space(REG_RXDESCTAIL, old_cur );
-    // }
-    // ((unsigned volatile long*)((unsigned volatile long)&e1000_package_recieved_ack))[0] = 0;
-	// return prd;
 }
 
 void init_e1000(int bus,int slot,int function){

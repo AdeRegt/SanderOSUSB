@@ -349,7 +349,9 @@ void special_handler(Register *r){
 			unsigned char* to = (unsigned char*) loca;
 			for(int i = 0 ; i < size ; i++){
 				from[sizeof(struct UDPHeader)+i] = to[i];
+				debugf("%x ",to[i]);
 			}
+			debugf("\n");
 
 			PackageRecievedDescriptor prd;
 			prd.buffersize = calbuffersize;
