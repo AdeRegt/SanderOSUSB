@@ -415,6 +415,7 @@ void initialiseTFTP(Device *device);
 #define SIZE_OF_IP 4
 #define ETHERNET_TYPE_ARP 0x0608
 #define ETHERNET_TYPE_IP4 0x0008
+#define IPV4_TYPE_UDP 0x11
 
 struct EthernetHeader{
     unsigned char to[SIZE_OF_MAC];
@@ -459,6 +460,12 @@ struct UDPHeader{
     unsigned short destination_port;
     unsigned short length;
     unsigned short checksum;
+} __attribute__ ((packed));
+
+struct TFTPAcknowledgeHeader{
+    struct UDPHeader header;
+    unsigned short type;
+    unsigned short index;
 } __attribute__ ((packed));
 
 struct DHCPDISCOVERHeader{

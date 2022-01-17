@@ -386,6 +386,30 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
 
             sendEthernetPackage(sec);
         }
+    }else if(eh->type==ETHERNET_TYPE_IP4){
+        struct IPv4Header* ip = (struct IPv4Header*) eh;
+        if(ip->protocol==IPV4_TYPE_UDP){
+            struct UDPHeader* udp = (struct UDPHeader*) eh;
+            if(udp->destination_port==switch_endian16(50618)){
+                // TFTP, automatic ACK
+                struct TFTPAcknowledgeHeader* tftp_old = (struct TFTPAcknowledgeHeader*)eh;
+                struct TFTPAcknowledgeHeader* tftp = (struct TFTPAcknowledgeHeader*)malloc(sizeof(struct TFTPAcknowledgeHeader));
+
+                tftp->index = tftp_old->index;
+                tftp->type = switch_endian16(4);
+
+                unsigned short packagelength = sizeof(struct UDPHeader) + 4 ;
+                fillUdpHeader((struct UDPHeader*)&tftp->header,(unsigned char*)tftp_old->header.ipv4header.ethernetheader.from,packagelength-sizeof(struct EthernetHeader),getOurIpAsLong(),tftp_old->header.ipv4header.source_addr,50618,switch_endian16(tftp_old->header.source_port));
+            
+                PackageRecievedDescriptor sec;
+                sec.buffersize = sizeof(struct TFTPAcknowledgeHeader);
+                sec.high_buf = 0;
+                sec.low_buf = (unsigned long)tftp;
+
+                sendEthernetPackage(sec);
+
+            }
+        }
     }
     return 0;
 }

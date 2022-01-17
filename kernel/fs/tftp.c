@@ -57,20 +57,20 @@ void tftp_read(Device *device,char* path,char *buffer){
     for(int i = 0 ; i < over ; i++){
         buffer[memcopoffset++] = tow[sizeof(struct UDPHeader)+4+i];
     }
-    packagelength = sizeof(struct UDPHeader) + 4 ;
-    package = (unsigned char*) malloc(packagelength);
-    rpackage = (struct UDPHeader*) package;
-    fillUdpHeader(rpackage,macaddr,packagelength-sizeof(struct EthernetHeader),getOurIpAsLong(),((unsigned long*)ipaddr)[0],50618,69);
-    package[sizeof(struct UDPHeader)+0] = 0;
-    package[sizeof(struct UDPHeader)+1] = 4;
-    package[sizeof(struct UDPHeader)+2] = (indexid/0x100) & 0xFF;
-    package[sizeof(struct UDPHeader)+3] = indexid & 0xFF;
+    // packagelength = sizeof(struct UDPHeader) + 4 ;
+    // package = (unsigned char*) malloc(packagelength);
+    // rpackage = (struct UDPHeader*) package;
+    // fillUdpHeader(rpackage,macaddr,packagelength-sizeof(struct EthernetHeader),getOurIpAsLong(),((unsigned long*)ipaddr)[0],50618,69);
+    // package[sizeof(struct UDPHeader)+0] = 0;
+    // package[sizeof(struct UDPHeader)+1] = 4;
+    // package[sizeof(struct UDPHeader)+2] = (indexid/0x100) & 0xFF;
+    // package[sizeof(struct UDPHeader)+3] = indexid & 0xFF;
 
-    sec.buffersize = packagelength;
-    sec.high_buf = 0;
-    sec.low_buf = (unsigned long)package;
+    // sec.buffersize = packagelength;
+    // sec.high_buf = 0;
+    // sec.low_buf = (unsigned long)package;
 
-    sendEthernetPackage(sec);
+    // sendEthernetPackage(sec);
 
     if(over==512){
         goto again;
