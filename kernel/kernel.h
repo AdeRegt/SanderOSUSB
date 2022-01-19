@@ -416,6 +416,16 @@ void initialiseTFTP(Device *device);
 #define ETHERNET_TYPE_ARP 0x0608
 #define ETHERNET_TYPE_IP4 0x0008
 #define IPV4_TYPE_UDP 0x11
+#define IPV4_TYPE_TCP 0x06
+#define TCP_FIN 0b000000000001
+#define TCP_SYN 0b000000000010
+#define TCP_RES 0b000000000100
+#define TCP_PUS 0b000000001000
+#define TCP_ACK 0b000000010000
+#define TCP_URG 0b000000100000
+#define TCP_ECN 0b000001000000
+#define TCP_CWR 0b000010000000
+#define TCP_NON 0b000100000000
 
 struct EthernetHeader{
     unsigned char to[SIZE_OF_MAC];
@@ -460,6 +470,18 @@ struct UDPHeader{
     unsigned short destination_port;
     unsigned short length;
     unsigned short checksum;
+} __attribute__ ((packed));
+
+struct TCPHeader{
+    struct IPv4Header header;
+    unsigned short source_port;
+    unsigned short destination_port;
+    unsigned long sequence_number;
+    unsigned long acknowledge_number;
+    unsigned short flags;
+    unsigned short window_size;
+    unsigned short checksum;
+    unsigned short urgent_pointer;
 } __attribute__ ((packed));
 
 struct TFTPAcknowledgeHeader{

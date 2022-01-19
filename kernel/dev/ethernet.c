@@ -6,6 +6,10 @@ unsigned short switch_endian16(unsigned short nb) {
     return (nb>>8) | (nb<<8);
 }
 
+unsigned long switch_endian32(unsigned long nb) {
+    return switch_endian16(nb>>16) | switch_endian16(nb<<16);
+}
+
 void ethernet_detect(int bus,int slot,int function,int device,int vendor){
     if((device==0x8168||device==0x8139)&&vendor==0x10ec){ 
         // Sander his RTL8169 driver comes here
@@ -137,13 +141,84 @@ void fillIpv4Header(struct IPv4Header *ipv4header, unsigned char* destmac, unsig
 }
 
 void fillUdpHeader(struct UDPHeader *udpheader, unsigned char *destmac, unsigned short size,unsigned long from, unsigned long to,unsigned short source_port, unsigned short destination_port){
-    fillIpv4Header((struct IPv4Header*)&udpheader->ipv4header,destmac,size,17,from,to);
+    fillIpv4Header((struct IPv4Header*)&udpheader->ipv4header,destmac,size,IPV4_TYPE_UDP,from,to);
 
     udpheader->length = switch_endian16(size - (sizeof(struct IPv4Header)-sizeof(struct EthernetHeader)));
     udpheader->destination_port = switch_endian16(destination_port);
     udpheader->source_port = switch_endian16(source_port);
 
     udpheader->checksum = 0;
+}
+
+// checksum for tcp by https://github.com/nelsoncole/sirius-x86-64/blob/main/kernel/driver/net/checksum.c 
+struct tcp_checksum_header{
+    unsigned int src;
+    unsigned int dst;
+    unsigned char rsved;
+    unsigned char protocol;
+    unsigned short len;
+    unsigned short source_port;
+    unsigned short destination_port;
+    unsigned long sequence_number;
+    unsigned long acknowledge_number;
+    unsigned short flags;
+    unsigned short window_size;
+    unsigned short checksum;
+    unsigned short urgent_pointer;
+}__attribute__((packed));
+
+unsigned short net_checksum(const unsigned char *start, const unsigned char *end)
+{
+
+    unsigned int checksum = 0;
+    unsigned int len = end - start;
+    unsigned short *p = (unsigned short *)start;
+
+    // acc
+    while (len > 1) {
+        checksum += *p++;
+        len -= 2;
+    }
+
+    if (len != 0) {
+        checksum += *(unsigned char *)p;
+    }
+
+
+    checksum = (checksum & 0xffff) + (checksum >> 16);
+    checksum += (checksum >> 16);
+
+    unsigned short final = ~checksum;
+
+    return switch_endian16(final);
+}
+
+void fillTcpHeader(struct TCPHeader *tcpheader,unsigned char *destmac,unsigned short size,unsigned long from,unsigned long to,unsigned short from_port,unsigned short to_port,unsigned long sequence_number,unsigned long acknowledge_number,unsigned char header_length,unsigned short flags,unsigned short window){
+    fillIpv4Header((struct IPv4Header*)&tcpheader->header,destmac,size,IPV4_TYPE_TCP,from,to);
+    tcpheader->source_port          = switch_endian16(from_port);
+    tcpheader->destination_port     = switch_endian16(to_port);
+    tcpheader->sequence_number      = switch_endian32(sequence_number);
+    tcpheader->acknowledge_number   = switch_endian32(acknowledge_number);
+    tcpheader->flags                = switch_endian16(flags) + (header_length<<4);
+    tcpheader->window_size          = switch_endian16(window);
+    tcpheader->checksum             = 0;
+    tcpheader->urgent_pointer       = 0;
+
+    struct tcp_checksum_header* trx = (struct tcp_checksum_header*)malloc(sizeof(struct tcp_checksum_header));
+    trx->dst = (to);
+    trx->src = (from);
+    trx->len = switch_endian16(20);
+    trx->protocol = IPV4_TYPE_TCP;
+    trx->source_port          = switch_endian16(from_port);
+    trx->destination_port     = switch_endian16(to_port);
+    trx->sequence_number      = switch_endian32(sequence_number);
+    trx->acknowledge_number   = switch_endian32(acknowledge_number);
+    trx->flags                = switch_endian16(flags) + (header_length<<4);
+    trx->window_size          = switch_endian16(window);
+    trx->checksum             = 0;
+    trx->urgent_pointer       = 0;
+
+    tcpheader->checksum = switch_endian16(net_checksum((const unsigned char*)trx,(const unsigned char*)(trx+sizeof(struct tcp_checksum_header))));
 }
 
 void fillDhcpDiscoverHeader(struct DHCPDISCOVERHeader *dhcpheader){
@@ -357,6 +432,26 @@ unsigned char* getIPFromName(char* name){
     return targetip; 
 }
 
+void create_tcp_session(unsigned long from, unsigned long to, unsigned short from_port, unsigned short to_port){
+    unsigned long sizetype = sizeof(struct TCPHeader);
+    struct TCPHeader* tcp1 = (struct TCPHeader*) malloc(sizetype);
+    unsigned char* destmac;
+    unsigned char* t4 = (unsigned char*)&from;
+    if(t4[0]==192){
+        destmac = getMACFromIp(t4);
+    }else{
+        destmac = (unsigned char*)&router_ip;
+    }
+    unsigned short size = sizeof(struct TCPHeader) - sizeof(struct EthernetHeader);
+    fillTcpHeader(tcp1,destmac,size,from,to,from_port,to_port,0,0,5,TCP_SYN,512);
+
+    PackageRecievedDescriptor sec;
+    sec.buffersize = sizetype;
+    sec.high_buf = 0;
+    sec.low_buf = (unsigned long)tcp1;
+    sendEthernetPackage(sec);
+}
+
 int ethernet_handle_package(PackageRecievedDescriptor desc){
     struct EthernetHeader *eh = (struct EthernetHeader*) desc.low_buf;
     if(eh->type==ETHERNET_TYPE_ARP){
@@ -385,6 +480,9 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
             sec.low_buf = (unsigned long)arpie;
 
             sendEthernetPackage(sec);
+            return 1;
+        }else if(ah->operation==0x0100){
+            return 1;
         }
     }else if(eh->type==ETHERNET_TYPE_IP4){
         struct IPv4Header* ip = (struct IPv4Header*) eh;
@@ -409,6 +507,30 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
                 sendEthernetPackage(sec);
 
             }
+        }else if(ip->protocol==IPV4_TYPE_TCP){
+            struct TCPHeader* tcp = (struct TCPHeader*) eh;
+            if((switch_endian16(tcp->flags)) & TCP_SYN && (switch_endian16(tcp->flags) & TCP_ACK)){
+                // TCP auto accept ACK SYN
+                debugf("TCP connection created!\n");
+                unsigned long from = tcp->header.dest_addr; 
+                unsigned long to = tcp->header.source_addr; 
+                unsigned short from_port = switch_endian16(tcp->destination_port); 
+                unsigned short to_port = switch_endian16(tcp->source_port);
+                unsigned long sizetype = sizeof(struct TCPHeader);
+                struct TCPHeader* tcp1 = (struct TCPHeader*) malloc(sizetype);
+                unsigned char* destmac = (unsigned char*)tcp->header.ethernetheader.from;
+                unsigned short size = sizeof(struct TCPHeader) - sizeof(struct EthernetHeader);
+                fillTcpHeader(tcp1,destmac,size,from,to,from_port,to_port,1,1,5,TCP_ACK,512);
+
+                PackageRecievedDescriptor sec;
+                sec.buffersize = sizetype;
+                sec.high_buf = 0;
+                sec.low_buf = (unsigned long)tcp1;
+                sendEthernetPackage(sec);
+            }else{
+                debugf("TCP connection= %x \n",switch_endian16(tcp->flags));
+            }
+            return 1;
         }
     }
     return 0;
@@ -444,6 +566,14 @@ void initialise_ethernet(){
         debugf("[ETH] Gateway IP is %d.%d.%d.%d \n",router_ip[0],router_ip[1],router_ip[2],router_ip[3]);
         debugf("[ETH] DNS     IP is %d.%d.%d.%d \n",dns_ip[0],dns_ip[1],dns_ip[2],dns_ip[3]);
         debugf("[ETH] DHCP    IP is %d.%d.%d.%d \n",dhcp_ip[0],dhcp_ip[1],dhcp_ip[2],dhcp_ip[3]);
+
+        // 192.168.2.68
+        unsigned char xxx[SIZE_OF_IP];
+        xxx[0] = 192;
+        xxx[1] = 168;
+        xxx[2] = 2;
+        xxx[3] = 68;
+        create_tcp_session(getOurIpAsLong(), ((unsigned long*)&xxx)[0], 19696, 19696);printf("verzonden\n");
 
         unsigned char* srve = getIPFromName("tftp.local");
         if(srve[0]){
