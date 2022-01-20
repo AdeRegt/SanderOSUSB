@@ -291,7 +291,7 @@ void init_e1000(int bus,int slot,int function){
     ptr = (unsigned char *)(malloc(sizeof(struct e1000_rx_desc)*E1000_NUM_RX_DESC + 16));
  
     descs = (struct e1000_rx_desc *)ptr;
-    for(int i = 0; i < 8; i++)
+    for(int i = 0; i < 100; i++)
     {
         rx_descs[i] = (struct e1000_rx_desc *)((unsigned char *)descs + i*16);
         rx_descs[i]->addr_1 = (unsigned long)(unsigned char *)(malloc(8192 + 16));

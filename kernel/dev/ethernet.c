@@ -6,8 +6,11 @@ unsigned short switch_endian16(unsigned short nb) {
     return (nb>>8) | (nb<<8);
 }
 
-unsigned long switch_endian32(unsigned long nb) {
-    return switch_endian16(nb>>16) | switch_endian16(nb<<16);
+unsigned long switch_endian32(unsigned long num) {
+    return ((num>>24)&0xff) | // move byte 3 to byte 0
+    ((num<<8)&0xff0000) | // move byte 1 to byte 2
+    ((num>>8)&0xff00) | // move byte 2 to byte 1
+    ((num<<24)&0xff000000); // byte 0 to byte 3
 }
 
 void ethernet_detect(int bus,int slot,int function,int device,int vendor){
@@ -443,7 +446,7 @@ void create_tcp_session(unsigned long from, unsigned long to, unsigned short fro
         destmac = (unsigned char*)&router_ip;
     }
     unsigned short size = sizeof(struct TCPHeader) - sizeof(struct EthernetHeader);
-    fillTcpHeader(tcp1,destmac,size,from,to,from_port,to_port,0,0,5,TCP_SYN,512);
+    fillTcpHeader(tcp1,destmac,size,from,to,from_port,to_port,1,0,5,TCP_SYN,512);
 
     PackageRecievedDescriptor sec;
     sec.buffersize = sizetype;
@@ -509,9 +512,9 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
             }
         }else if(ip->protocol==IPV4_TYPE_TCP){
             struct TCPHeader* tcp = (struct TCPHeader*) eh;
-            if((switch_endian16(tcp->flags)) & TCP_SYN && (switch_endian16(tcp->flags) & TCP_ACK)){
+            if(((switch_endian16(tcp->flags) & TCP_PUS)||(switch_endian16(tcp->flags) & TCP_SYN)) && (switch_endian16(tcp->flags) & TCP_ACK)){
                 // TCP auto accept ACK SYN
-                debugf("TCP connection created!\n");
+                // debugf("[ETH] TCP shake confirmed\n");
                 unsigned long from = tcp->header.dest_addr; 
                 unsigned long to = tcp->header.source_addr; 
                 unsigned short from_port = switch_endian16(tcp->destination_port); 
@@ -520,15 +523,19 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
                 struct TCPHeader* tcp1 = (struct TCPHeader*) malloc(sizetype);
                 unsigned char* destmac = (unsigned char*)tcp->header.ethernetheader.from;
                 unsigned short size = sizeof(struct TCPHeader) - sizeof(struct EthernetHeader);
-                fillTcpHeader(tcp1,destmac,size,from,to,from_port,to_port,1,1,5,TCP_ACK,512);
+                fillTcpHeader(tcp1,destmac,size,from,to,from_port,to_port,switch_endian32(tcp->acknowledge_number),switch_endian32(tcp->sequence_number)+1,5,TCP_ACK,512);
 
                 PackageRecievedDescriptor sec;
                 sec.buffersize = sizetype;
                 sec.high_buf = 0;
                 sec.low_buf = (unsigned long)tcp1;
                 sendEthernetPackage(sec);
-            }else{
-                debugf("TCP connection= %x \n",switch_endian16(tcp->flags));
+
+                // if(switch_endian16(tcp->flags) & TCP_PUS){
+                //     unsigned long addr = desc.low_buf + sizeof(struct TCPHeader);
+                //     unsigned long count = desc.buffersize-sizeof(struct TCPHeader);
+                //     debugf("[ETH] TCP message reieved: size=%x string=%s \n",count,(unsigned char*)addr);
+                // }
             }
             return 1;
         }
@@ -573,7 +580,7 @@ void initialise_ethernet(){
         xxx[1] = 168;
         xxx[2] = 2;
         xxx[3] = 68;
-        create_tcp_session(getOurIpAsLong(), ((unsigned long*)&xxx)[0], 19696, 19696);printf("verzonden\n");
+        create_tcp_session(getOurIpAsLong(), ((unsigned long*)&xxx)[0], 19696, 19696);printf("verzonden\n");for(;;);
 
         unsigned char* srve = getIPFromName("tftp.local");
         if(srve[0]){
