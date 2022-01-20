@@ -455,6 +455,8 @@ void create_tcp_session(unsigned long from, unsigned long to, unsigned short fro
     sendEthernetPackage(sec);
 }
 
+unsigned long ethjmplist[20000];
+
 int ethernet_handle_package(PackageRecievedDescriptor desc){
     struct EthernetHeader *eh = (struct EthernetHeader*) desc.low_buf;
     if(eh->type==ETHERNET_TYPE_ARP){
@@ -514,7 +516,7 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
             struct TCPHeader* tcp = (struct TCPHeader*) eh;
             if(((switch_endian16(tcp->flags) & TCP_PUS)||(switch_endian16(tcp->flags) & TCP_SYN)) && (switch_endian16(tcp->flags) & TCP_ACK)){
                 // TCP auto accept ACK SYN
-                // debugf("[ETH] TCP shake confirmed\n");
+                debugf("[ETH] TCP package handled\n");
                 unsigned long from = tcp->header.dest_addr; 
                 unsigned long to = tcp->header.source_addr; 
                 unsigned short from_port = switch_endian16(tcp->destination_port); 
@@ -531,11 +533,19 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
                 sec.low_buf = (unsigned long)tcp1;
                 sendEthernetPackage(sec);
 
-                // if(switch_endian16(tcp->flags) & TCP_PUS){
-                //     unsigned long addr = desc.low_buf + sizeof(struct TCPHeader);
-                //     unsigned long count = desc.buffersize-sizeof(struct TCPHeader);
-                //     debugf("[ETH] TCP message reieved: size=%x string=%s \n",count,(unsigned char*)addr);
-                // }
+                if(switch_endian16(tcp->flags) & TCP_PUS){
+                    unsigned long addr = desc.low_buf + sizeof(struct TCPHeader);
+                    unsigned long count = desc.buffersize-sizeof(struct TCPHeader);
+                    unsigned long func = ethjmplist[switch_endian16(tcp->destination_port)];
+                    // debugf("[ETH] TCP message reieved: size=%x string=%s \n",count,(unsigned char*)addr);
+                    if(func){
+                        debugf("[ETH] function handler is about to get called\n");
+                        int (*sendPackage)(unsigned long a,unsigned long b) = (void*)func;
+                        sendPackage(addr,count);
+                    }else{
+                        debugf("[ETH] No function handler for this tcpservice!\n");
+                    }
+                }
             }
             return 1;
         }
@@ -545,6 +555,13 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
 
 unsigned long getOurIpAsLong(){
     return ((unsigned long*)&our_ip)[0];
+}
+
+void exsend(unsigned long addr,unsigned long count){
+    for(unsigned long i = 0 ; i < count ; i++){
+        printf("%c",((unsigned char*)addr)[i]);
+    }
+    printf("\n");
 }
 
 void initialise_ethernet(){
@@ -580,6 +597,7 @@ void initialise_ethernet(){
         xxx[1] = 168;
         xxx[2] = 2;
         xxx[3] = 68;
+        ethjmplist[19696] = (unsigned long)&exsend;
         create_tcp_session(getOurIpAsLong(), ((unsigned long*)&xxx)[0], 19696, 19696);printf("verzonden\n");for(;;);
 
         unsigned char* srve = getIPFromName("tftp.local");

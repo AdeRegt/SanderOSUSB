@@ -3,7 +3,7 @@
 unsigned char *ipaddr;
 unsigned char *macaddr;
 
-void tftp_read(Device *device,char* path,char *buffer){
+void tftp_read(Device *device  __attribute__((unused)),char* path,char *buffer){
     int pathlength = strlen(path);
     char* type = "octet";
     int typelength = strlen(type);
@@ -78,11 +78,11 @@ void tftp_read(Device *device,char* path,char *buffer){
     buffer[memcopoffset++] = 0;
 }
 
-void tftp_dir(Device *device,char* path,char *buffer){
+void tftp_dir(Device *device,char* path  __attribute__((unused)),char *buffer){
     tftp_read(device,"dir.txt",buffer);
 }
 
-char tftp_exists(Device *device,char* path){
+char tftp_exists(Device *device  __attribute__((unused)),char* path  __attribute__((unused))){
     return 1;
 }
 
