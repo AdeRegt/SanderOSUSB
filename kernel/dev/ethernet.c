@@ -99,12 +99,19 @@ unsigned char* getMACFromIp(unsigned char* ip){
     sec.high_buf = 0;
     sec.low_buf = (unsigned long)arpie;
 
-    sleep(10);
     sendEthernetPackage(sec);
-    sleep(10);
-    PackageRecievedDescriptor prd = getEthernetPackage();
-    sleep(10);
-    struct ARPHeader* ah = (struct ARPHeader*) prd.low_buf;
+    struct ARPHeader* ah;
+    while(1){
+        PackageRecievedDescriptor prd = getEthernetPackage();
+        struct EthernetHeader *eh = (struct EthernetHeader*) prd.low_buf;
+        if(eh->type==ETHERNET_TYPE_ARP){
+            ah = (struct ARPHeader*) prd.low_buf;
+            if(ah->operation==0x0200){
+                break;
+            }
+        }
+    }
+    debugf("[ETH] %d.%d.%d.%d is at %x:%x:%x:%x:%x:%x \n",ip[0],ip[1],ip[2],ip[3],ah->source_mac[0],ah->source_mac[1],ah->source_mac[2],ah->source_mac[3],ah->source_mac[4],ah->source_mac[5]);
     return ah->source_mac;
 }
 
@@ -439,7 +446,7 @@ void create_tcp_session(unsigned long from, unsigned long to, unsigned short fro
     unsigned long sizetype = sizeof(struct TCPHeader);
     struct TCPHeader* tcp1 = (struct TCPHeader*) malloc(sizetype);
     unsigned char* destmac;
-    unsigned char* t4 = (unsigned char*)&from;
+    unsigned char* t4 = (unsigned char*)&to;
     if(t4[0]==192){
         destmac = getMACFromIp(t4);
     }else{
