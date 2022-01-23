@@ -214,10 +214,15 @@ void fillTcpHeader(struct TCPHeader *tcpheader,unsigned char *destmac,unsigned s
     tcpheader->checksum             = 0;
     tcpheader->urgent_pointer       = 0;
 
-    struct tcp_checksum_header* trx = (struct tcp_checksum_header*)malloc(sizeof(struct tcp_checksum_header));
+    int payload = ( size - (sizeof(struct TCPHeader) - sizeof(struct EthernetHeader)) );
+    unsigned char *start = (unsigned char*)malloc(sizeof(struct tcp_checksum_header) + payload);
+    unsigned char *end = start;
+    end += (sizeof(struct tcp_checksum_header) + payload);
+
+    struct tcp_checksum_header* trx = (struct tcp_checksum_header*)start;
     trx->dst = (to);
     trx->src = (from);
-    trx->len = switch_endian16(20);
+    trx->len = switch_endian16(20 + payload);
     trx->protocol = IPV4_TYPE_TCP;
     trx->source_port          = switch_endian16(from_port);
     trx->destination_port     = switch_endian16(to_port);
@@ -228,7 +233,7 @@ void fillTcpHeader(struct TCPHeader *tcpheader,unsigned char *destmac,unsigned s
     trx->checksum             = 0;
     trx->urgent_pointer       = 0;
 
-    tcpheader->checksum = switch_endian16(net_checksum((const unsigned char*)trx,(const unsigned char*)(trx+sizeof(struct tcp_checksum_header))));
+    tcpheader->checksum = switch_endian16(net_checksum(start, end));
 }
 
 void fillDhcpDiscoverHeader(struct DHCPDISCOVERHeader *dhcpheader){
@@ -442,18 +447,23 @@ unsigned char* getIPFromName(char* name){
     return targetip; 
 }
 
-void create_tcp_session(unsigned long from, unsigned long to, unsigned short from_port, unsigned short to_port){
+unsigned long ethjmplist[20000];
+
+void setTcpHandler(unsigned short port,unsigned long func){
+    ethjmplist[port] = func;
+}
+
+void create_tcp_session(unsigned long from, unsigned long to, unsigned short from_port, unsigned short to_port, unsigned long func){
     unsigned long sizetype = sizeof(struct TCPHeader);
     struct TCPHeader* tcp1 = (struct TCPHeader*) malloc(sizetype);
     unsigned char* destmac;
     unsigned char* t4 = (unsigned char*)&to;
-    if(t4[0]==192){
-        destmac = getMACFromIp(t4);
-    }else{
-        destmac = (unsigned char*)&router_ip;
-    }
+
+    destmac = getMACFromIp(t4);
     unsigned short size = sizeof(struct TCPHeader) - sizeof(struct EthernetHeader);
     fillTcpHeader(tcp1,destmac,size,from,to,from_port,to_port,1,0,5,TCP_SYN,512);
+
+    setTcpHandler(to_port,func);
 
     PackageRecievedDescriptor sec;
     sec.buffersize = sizetype;
@@ -461,8 +471,6 @@ void create_tcp_session(unsigned long from, unsigned long to, unsigned short fro
     sec.low_buf = (unsigned long)tcp1;
     sendEthernetPackage(sec);
 }
-
-unsigned long ethjmplist[20000];
 
 int ethernet_handle_package(PackageRecievedDescriptor desc){
     struct EthernetHeader *eh = (struct EthernetHeader*) desc.low_buf;
@@ -544,7 +552,7 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
                     unsigned long addr = desc.low_buf + sizeof(struct TCPHeader);
                     unsigned long count = desc.buffersize-sizeof(struct TCPHeader);
                     unsigned long func = ethjmplist[switch_endian16(tcp->destination_port)];
-                    // debugf("[ETH] TCP message reieved: size=%x string=%s \n",count,(unsigned char*)addr);
+                    debugf("[ETH] TCP message reieved: size=%x string=%s \n",count,(unsigned char*)addr);
                     if(func){
                         debugf("[ETH] function handler is about to get called\n");
                         int (*sendPackage)(unsigned long a,unsigned long b) = (void*)func;
@@ -555,6 +563,22 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
                 }
             }
             return 1;
+        }else if(ip->protocol==IPV4_TYPE_ICMP){
+            struct ICMPHeader *icmp = (struct ICMPHeader*) ip;
+            if(icmp->type==8){
+                debugf("[ETH] ICMP ping request found!\n");
+
+                // struct ICMPHeader *newicmp = (struct ICMPHeader*) malloc(sizeof(struct ICMPHeader));
+
+                // fillIpv4Header((struct IPv4Header*)&newicmp->ipv4header,(unsigned char*)icmp->ipv4header.ethernetheader.from,size,IPV4_TYPE_ICMP,from,to);
+                
+                // PackageRecievedDescriptor sec;
+                // sec.buffersize = sizeof(struct ICMPHeader);
+                // sec.high_buf = 0;
+                // sec.low_buf = (unsigned long)newicmp;
+                // sendEthernetPackage(sec);
+                return 1;
+            }
         }
     }
     return 0;
@@ -565,6 +589,7 @@ unsigned long getOurIpAsLong(){
 }
 
 void exsend(unsigned long addr,unsigned long count){
+    printf("Recieved message: ");
     for(unsigned long i = 0 ; i < count ; i++){
         printf("%c",((unsigned char*)addr)[i]);
     }
@@ -597,15 +622,6 @@ void initialise_ethernet(){
         debugf("[ETH] Gateway IP is %d.%d.%d.%d \n",router_ip[0],router_ip[1],router_ip[2],router_ip[3]);
         debugf("[ETH] DNS     IP is %d.%d.%d.%d \n",dns_ip[0],dns_ip[1],dns_ip[2],dns_ip[3]);
         debugf("[ETH] DHCP    IP is %d.%d.%d.%d \n",dhcp_ip[0],dhcp_ip[1],dhcp_ip[2],dhcp_ip[3]);
-
-        // 192.168.2.68
-        unsigned char xxx[SIZE_OF_IP];
-        xxx[0] = 192;
-        xxx[1] = 168;
-        xxx[2] = 2;
-        xxx[3] = 68;
-        ethjmplist[19696] = (unsigned long)&exsend;
-        create_tcp_session(getOurIpAsLong(), ((unsigned long*)&xxx)[0], 19696, 19696);printf("verzonden\n");for(;;);
 
         unsigned char* srve = getIPFromName("tftp.local");
         if(srve[0]){

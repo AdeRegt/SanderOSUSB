@@ -119,7 +119,7 @@ struct e1000_tx_desc {
 #define TSTA_LC                         (1 << 2)    // Late Collision
 #define LSTA_TU                         (1 << 3)    // Transmit Underrun
 
-#define E1000_NUM_RX_DESC 512
+#define E1000_NUM_RX_DESC 32
 #define E1000_NUM_TX_DESC 8
 
 unsigned long base_addr;
@@ -194,6 +194,7 @@ void irq_e1000(){
 }
 
 int e1000_send_package(PackageRecievedDescriptor desc){
+    int old = tx_cur;
     tx_descs[tx_cur]->addr_1 = (unsigned long)desc.low_buf;
     tx_descs[tx_cur]->addr_2 = (unsigned long)desc.high_buf;
     tx_descs[tx_cur]->length = desc.buffersize;
@@ -201,6 +202,7 @@ int e1000_send_package(PackageRecievedDescriptor desc){
     tx_descs[tx_cur]->status = 0;
     tx_cur = (tx_cur + 1) % E1000_NUM_TX_DESC;
     e1000_write_in_space(REG_TXDESCTAIL, tx_cur);
+    while(!tx_descs[old]->status);
     return 1;
 }
 
@@ -291,7 +293,7 @@ void init_e1000(int bus,int slot,int function){
     ptr = (unsigned char *)(malloc(sizeof(struct e1000_rx_desc)*E1000_NUM_RX_DESC + 16));
  
     descs = (struct e1000_rx_desc *)ptr;
-    for(int i = 0; i < 100; i++)
+    for(int i = 0; i < E1000_NUM_RX_DESC; i++)
     {
         rx_descs[i] = (struct e1000_rx_desc *)((unsigned char *)descs + i*16);
         rx_descs[i]->addr_1 = (unsigned long)(unsigned char *)(malloc(8192 + 16));
@@ -342,7 +344,7 @@ void init_e1000(int bus,int slot,int function){
 
     //
     // set interrupts
-    // e1000_enable_int();
+    e1000_enable_int();
     e1000_link_up();
 
     //

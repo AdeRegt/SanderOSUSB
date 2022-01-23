@@ -417,6 +417,7 @@ void initialiseTFTP(Device *device);
 #define ETHERNET_TYPE_IP4 0x0008
 #define IPV4_TYPE_UDP 0x11
 #define IPV4_TYPE_TCP 0x06
+#define IPV4_TYPE_ICMP 0x01
 #define TCP_FIN 0b000000000001
 #define TCP_SYN 0b000000000010
 #define TCP_RES 0b000000000100
@@ -462,6 +463,19 @@ struct IPv4Header{
     unsigned short checksum;
     unsigned long source_addr;
     unsigned long dest_addr;
+} __attribute__ ((packed));
+
+struct ICMPHeader{
+    struct IPv4Header ipv4header;
+    unsigned char type;
+    unsigned char code;
+    unsigned short checksum;
+    unsigned short ident_BE;
+    unsigned short ident_LE;
+    unsigned short seqe_BE;
+    unsigned short seqe_LE;
+    unsigned char timestamp[8];
+    unsigned char data[1392];
 } __attribute__ ((packed));
 
 struct UDPHeader{
