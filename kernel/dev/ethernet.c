@@ -540,7 +540,14 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
                 struct TCPHeader* tcp1 = (struct TCPHeader*) malloc(sizetype);
                 unsigned char* destmac = (unsigned char*)tcp->header.ethernetheader.from;
                 unsigned short size = sizeof(struct TCPHeader) - sizeof(struct EthernetHeader);
-                fillTcpHeader(tcp1,destmac,size,from,to,from_port,to_port,switch_endian32(tcp->acknowledge_number),switch_endian32(tcp->sequence_number)+1,5,TCP_ACK,512);
+                unsigned long sid = switch_endian32(tcp->sequence_number);
+                if(switch_endian16(tcp->flags) & TCP_PUS){
+                    unsigned long tr = desc.buffersize - sizeof(struct TCPHeader);
+                    sid += tr;
+                }else if(switch_endian16(tcp->flags) & TCP_SYN){
+                    sid++;
+                }
+                fillTcpHeader(tcp1,destmac,size,from,to,from_port,to_port,switch_endian32(tcp->acknowledge_number),sid,5,TCP_ACK,512);
 
                 PackageRecievedDescriptor sec;
                 sec.buffersize = sizetype;
@@ -623,20 +630,26 @@ void initialise_ethernet(){
         debugf("[ETH] DNS     IP is %d.%d.%d.%d \n",dns_ip[0],dns_ip[1],dns_ip[2],dns_ip[3]);
         debugf("[ETH] DHCP    IP is %d.%d.%d.%d \n",dhcp_ip[0],dhcp_ip[1],dhcp_ip[2],dhcp_ip[3]);
 
-        unsigned char* srve = getIPFromName("tftp.local");
-        if(srve[0]){
-            printf("[ETH] TFTP    IP is %d.%d.%d.%d \n",srve[0],srve[1],srve[2],srve[3]);
-            debugf("[ETH] TFTP    IP is %d.%d.%d.%d \n",srve[0],srve[1],srve[2],srve[3]);
-            unsigned char ipfs[SIZE_OF_IP];
-            ipfs[0] = dhcp_ip[0];
-            ipfs[1] = dhcp_ip[1];
-            ipfs[2] = dhcp_ip[2];
-            ipfs[3] = dhcp_ip[3];
-            Device *dev = getNextFreeDevice();
-            dev->arg4 = (unsigned long)&ipfs;
-            dev->arg5 = (unsigned long)getMACFromIp((unsigned char*)&ipfs);
-            initialiseTFTP(dev);
-        }
+        if(dns_ip[0]){
+            unsigned char* srve = getIPFromName("tftp.local");
+            if(srve[0]){
+                printf("[ETH] TFTP    IP is %d.%d.%d.%d \n",srve[0],srve[1],srve[2],srve[3]);
+                debugf("[ETH] TFTP    IP is %d.%d.%d.%d \n",srve[0],srve[1],srve[2],srve[3]);
+                unsigned char ipfs[SIZE_OF_IP];
+                ipfs[0] = dhcp_ip[0];
+                ipfs[1] = dhcp_ip[1];
+                ipfs[2] = dhcp_ip[2];
+                ipfs[3] = dhcp_ip[3];
+                Device *dev = getNextFreeDevice();
+                dev->arg4 = (unsigned long)&ipfs;
+                dev->arg5 = (unsigned long)getMACFromIp((unsigned char*)&ipfs);
+                initialiseTFTP(dev);
+            }
 
+            unsigned char* cht = getIPFromName("chat.local");
+            if(cht[0]){
+                create_tcp_session(getOurIpAsLong(), ((unsigned long*)&cht)[0], 19696, 19696, (unsigned long)&exsend);printf("verzonden\n");for(;;);
+            }
+        }
     }
 }
