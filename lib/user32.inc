@@ -23,6 +23,7 @@ public realloc
 
 public getnetworkpackage
 public sendnetworkpackage
+public initialisenetworkpackage
 
 section '.text' executable
 ;
@@ -349,6 +350,30 @@ sendnetworkpackage:
     mov ebp,esp 
 
     mov eax,0xC9
+    mov ebx,dword [ebp+8]
+    mov ecx,dword [ebp+12]
+    mov edx,dword [ebp+16]
+    mov esi,dword [ebp+20]
+    mov edi,dword [ebp+24]
+    int 0x80 
+
+    pop ebp
+    ret
+
+;
+; Initialises a networksocket
+; char initialisenetworkpackage(int type,int is_ip, unsigned char *to, int function, int port);
+; type      = 8
+; is_ip     = 12
+; to        = 16
+; function  = 20
+; port      = 24
+; ebp
+initialisenetworkpackage:
+    push ebp 
+    mov ebp,esp 
+
+    mov eax,0xCA
     mov ebx,dword [ebp+8]
     mov ecx,dword [ebp+12]
     mov edx,dword [ebp+16]

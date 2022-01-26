@@ -409,6 +409,9 @@ void initialise_ethernet();
 int ethernet_handle_package(PackageRecievedDescriptor desc);
 unsigned char* getMACFromIp(unsigned char* ip);
 unsigned char* getOurRouterIp();
+void create_tcp_session(unsigned long from, unsigned long to, unsigned short from_port, unsigned short to_port, unsigned long func);
+unsigned char* getIPFromName(char* name);
+
 //void dirdev();
 void initialiseTFTP(Device *device);
 #define SIZE_OF_MAC 6
@@ -555,6 +558,7 @@ struct DNSREQUESTHeader{
 } __attribute__ ((packed));
 
 void fillUdpHeader(struct UDPHeader *udpheader, unsigned char *destmac, unsigned short size,unsigned long from, unsigned long to,unsigned short source_port, unsigned short destination_port);
+void fillTcpHeader(struct TCPHeader *tcpheader,unsigned char *destmac,unsigned short size,unsigned long from,unsigned long to,unsigned short from_port,unsigned short to_port,unsigned long sequence_number,unsigned long acknowledge_number,unsigned char header_length,unsigned short flags,unsigned short window);
 unsigned long getOurIpAsLong();
 PackageRecievedDescriptor getEthernetPackage();
 

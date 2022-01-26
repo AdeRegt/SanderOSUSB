@@ -102,3 +102,4 @@ struct DNSREQUESTHeader{
 
 void *getnetworkpackage();
 void sendnetworkpackage(int type,int size,unsigned char *to,int where,int port);
+char initialisenetworkpackage(int type,int is_ip,unsigned char *to, int function, int port);

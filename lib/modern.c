@@ -5,6 +5,7 @@
 void *malloc(size_t size);
 signed long write(int fd, const char *buf, unsigned long nbytes);
 void free(void *ptr);
+int getc(int stream);
 
 
 char *itos(unsigned int num, int base) 
@@ -304,14 +305,19 @@ char *readstring(char* tv,int size){
 int scanf ( const char * format, ... ){
 	va_list arg; 
 	va_start(arg, format);
-	for(int i = 0 ; i < strlen(format) ; i++){
+	int tot = 0;
+	for(size_t i = 0 ; i < strlen(format) ; i++){
 		char t = format[i];
 		if(t=='%'){
 			i++;
 			char u = format[i];
+			if(u=='s'){}
+		}else{
+			tot++;
 		}
 	}
-	va_end(arg); 
+	va_end(arg);
+	return tot; 
 }
 
 size_t strlen(const char *str){

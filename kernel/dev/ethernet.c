@@ -461,7 +461,7 @@ void create_tcp_session(unsigned long from, unsigned long to, unsigned short fro
 
     destmac = getMACFromIp(t4);
     unsigned short size = sizeof(struct TCPHeader) - sizeof(struct EthernetHeader);
-    fillTcpHeader(tcp1,destmac,size,from,to,from_port,to_port,1,0,5,TCP_SYN,512);
+    fillTcpHeader(tcp1,destmac,size,from,to,from_port,to_port,1,0,5,TCP_SYN,0xffd7);
 
     setTcpHandler(to_port,func);
 
@@ -644,11 +644,6 @@ void initialise_ethernet(){
                 dev->arg4 = (unsigned long)&ipfs;
                 dev->arg5 = (unsigned long)getMACFromIp((unsigned char*)&ipfs);
                 initialiseTFTP(dev);
-            }
-
-            unsigned char* cht = getIPFromName("chat.local");
-            if(cht[0]){
-                create_tcp_session(getOurIpAsLong(), ((unsigned long*)&cht)[0], 19696, 19696, (unsigned long)&exsend);printf("verzonden\n");for(;;);
             }
         }
     }

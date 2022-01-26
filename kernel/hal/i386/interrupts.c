@@ -336,9 +336,28 @@ void special_handler(Register *r){
 		macaddrto[4] = m1[4];
 		macaddrto[5] = m1[5];
 
-		if(type!=1){
-			debugf("INT0x80: SENDNETWORKPACKAGE: Error - invalid type\n");
-		}else{
+		if(type==2){
+			
+			int calbuffersize = sizeof(struct TCPHeader)+size;
+			void *pnt = (void*) malloc(calbuffersize);
+			struct TCPHeader *udp = (struct TCPHeader*) pnt;
+			unsigned char* from = (unsigned char*) pnt;
+			unsigned char* to = (unsigned char*) loca;
+			for(int i = 0 ; i < size ; i++){
+				from[sizeof(struct TCPHeader)+i] = to[i];
+				debugf("%c ",to[i]);
+			}
+			debugf("\n");
+			
+			fillTcpHeader(udp,(unsigned char*)&macaddrto,calbuffersize-sizeof(struct EthernetHeader),getOurIpAsLong(),((unsigned long*) r->edx)[0],port,port,0x1010,0x1010,5,TCP_PUS | TCP_ACK,0xffd7);
+
+			PackageRecievedDescriptor prd;
+			prd.buffersize = calbuffersize;
+			prd.high_buf = 0;
+			prd.low_buf = (unsigned long)pnt;
+			sendEthernetPackage(prd);
+			
+		}else if(type==1){
 			
 			int calbuffersize = sizeof(struct UDPHeader)+size;
 			void *pnt = (void*) malloc(calbuffersize);
@@ -360,6 +379,23 @@ void special_handler(Register *r){
 			sendEthernetPackage(prd);
 		}
 
+		r->eax = 0;
+	}
+	else if(r->eax==0xCA){ // ETH::INIT
+		int type = r->ebx;
+		int is_ip = r->ecx;
+		unsigned char* addr = (unsigned char*) r->edx;
+		if(is_ip==0){
+			addr = getIPFromName((char*)addr);
+		}
+		unsigned int func = r->esi;
+		unsigned int port = r->edi;
+		debugf("INT0x80: INITNETWORK type=%x is_ip=%x to=%d:%d:%d:%d function=%x port=%x \n",type,is_ip,addr[0],addr[1],addr[2],addr[3],func,port);
+		if(type!=2){
+			r->eax = 1;
+			return;
+		}
+		create_tcp_session(getOurIpAsLong(),((unsigned long*)addr)[0],port & 0xFFFF,port & 0xFFFF,func);
 		r->eax = 0;
 	}
 	else{
