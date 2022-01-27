@@ -386,6 +386,7 @@ void special_handler(Register *r){
 		int is_ip = r->ecx;
 		unsigned char* addr = (unsigned char*) r->edx;
 		if(is_ip==0){
+			debugf("INT0x80: looking for %s \n",addr);
 			addr = getIPFromName((char*)addr);
 		}
 		unsigned int func = r->esi;

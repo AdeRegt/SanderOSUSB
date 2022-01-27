@@ -203,8 +203,17 @@ unsigned short net_checksum(const unsigned char *start, const unsigned char *end
     return switch_endian16(final);
 }
 
+unsigned long taaaX = 0;
+unsigned long taaaY = 0;
 void fillTcpHeader(struct TCPHeader *tcpheader,unsigned char *destmac,unsigned short size,unsigned long from,unsigned long to,unsigned short from_port,unsigned short to_port,unsigned long sequence_number,unsigned long acknowledge_number,unsigned char header_length,unsigned short flags,unsigned short window){
     fillIpv4Header((struct IPv4Header*)&tcpheader->header,destmac,size,IPV4_TYPE_TCP,from,to);
+    if(sequence_number==0x1010&&acknowledge_number==0x1010){
+        sequence_number = taaaX;
+        acknowledge_number = taaaY;
+    }else{
+        taaaX = sequence_number;
+        taaaY = acknowledge_number;
+    }
     tcpheader->source_port          = switch_endian16(from_port);
     tcpheader->destination_port     = switch_endian16(to_port);
     tcpheader->sequence_number      = switch_endian32(sequence_number);
@@ -387,13 +396,14 @@ unsigned char* getIpAddressFromDHCPServer(){
     return offeredip;
 }
 
+volatile unsigned short dnstid = 0xe0e0;
 unsigned char* getIPFromName(char* name){
     int str = strlen(name);
     int ourheadersize = sizeof(struct DNSREQUESTHeader)+str+2+4;
     struct DNSREQUESTHeader *dnsreqheader = (struct DNSREQUESTHeader*) malloc(ourheadersize);
     unsigned char *destmac = getMACFromIp((unsigned char*)&dns_ip);
     unsigned short size = ourheadersize - sizeof(struct EthernetHeader);
-    dnsreqheader->transaction_id = 0xe0e7;
+    dnsreqheader->transaction_id = dnstid++;
     dnsreqheader->flags = 0x1;
     dnsreqheader->question_count = 0x100;
     unsigned char *t4 = (unsigned char*)(dnsreqheader);
@@ -434,7 +444,7 @@ unsigned char* getIPFromName(char* name){
             return targetip;
         }
         de = (struct DNSREQUESTHeader*) ep.low_buf;
-        if(de->transaction_id==0xe0e7){
+        if(de->transaction_id==dnsreqheader->transaction_id){
             break;
         }
     }
@@ -459,7 +469,11 @@ void create_tcp_session(unsigned long from, unsigned long to, unsigned short fro
     unsigned char* destmac;
     unsigned char* t4 = (unsigned char*)&to;
 
-    destmac = getMACFromIp(t4);
+    if(t4[0]==192){
+        destmac = getMACFromIp(t4);
+    }else{
+        destmac = getMACFromIp((unsigned char*)&router_ip);
+    }
     unsigned short size = sizeof(struct TCPHeader) - sizeof(struct EthernetHeader);
     fillTcpHeader(tcp1,destmac,size,from,to,from_port,to_port,1,0,5,TCP_SYN,0xffd7);
 
@@ -508,6 +522,7 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
         struct IPv4Header* ip = (struct IPv4Header*) eh;
         if(ip->protocol==IPV4_TYPE_UDP){
             struct UDPHeader* udp = (struct UDPHeader*) eh;
+            debugf("[ETH] UDP package recieved for port %x !\n",switch_endian16(udp->destination_port));
             if(udp->destination_port==switch_endian16(50618)){
                 // TFTP, automatic ACK
                 struct TFTPAcknowledgeHeader* tftp_old = (struct TFTPAcknowledgeHeader*)eh;
@@ -529,7 +544,9 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
             }
         }else if(ip->protocol==IPV4_TYPE_TCP){
             struct TCPHeader* tcp = (struct TCPHeader*) eh;
-            if(((switch_endian16(tcp->flags) & TCP_PUS)||(switch_endian16(tcp->flags) & TCP_SYN)) && (switch_endian16(tcp->flags) & TCP_ACK)){
+            unsigned short fx = switch_endian16(tcp->flags);
+            debugf("[ETH] TCP package recieved for port %x %s %s %s %s !\n",switch_endian16(tcp->destination_port),fx&TCP_PUS?"PUSH":"",fx&TCP_SYN?"SYN":"",fx&TCP_ACK?"ACK":"",fx&TCP_FIN?"FIN":"");
+            if(((switch_endian16(tcp->flags) & TCP_PUS)||(switch_endian16(tcp->flags) & TCP_SYN)||(switch_endian16(tcp->flags) & TCP_FIN)) && (switch_endian16(tcp->flags) & TCP_ACK)){
                 // TCP auto accept ACK SYN
                 debugf("[ETH] TCP package handled\n");
                 unsigned long from = tcp->header.dest_addr; 
@@ -545,6 +562,8 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
                     unsigned long tr = desc.buffersize - sizeof(struct TCPHeader);
                     sid += tr;
                 }else if(switch_endian16(tcp->flags) & TCP_SYN){
+                    sid++;
+                }else if(switch_endian16(tcp->flags) & TCP_FIN){
                     sid++;
                 }
                 fillTcpHeader(tcp1,destmac,size,from,to,from_port,to_port,switch_endian32(tcp->acknowledge_number),sid,5,TCP_ACK,512);
@@ -568,6 +587,34 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
                         debugf("[ETH] No function handler for this tcpservice!\n");
                     }
                 }
+                if(switch_endian16(tcp->flags) & TCP_FIN){
+                    debugf("[ETH] Stream is finished!\n");
+                }
+            } else if((switch_endian16(tcp->flags) & TCP_SYN)&&!(switch_endian16(tcp->flags) & TCP_ACK)){
+                debugf("[ETH] Request to join TCP server\n");
+                unsigned long from = tcp->header.dest_addr; 
+                unsigned long to = tcp->header.source_addr; 
+                unsigned short from_port = switch_endian16(tcp->destination_port); 
+                unsigned short to_port = switch_endian16(tcp->source_port);
+                unsigned long sizetype = sizeof(struct TCPHeader);
+                struct TCPHeader* tcp1 = (struct TCPHeader*) malloc(sizetype);
+                unsigned char* destmac = (unsigned char*)tcp->header.ethernetheader.from;
+                unsigned short size = sizeof(struct TCPHeader) - sizeof(struct EthernetHeader);
+                unsigned long sid = switch_endian32(tcp->sequence_number);
+                sid++;
+                unsigned long tid = switch_endian32(tcp->acknowledge_number);
+                if(!tid){
+                    tid = 0xcd;
+                }
+                fillTcpHeader(tcp1,destmac,size,from,to,from_port,to_port,tid,sid,5,TCP_SYN | TCP_ACK,512);
+
+                PackageRecievedDescriptor sec;
+                sec.buffersize = sizetype;
+                sec.high_buf = 0;
+                sec.low_buf = (unsigned long)tcp1;
+                sendEthernetPackage(sec);
+            }else if(switch_endian16(tcp->flags)&TCP_ACK){
+                debugf("[ETH] Acknowledge from TCP client recieved\n");
             }
             return 1;
         }else if(ip->protocol==IPV4_TYPE_ICMP){
