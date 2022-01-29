@@ -478,7 +478,6 @@ struct ICMPHeader{
     unsigned short seqe_BE;
     unsigned short seqe_LE;
     unsigned char timestamp[8];
-    unsigned char data[1392];
 } __attribute__ ((packed));
 
 struct UDPHeader{

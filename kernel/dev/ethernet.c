@@ -398,6 +398,7 @@ unsigned char* getIpAddressFromDHCPServer(){
 
 volatile unsigned short dnstid = 0xe0e0;
 unsigned char* getIPFromName(char* name){
+    debugf("[ETH] Looking for IP of %s \n",name);
     int str = strlen(name);
     int ourheadersize = sizeof(struct DNSREQUESTHeader)+str+2+4;
     struct DNSREQUESTHeader *dnsreqheader = (struct DNSREQUESTHeader*) malloc(ourheadersize);
@@ -441,19 +442,22 @@ unsigned char* getIPFromName(char* name){
     while(1){
         ep = getEthernetPackage();
         if(ep.low_buf==0){
+            debugf("[ETH] IP of %s cannot be found \n",name);
             return targetip;
         }
         de = (struct DNSREQUESTHeader*) ep.low_buf;
         if(de->transaction_id==dnsreqheader->transaction_id){
             break;
         }
+        ethernet_handle_package(ep);
     }
-    if(de->answer_rr==0x0100){
+    if(switch_endian16(de->answer_rr)>0){
         targetip[0] = ((unsigned char*)de + (ep.buffersize-4))[0];
         targetip[1] = ((unsigned char*)de + (ep.buffersize-3))[0];
         targetip[2] = ((unsigned char*)de + (ep.buffersize-2))[0];
         targetip[3] = ((unsigned char*)de + (ep.buffersize-1))[0];
     }
+    debugf("[ETH] IP of %s is %d.%d.%d.%d \n",name,targetip[0],targetip[1],targetip[2],targetip[3]);
     return targetip; 
 }
 
@@ -622,15 +626,26 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
             if(icmp->type==8){
                 debugf("[ETH] ICMP ping request found!\n");
 
-                // struct ICMPHeader *newicmp = (struct ICMPHeader*) malloc(sizeof(struct ICMPHeader));
+                int prefsiz = desc.buffersize - sizeof(struct ICMPHeader);
+                struct ICMPHeader *newicmp = (struct ICMPHeader*) malloc(sizeof(struct ICMPHeader) + prefsiz );
+                unsigned short size = (sizeof(struct ICMPHeader) + prefsiz) - sizeof(struct EthernetHeader);
+                fillIpv4Header((struct IPv4Header*)&newicmp->ipv4header,(unsigned char*)icmp->ipv4header.ethernetheader.from,size,IPV4_TYPE_ICMP,icmp->ipv4header.dest_addr,icmp->ipv4header.source_addr);
+                unsigned char *tty = (unsigned char *)icmp;
+                unsigned char *tt0 = (unsigned char *)newicmp;
+                for(unsigned int i = 0 ; i < ((sizeof(struct ICMPHeader) + prefsiz) - sizeof(struct IPv4Header)) ; i++){
+                    tt0[sizeof(struct IPv4Header)+i] = tty[sizeof(struct IPv4Header)+i];
+                }
+                newicmp->type = 0;
 
-                // fillIpv4Header((struct IPv4Header*)&newicmp->ipv4header,(unsigned char*)icmp->ipv4header.ethernetheader.from,size,IPV4_TYPE_ICMP,from,to);
+                unsigned short tu = switch_endian16(~icmp->checksum);
+                tu -= 0x800;
+                newicmp->checksum = switch_endian16(~tu);
                 
-                // PackageRecievedDescriptor sec;
-                // sec.buffersize = sizeof(struct ICMPHeader);
-                // sec.high_buf = 0;
-                // sec.low_buf = (unsigned long)newicmp;
-                // sendEthernetPackage(sec);
+                PackageRecievedDescriptor sec;
+                sec.buffersize = sizeof(struct ICMPHeader) + prefsiz;
+                sec.high_buf = 0;
+                sec.low_buf = (unsigned long)newicmp;
+                sendEthernetPackage(sec);
                 return 1;
             }
         }
