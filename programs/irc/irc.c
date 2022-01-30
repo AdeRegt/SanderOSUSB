@@ -55,7 +55,7 @@ int main(int argc, char** argv){
     while(1){
         char *z = getline();
         size_t sizeline = strlen(z);
-        for(int i = 0 ; i < sizeline ; i++){
+        for(size_t i = 0 ; i < sizeline ; i++){
             char y = z[i];
             if(y==' '||y==0x0a){
                 break;
@@ -63,7 +63,7 @@ int main(int argc, char** argv){
             y += ('A'-'a');
             z[i] = y;
         }
-        for(int i = 0 ; i < sizeline ; i++){
+        for(size_t i = 0 ; i < sizeline ; i++){
             if(z[i]==';'){
                 z[i] = ':';
             }

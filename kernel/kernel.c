@@ -205,15 +205,16 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 		poweroff();
 	}
 	
-	if(confirm("kernel created by sander de regt, shashwat shagun, johan gericke, daniel mccarthy, jark clim, pablo narvaja, nelson cole") == 0) {
-		poweroff();
-	};
+	// if(confirm("kernel created by sander de regt, shashwat shagun, johan gericke, daniel mccarthy, jark clim, pablo narvaja, nelson cole") == 0) {
+	// 	poweroff();
+	// };
 
-	if(!getDeviceCount()) {
-		no_usefull_hardware();
-	}
+	// if(!getDeviceCount()) {
+	// 	no_usefull_hardware();
+	// }
 	
-	browser();
+	init_windowmanager();
+	// browser();
 
 	for(;;);
 }

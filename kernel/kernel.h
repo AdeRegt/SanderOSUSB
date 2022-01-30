@@ -149,6 +149,7 @@ void drawcharraw(unsigned char c, int offsetX, int offsetY, int fgcolor, int bgc
  * Gets the character from keyboard input
  **/
 unsigned char getch();
+unsigned long curget();
 void curset(int x,int y);
 void setForeGroundBackGround(unsigned char fg,unsigned char bg);
 
@@ -659,3 +660,8 @@ void pciConfigWriteWord (unsigned char bus, unsigned char slot, unsigned char fu
 
 void init_cmos();
 unsigned char* cmos_update_datetime_to_variables();
+
+void init_windowmanager();
+void handle_window_manager_interrupt(Register *r);
+void drawstringat(char* str,int x,int y,int color);
+void browser();

@@ -13,7 +13,7 @@ Process *getCurrentProcess(){
 }
 
 void irq_multitasking(Register *r){
-    irq_timer();
+    irq_timer(r);
     if(regcount>0){
 
         //

@@ -201,6 +201,9 @@ void update_drawable_mouse(){
 		ccr_y = PS2_MOUSE_MIN_H;
 	}
 
+	curset(ccr_x,ccr_y);
+	return;
+
 	unsigned char mouse[PS2_MOUSE_CUR_H] = {
 	0b11111000,
 	0b11110000,

@@ -1356,44 +1356,35 @@ void drawcharraw(unsigned char c, int offsetX, int offsetY, int fgcolor, int bgc
 		unsigned char font_sector = font[selector+i];
 		if(font_sector  & 0b10000000){
 			putpixel(offsetX+0,offsetY+i,fgcolor);
-		}else{
-			putpixel(offsetX+0,offsetY+i,bgcolor);
 		}
 		if(font_sector & 0b01000000){
 			putpixel(offsetX+1,offsetY+i,fgcolor);
-		}else{
-			putpixel(offsetX+1,offsetY+i,bgcolor);
 		}
 		if(font_sector & 0b00100000){
 			putpixel(offsetX+2,offsetY+i,fgcolor);
-		}else{
-			putpixel(offsetX+2,offsetY+i,bgcolor);
 		}
 		if(font_sector & 0b00010000){
 			putpixel(offsetX+3,offsetY+i,fgcolor);
-		}else{
-			putpixel(offsetX+3,offsetY+i,bgcolor);
 		}
 		if(font_sector & 0b00001000){
 			putpixel(offsetX+4,offsetY+i,fgcolor);
-		}else{
-			putpixel(offsetX+4,offsetY+i,bgcolor);
 		}
 		if(font_sector & 0b00000100){
 			putpixel(offsetX+5,offsetY+i,fgcolor);
-		}else{
-			putpixel(offsetX+5,offsetY+i,bgcolor);
 		}
 		if(font_sector & 0b00000010){
 			putpixel(offsetX+6,offsetY+i,fgcolor);
-		}else{
-			putpixel(offsetX+6,offsetY+i,bgcolor);
 		}
 		if(font_sector & 0b00000001){
 			putpixel(offsetX+7,offsetY+i,fgcolor);
-		}else{
-			putpixel(offsetX+7,offsetY+i,bgcolor);
 		}
+	}
+}
+
+void drawstringat(char* str,int x,int y,int color){
+	int len = strlen(str);
+	for(int i = 0 ; i < len ; i++){
+		drawcharraw(str[i],x + (i*8) ,y,color,0);
 	}
 }
 
@@ -1841,7 +1832,27 @@ int init_graph_vga(unsigned int width, unsigned int height,int chain4)
 	return 1;
 }
 
+unsigned long curget(){
+	int tX = 0;
+	int tY = 0;
+	if(is_virtual_box_session_enabled()){
+		long *t = vbox_get_mouse_info();
+		if(t[0]){
+			tX = t[0]/100;
+		}
+		if(t[1]){
+			tY = t[1]/200;
+		}
+	}else{
+		tX = ((int*)&curx)[0];
+		tY = ((int*)&cury)[0];
+	}
+	unsigned long tow = 0;
+	tow += (tX & 0xFFFF) + ((tY & 0xFFFF) * 0x10000); 
+	return tow;
+}
+
 void curset(int x,int y){
-	curx = x;
-	cury = y;
+	((int*)&curx)[0] = x;
+	((int*)&cury)[0] = y;
 }

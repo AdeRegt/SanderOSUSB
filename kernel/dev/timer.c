@@ -29,9 +29,10 @@ void sleep(int ms){
 	}
 }
 
-void irq_timer(){
+void irq_timer(Register *r){
 	Process *p = getCurrentProcess();
 	p->timer++;
+	handle_window_manager_interrupt(r);
 	outportb(0x20,0x20);
 	if(p->timer % 18 == 0){
 		p->ticks++;
