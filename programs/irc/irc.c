@@ -6,7 +6,7 @@
 
 #define DEFAULT_IRC_PORT 6667
 #define DEFAULT_IRC_ADDR "chat.freenode.net"
-#define MESSAGEBUFFER 25
+#define MESSAGEBUFFER 50
 
 unsigned char *addressip;
 
@@ -49,6 +49,14 @@ int main(int argc, char** argv){
     while(1){
         char *z = getline();
         size_t sizeline = strlen(z);
+        for(int i = 0 ; i < sizeline ; i++){
+            char y = z[i];
+            if(y==' '||y==0x0a){
+                break;
+            }
+            y += ('A'-'a');
+            z[i] = y;
+        }
         sendnetworkpackage(2,sizeline,(unsigned char*)&t4,(int)z,DEFAULT_IRC_PORT);
         free(z);
         unsigned char t[2];

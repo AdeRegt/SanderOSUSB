@@ -346,12 +346,17 @@ void special_handler(Register *r){
 			for(int i = 0 ; i < size ; i++){
 				from[sizeof(struct TCPHeader)+i] = to[i];
 			}
+			to[size] = 0;
 			
 			fillTcpHeader(tcp,(unsigned char*)&macaddrto,calbuffersize-sizeof(struct EthernetHeader),getOurIpAsLong(),((unsigned long*) r->edx)[0],port,port,0x1010,0x1010,5,TCP_PUS | TCP_ACK,64240);
 
 			unsigned short* tw = (unsigned short*) loca;
 			unsigned int z = 0;
-			for(int i = 0 ; i < (size/2) ; i++){
+			int ct = size/2;
+			if(size%2){
+				ct++;
+			}
+			for(int i = 0 ; i < ct ; i++){
 				unsigned short qw = switch_endian16(tw[i]);
 				z += qw;
 			}
