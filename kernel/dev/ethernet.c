@@ -210,7 +210,7 @@ void fillTcpHeader(struct TCPHeader *tcpheader,unsigned char *destmac,unsigned s
     if(sequence_number==0x1010&&acknowledge_number==0x1010){
         sequence_number = taaaX;
         acknowledge_number = taaaY;
-    }else{
+    }else if(flags&TCP_ACK){
         taaaX = sequence_number;
         taaaY = acknowledge_number;
     }
@@ -226,7 +226,7 @@ void fillTcpHeader(struct TCPHeader *tcpheader,unsigned char *destmac,unsigned s
     int payload = ( size - (sizeof(struct TCPHeader) - sizeof(struct EthernetHeader)) );
     unsigned char *start = (unsigned char*)malloc(sizeof(struct tcp_checksum_header) + payload);
     unsigned char *end = start;
-    end += (sizeof(struct tcp_checksum_header) + payload);
+    end += (sizeof(struct tcp_checksum_header));
 
     struct tcp_checksum_header* trx = (struct tcp_checksum_header*)start;
     trx->dst = (to);

@@ -320,7 +320,7 @@ void special_handler(Register *r){
 		unsigned char* addr = (unsigned char*) r->edx;
 		unsigned int loca = r->esi;
 		unsigned int port = r->edi;
-		debugf("INT0x80: SENDNETWORKPACKAGE type=%x size=%x to=%d:%d:%d:%d where=%x port=%x\n",type,size,addr[0],addr[1],addr[2],addr[3],loca,port);
+		debugf("INT0x80: SENDNETWORKPACKAGE type=%x size=%x to=%d.%d.%d.%d where=%x port=%x\n",type,size,addr[0],addr[1],addr[2],addr[3],loca,port);
 
 		unsigned char macaddrto[SIZE_OF_MAC];
 		unsigned char* m1;
@@ -340,16 +340,31 @@ void special_handler(Register *r){
 			
 			int calbuffersize = sizeof(struct TCPHeader)+size;
 			void *pnt = (void*) malloc(calbuffersize);
-			struct TCPHeader *udp = (struct TCPHeader*) pnt;
+			struct TCPHeader *tcp = (struct TCPHeader*) pnt;
 			unsigned char* from = (unsigned char*) pnt;
 			unsigned char* to = (unsigned char*) loca;
 			for(int i = 0 ; i < size ; i++){
 				from[sizeof(struct TCPHeader)+i] = to[i];
-				debugf("%c ",to[i]);
 			}
-			debugf("\n");
 			
-			fillTcpHeader(udp,(unsigned char*)&macaddrto,calbuffersize-sizeof(struct EthernetHeader),getOurIpAsLong(),((unsigned long*) r->edx)[0],port,port,0x1010,0x1010,5,TCP_PUS | TCP_ACK,0xffd7);
+			fillTcpHeader(tcp,(unsigned char*)&macaddrto,calbuffersize-sizeof(struct EthernetHeader),getOurIpAsLong(),((unsigned long*) r->edx)[0],port,port,0x1010,0x1010,5,TCP_PUS | TCP_ACK,64240);
+
+			unsigned short* tw = (unsigned short*) loca;
+			unsigned int z = 0;
+			for(int i = 0 ; i < (size/2) ; i++){
+				unsigned short qw = switch_endian16(tw[i]);
+				z += qw;
+			}
+
+			unsigned short checksum_old = switch_endian16(~tcp->checksum);
+			unsigned int checksum_comp = checksum_old + z;
+			unsigned int checksum = (checksum_comp & 0xffff) + (checksum_comp >> 16);
+    		checksum += (checksum >> 16);
+
+    		unsigned short final = ~checksum;
+
+    		unsigned short chsm = switch_endian16(final);
+			tcp->checksum = chsm;
 
 			PackageRecievedDescriptor prd;
 			prd.buffersize = calbuffersize;

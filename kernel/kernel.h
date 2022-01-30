@@ -560,6 +560,8 @@ void fillUdpHeader(struct UDPHeader *udpheader, unsigned char *destmac, unsigned
 void fillTcpHeader(struct TCPHeader *tcpheader,unsigned char *destmac,unsigned short size,unsigned long from,unsigned long to,unsigned short from_port,unsigned short to_port,unsigned long sequence_number,unsigned long acknowledge_number,unsigned char header_length,unsigned short flags,unsigned short window);
 unsigned long getOurIpAsLong();
 PackageRecievedDescriptor getEthernetPackage();
+unsigned short switch_endian16(unsigned short nb);
+unsigned long switch_endian32(unsigned long num);
 
 typedef struct  {
     unsigned char bRequestType;
