@@ -25,6 +25,7 @@
 #define MAX_DRAWABLE_COUNT 10
 
 #define SHAPE_TASKBAR 1
+#define SHAPE_BUTTON 2
 
 struct DrawableComponent{
     int x;
@@ -46,6 +47,7 @@ struct DrawableProgram{
     unsigned char has_focus;
     struct DrawableComponent drawable[10];
     Register registers;
+    unsigned long data;
 } __attribute__ ((packed));
 
 struct DrawableProgram programs[MAX_PROGRAM_COUNT];
@@ -135,21 +137,35 @@ void handle_window_manager_interrupt(Register *r){
                                 }
                             }
                             drawstringat((char*)cmp->info,cmp->x,cmp->y,0);
-                        }else if(dw.has_focus==0){
-                            continue;
+                        }else if(dw.has_focus==1){
+                            if(cmp->shape==SHAPE_BUTTON){
+                                for(int w = 0 ; w < cmp->w ;w++){
+                                    for(int h = 0 ; h < cmp->h ;h++){
+                                        putpixel(cmp->x+w,TASKBAR_HEIGHT + 5 + cmp->y+h,COLOR_YELLOW);
+                                    }
+                                }
+                                drawstringat((char*)cmp->info,cmp->x,TASKBAR_HEIGHT + 5 + cmp->y,0);
+                            }
                         }
                         // debugf("curx=%x cury=%x butx=%x buty=%x butxw=%x butyh=%x \n",curx,cury,cmp->x,cmp->y,cmp->x+cmp->w,cmp->y+cmp->h);
                         if(cmp->x<curx&&(cmp->x+cmp->w)>curx){
-                            if(cmp->y<cury&&(cmp->y+cmp->h)>cury){
+                            if(cmp->y<(cury-(cmp->shape==SHAPE_TASKBAR?0:(TASKBAR_HEIGHT + 5)))&&(cmp->y+cmp->h)>(cury-(cmp->shape==SHAPE_TASKBAR?0:(TASKBAR_HEIGHT + 5)))){
                                 // debugf("button touched\n");
                                 if(is.mousePressed){
                                     // debugf("button pressed\n");
                                     debugf("button activated, program=%x drawable=%x \n",i,z);
                                     if(cmp->onclick){
                                         debugf("calling custom function\n");
-                                        int (*sendPackage)(struct DrawableComponent *a) = (void*)cmp->onclick;
-                                        sendPackage(cmp);
+                                        unsigned long (*sendPackage)(struct DrawableComponent *a) = (void*)cmp->onclick;
+                                        unsigned long gz = sendPackage(cmp);
+                                        if(gz){
+                                            r->eip = gz;
+                                        }
                                     }else{
+                                        
+                                        ((struct DrawableProgram*)&programs)[i].has_focus = 0;
+                                        ((struct DrawableProgram*)&programs)[z-1].has_focus = 1;
+                                        debugf("Switch to task %x (original=%x) \n",z-1,i);
                                         if(dw.registers.eflags!=0){
                                             debugf("return to previous state\n");
                                             r->gs = dw.registers.gs; 
@@ -173,8 +189,8 @@ void handle_window_manager_interrupt(Register *r){
                                             debugf("apply new state\n");
                                             r->eip = dw.registers.eip;
                                         }
-                                        return;
                                     }
+                                    return;
                                 }
                             }
                         }
@@ -214,6 +230,62 @@ void handle_window_manager_interrupt(Register *r){
     }
 }
 
+void browser2();
+
+unsigned long handlebrowserclick(struct DrawableComponent *a){
+    struct DrawableProgram* program = (struct DrawableProgram*)&programs;
+    unsigned char *filename = (unsigned char*) a->info;
+    unsigned char *path = (unsigned char*) program->data;
+    char* res;
+    if(path[0]=='@'){
+        res = sprintf("%c@",filename[0]);
+    }else{
+        res = sprintf("%s/%s",path,filename);
+    }
+    program->data = (unsigned long)res;
+    return (unsigned long)&browser2;
+}
+
+void browser2(){
+    struct DrawableProgram* program = (struct DrawableProgram*)&programs;
+    char *browserpath = dir((char*)program[0].data);
+    int l = strlen(browserpath);
+    int t = 0;
+    int z = 10;
+    int h = 4;
+
+    for(int i = h ; i < MAX_DRAWABLE_COUNT ; i++){
+        program[0].drawable[i].active   = 0;
+    }
+    for(int g = 0 ; g < l ; g++){
+        if(browserpath[g]==';'){
+            browserpath[g] = 0;
+        }
+    }
+    for(int i = 0 ; i < l ; i++){
+        if(i==0||browserpath[i-1]==';'||browserpath[i-1]==0){
+            browserpath[i-1] = 0;
+            program[0].drawable[h].active   = 1;
+            program[0].drawable[h].shape    = SHAPE_BUTTON;
+            program[0].drawable[h].x        = t;
+            program[0].drawable[h].y        = z;
+            program[0].drawable[h].w        = 70;
+            program[0].drawable[h].h        = 10;
+            program[0].drawable[h].onclick  = (unsigned long)&handlebrowserclick;
+            program[0].drawable[h].info     = (unsigned long)(browserpath+i);
+            program[0].drawable[h].selected = 0;
+
+            t+= 80;
+            h++;
+            if(t==320){
+                t = 0;
+                z += 15;
+            }
+        }
+    }
+    for(;;);
+}
+
 void init_windowmanager(){
     // lets initialise our programs
     // default program
@@ -229,6 +301,9 @@ void init_windowmanager(){
     program[0].name[7]              = 's';
     program[0].needs_to_be_drawn    = 1;
     program[0].has_focus            = 0;
+    program[0].data                 = (unsigned long)"@";
+    program[0].registers.eip        = (unsigned long)&browser2;
+
     // poweroff
     program[0].drawable[0].active   = 1;
     program[0].drawable[0].shape    = SHAPE_TASKBAR;
