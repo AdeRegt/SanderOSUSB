@@ -3,9 +3,9 @@
 unsigned char *ipaddr;
 unsigned char *macaddr;
 
-void tftp_read(Device *device,char* path,char *buffer){
+void tftp_read(Device *device  __attribute__((unused)),char* path,char *buffer){
     int pathlength = strlen(path);
-    char* type = "netascii";
+    char* type = "octet";
     int typelength = strlen(type);
     int packagelength = sizeof(struct UDPHeader) + pathlength + 4 + typelength;
     unsigned char* package = (unsigned char*) malloc(packagelength);
@@ -57,33 +57,32 @@ void tftp_read(Device *device,char* path,char *buffer){
     for(int i = 0 ; i < over ; i++){
         buffer[memcopoffset++] = tow[sizeof(struct UDPHeader)+4+i];
     }
-    packagelength = sizeof(struct UDPHeader) + 4 ;
-    package = (unsigned char*) malloc(packagelength);
-    rpackage = (struct UDPHeader*) package;
-    fillUdpHeader(rpackage,macaddr,packagelength-sizeof(struct EthernetHeader),getOurIpAsLong(),((unsigned long*)ipaddr)[0],50618,69);
-    package[sizeof(struct UDPHeader)+0] = 0;
-    package[sizeof(struct UDPHeader)+1] = 4;
-    package[sizeof(struct UDPHeader)+2] = (indexid/0x100) & 0xFF;
-    package[sizeof(struct UDPHeader)+3] = indexid & 0xFF;
+    // packagelength = sizeof(struct UDPHeader) + 4 ;
+    // package = (unsigned char*) malloc(packagelength);
+    // rpackage = (struct UDPHeader*) package;
+    // fillUdpHeader(rpackage,macaddr,packagelength-sizeof(struct EthernetHeader),getOurIpAsLong(),((unsigned long*)ipaddr)[0],50618,69);
+    // package[sizeof(struct UDPHeader)+0] = 0;
+    // package[sizeof(struct UDPHeader)+1] = 4;
+    // package[sizeof(struct UDPHeader)+2] = (indexid/0x100) & 0xFF;
+    // package[sizeof(struct UDPHeader)+3] = indexid & 0xFF;
 
-    sec.buffersize = packagelength;
-    sec.high_buf = 0;
-    sec.low_buf = (unsigned long)package;
+    // sec.buffersize = packagelength;
+    // sec.high_buf = 0;
+    // sec.low_buf = (unsigned long)package;
 
-    sendEthernetPackage(sec);
+    // sendEthernetPackage(sec);
 
     if(over==512){
         goto again;
     }
     buffer[memcopoffset++] = 0;
-    debugf("[TFTP] endofcopy\n");
 }
 
-void tftp_dir(Device *device,char* path,char *buffer){
+void tftp_dir(Device *device,char* path  __attribute__((unused)),char *buffer){
     tftp_read(device,"dir.txt",buffer);
 }
 
-char tftp_exists(Device *device,char* path){
+char tftp_exists(Device *device  __attribute__((unused)),char* path  __attribute__((unused))){
     return 1;
 }
 

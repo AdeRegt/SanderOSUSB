@@ -288,7 +288,9 @@ void special_handler(Register *r){
 	}
 	else if(r->eax==0xC5){ // GETC
 		debugf("INT0x80: GETC\n");
-		if(filesymboltable[r->ebx-3].inuse){
+		if(r->ebx==1){
+			r->eax = getch();
+		}else if(filesymboltable[r->ebx-3].inuse){
 			r->eax = 0;
 			r->eax = ((unsigned char*)(filesymboltable[r->ebx-3].pointer + filesymboltable[r->ebx-3].ftell))[0] & 0xFF;
 			if(filesymboltable[r->ebx-3].ftell>=filesymboltable[r->ebx-3].maxsize){
@@ -306,6 +308,116 @@ void special_handler(Register *r){
 	else if(r->eax==0xC7){ // REALLOC
 		debugf("INT0x80: REALLOC\n");
 		r->eax = (unsigned int) realloc((void *)r->ebx,r->ecx);
+	}
+	else if(r->eax==0xC8){ // ETH::IN
+		debugf("INT0x80: GETNETWORKPACKAGE\n");
+		PackageRecievedDescriptor prd = getEthernetPackage();
+		r->eax = prd.low_buf;
+	}
+	else if(r->eax==0xC9){ // ETH::OUT
+		int type = r->ebx;
+		int size = r->ecx;
+		unsigned char* addr = (unsigned char*) r->edx;
+		unsigned int loca = r->esi;
+		unsigned int port = r->edi;
+		debugf("INT0x80: SENDNETWORKPACKAGE type=%x size=%x to=%d.%d.%d.%d where=%x port=%x\n",type,size,addr[0],addr[1],addr[2],addr[3],loca,port);
+
+		unsigned char macaddrto[SIZE_OF_MAC];
+		unsigned char* m1;
+		if(addr[0]==192){ // is local
+			m1 = getMACFromIp(addr);
+		}else{ // is public
+			m1 = getMACFromIp(getOurRouterIp());
+		}
+		macaddrto[0] = m1[0];
+		macaddrto[1] = m1[1];
+		macaddrto[2] = m1[2];
+		macaddrto[3] = m1[3];
+		macaddrto[4] = m1[4];
+		macaddrto[5] = m1[5];
+
+		if(type==2){
+			
+			int calbuffersize = sizeof(struct TCPHeader)+size;
+			void *pnt = (void*) malloc(calbuffersize);
+			struct TCPHeader *tcp = (struct TCPHeader*) pnt;
+			unsigned char* from = (unsigned char*) pnt;
+			unsigned char* to = (unsigned char*) loca;
+			for(int i = 0 ; i < size ; i++){
+				from[sizeof(struct TCPHeader)+i] = to[i];
+			}
+			to[size] = 0;
+			
+			fillTcpHeader(tcp,(unsigned char*)&macaddrto,calbuffersize-sizeof(struct EthernetHeader),getOurIpAsLong(),((unsigned long*) r->edx)[0],port,port,0x1010,0x1010,5,TCP_PUS | TCP_ACK,64240);
+
+			unsigned short* tw = (unsigned short*) loca;
+			unsigned int z = 0;
+			int ct = size/2;
+			if(size%2){
+				ct++;
+			}
+			for(int i = 0 ; i < ct ; i++){
+				unsigned short qw = switch_endian16(tw[i]);
+				z += qw;
+			}
+
+			unsigned short checksum_old = switch_endian16(~tcp->checksum);
+			unsigned int checksum_comp = checksum_old + z;
+			unsigned int checksum = (checksum_comp & 0xffff) + (checksum_comp >> 16);
+    		checksum += (checksum >> 16);
+
+    		unsigned short final = ~checksum;
+
+    		unsigned short chsm = switch_endian16(final);
+			tcp->checksum = chsm;
+
+			PackageRecievedDescriptor prd;
+			prd.buffersize = calbuffersize;
+			prd.high_buf = 0;
+			prd.low_buf = (unsigned long)pnt;
+			sendEthernetPackage(prd);
+			
+		}else if(type==1){
+			
+			int calbuffersize = sizeof(struct UDPHeader)+size;
+			void *pnt = (void*) malloc(calbuffersize);
+			struct UDPHeader *udp = (struct UDPHeader*) pnt;
+			fillUdpHeader(udp,(unsigned char*)&macaddrto,calbuffersize-sizeof(struct EthernetHeader),getOurIpAsLong(),((unsigned long*) r->edx)[0],port,port);
+
+			unsigned char* from = (unsigned char*) pnt;
+			unsigned char* to = (unsigned char*) loca;
+			for(int i = 0 ; i < size ; i++){
+				from[sizeof(struct UDPHeader)+i] = to[i];
+				debugf("%x ",to[i]);
+			}
+			debugf("\n");
+
+			PackageRecievedDescriptor prd;
+			prd.buffersize = calbuffersize;
+			prd.high_buf = 0;
+			prd.low_buf = (unsigned long)pnt;
+			sendEthernetPackage(prd);
+		}
+
+		r->eax = 0;
+	}
+	else if(r->eax==0xCA){ // ETH::INIT
+		int type = r->ebx;
+		int is_ip = r->ecx;
+		unsigned char* addr = (unsigned char*) r->edx;
+		if(is_ip==0){
+			debugf("INT0x80: looking for %s \n",addr);
+			addr = getIPFromName((char*)addr);
+		}
+		unsigned int func = r->esi;
+		unsigned int port = r->edi;
+		debugf("INT0x80: INITNETWORK type=%x is_ip=%x to=%d:%d:%d:%d function=%x port=%x \n",type,is_ip,addr[0],addr[1],addr[2],addr[3],func,port);
+		if(type!=2){
+			r->eax = 1;
+			return;
+		}
+		create_tcp_session(getOurIpAsLong(),((unsigned long*)addr)[0],port & 0xFFFF,port & 0xFFFF,func);
+		r->eax = 0;
 	}
 	else{
 		printf("INT0x80: UNKNOWN SYSCALL %x \n",r->eax);

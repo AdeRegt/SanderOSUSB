@@ -8,19 +8,19 @@
 	extrn exit
 
 
-section .bss
-align 16
-stack_bottom:
-resb 16384 ; 16 KiB
-stack_top:
+; section .bss
+; align 16
+; stack_bottom:
+; resb 16384 ; 16 KiB
+; stack_top:
 	
 section '.text' executable
 	
 _start:
-    cli
-    mov esp, stack_top
-	xor ebp, ebp
-    sti
+    ; cli
+    ; mov esp, stack_top
+	; xor ebp, ebp
+    ; sti
 
 	push _char_c
 	push 1
