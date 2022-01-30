@@ -595,31 +595,6 @@ int ethernet_handle_package(PackageRecievedDescriptor desc){
                 if(switch_endian16(tcp->flags) & TCP_FIN){
                     debugf("[ETH] Stream is finished!\n");
                 }
-            } else if((switch_endian16(tcp->flags) & TCP_SYN)&&!(switch_endian16(tcp->flags) & TCP_ACK)){
-                debugf("[ETH] Request to join TCP server\n");
-                unsigned long from = tcp->header.dest_addr; 
-                unsigned long to = tcp->header.source_addr; 
-                unsigned short from_port = switch_endian16(tcp->destination_port); 
-                unsigned short to_port = switch_endian16(tcp->source_port);
-                unsigned long sizetype = sizeof(struct TCPHeader);
-                struct TCPHeader* tcp1 = (struct TCPHeader*) malloc(sizetype);
-                unsigned char* destmac = (unsigned char*)tcp->header.ethernetheader.from;
-                unsigned short size = sizeof(struct TCPHeader) - sizeof(struct EthernetHeader);
-                unsigned long sid = switch_endian32(tcp->sequence_number);
-                sid++;
-                unsigned long tid = switch_endian32(tcp->acknowledge_number);
-                if(!tid){
-                    tid = 0xcd;
-                }
-                fillTcpHeader(tcp1,destmac,size,from,to,from_port,to_port,tid,sid,5,TCP_SYN | TCP_ACK,512);
-
-                PackageRecievedDescriptor sec;
-                sec.buffersize = sizetype;
-                sec.high_buf = 0;
-                sec.low_buf = (unsigned long)tcp1;
-                sendEthernetPackage(sec);
-            }else if(switch_endian16(tcp->flags)&TCP_ACK){
-                debugf("[ETH] Acknowledge from TCP client recieved\n");
             }
             return 1;
         }else if(ip->protocol==IPV4_TYPE_ICMP){
