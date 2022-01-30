@@ -9,7 +9,6 @@
 #define MESSAGEBUFFER 50
 
 unsigned char *addressip;
-
 unsigned char* getIPFromName(char* t);
 
 void recievemessage(unsigned long addr,unsigned long count){
@@ -18,6 +17,12 @@ void recievemessage(unsigned long addr,unsigned long count){
     t[0] = '\n';
     t[1] = 0x00;
     write(1, (const char *)&t, 1);
+    unsigned char* buffer = (unsigned char*) addr;
+    if(buffer[0]=='P'&&buffer[1]=='I'&&buffer[2]=='N'&&buffer[3]=='G'&&buffer[4]==' '){
+        buffer[1] = 'O';
+        unsigned char *t4 = (unsigned char*)0x1000;
+        sendnetworkpackage(2,count,t4,(int)buffer,DEFAULT_IRC_PORT);
+    }
 }
 
 char* getline(){
@@ -39,7 +44,8 @@ char* getline(){
 int main(int argc, char** argv){
     printf("welcome to our irc client\n");
     addressip = getIPFromName(DEFAULT_IRC_ADDR);
-    unsigned char t4[SIZE_OF_IP];
+    
+    unsigned char *t4 = (unsigned char*)0x1000;
     t4[0] = addressip[0];
     t4[1] = addressip[1];
     t4[2] = addressip[2];
@@ -57,7 +63,15 @@ int main(int argc, char** argv){
             y += ('A'-'a');
             z[i] = y;
         }
-        sendnetworkpackage(2,sizeline,(unsigned char*)&t4,(int)z,DEFAULT_IRC_PORT);
+        for(int i = 0 ; i < sizeline ; i++){
+            if(z[i]==';'){
+                z[i] = ':';
+            }
+            if(z[i]=='\\'){
+                z[i] = '#';
+            }
+        }
+        sendnetworkpackage(2,sizeline,t4,(int)z,DEFAULT_IRC_PORT);
         free(z);
         unsigned char t[2];
         t[0] = '\n';

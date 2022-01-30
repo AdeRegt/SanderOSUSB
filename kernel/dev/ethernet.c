@@ -210,6 +210,7 @@ void fillTcpHeader(struct TCPHeader *tcpheader,unsigned char *destmac,unsigned s
     if(sequence_number==0x1010&&acknowledge_number==0x1010){
         sequence_number = taaaX;
         acknowledge_number = taaaY;
+        taaaX += (size + sizeof(struct EthernetHeader)) - sizeof(struct TCPHeader);
     }else if(flags&TCP_ACK){
         taaaX = sequence_number;
         taaaY = acknowledge_number;

@@ -263,7 +263,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 00100b30 g     F .text	00000038 soundblaster16_setVolume
 001629b0 g     O .bss	00000004 crcr
 0010c810 g     F .text	0000001e getPS2ReadyToRead
-00115860 g     F .text	00000191 fillTcpHeader
+00115860 g     F .text	0000019d fillTcpHeader
 00100260 g     F .text	0000001e getGrubStatus
 00127080 g     O .bss	00000080 rx_descs
 001629a0 g     O .bss	00000004 usbcmd
