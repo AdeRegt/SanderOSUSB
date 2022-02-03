@@ -663,5 +663,6 @@ unsigned char* cmos_update_datetime_to_variables();
 
 void init_windowmanager();
 void handle_window_manager_interrupt(Register *r);
-void drawstringat(char* str,int x,int y,int color);
+int drawstringat(char* str,int x,int y,int color);
 void browser();
+volatile char *getSTDOUTBuffer();

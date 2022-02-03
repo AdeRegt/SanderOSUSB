@@ -1,7 +1,9 @@
 #include "../kernel.h"
 
+
 #define SCREEN_WIDTH 340
 #define SCREEN_HEIGHT 200
+
 #define TICKINTERVAL 20
 
 #define COLOR_BLACK 0
@@ -22,35 +24,37 @@
 #define TASKBAR_HEIGHT 10
 
 #define MAX_PROGRAM_COUNT 3
-#define MAX_DRAWABLE_COUNT 10
+#define MAX_DRAWABLE_COUNT 20
 
 #define SHAPE_TASKBAR 1
 #define SHAPE_BUTTON 2
+#define SHAPE_CONSOLE 3
 
 struct DrawableComponent{
-    int x;
-    int y;
-    int shape;
-    int w;
-    int h;
-    unsigned long info;
-    unsigned long onclick;
-    unsigned char active;
-    unsigned char selected;
+    volatile int x;
+    volatile int y;
+    volatile int shape;
+    volatile int w;
+    volatile int h;
+    volatile unsigned long info;
+    volatile unsigned long onclick;
+    volatile unsigned char active;
+    volatile unsigned char selected;
 } __attribute__ ((packed));
 
 struct DrawableProgram{
-    unsigned char is_active;
-    unsigned char name[10];
-    unsigned char always0;
-    unsigned char needs_to_be_drawn;
-    unsigned char has_focus;
-    struct DrawableComponent drawable[10];
-    Register registers;
-    unsigned long data;
+    volatile unsigned char is_active;
+    volatile unsigned char name[10];
+    volatile unsigned char always0;
+    volatile unsigned char needs_to_be_drawn;
+    volatile unsigned char has_focus;
+    volatile struct DrawableComponent drawable[MAX_DRAWABLE_COUNT];
+    volatile Register registers;
+    volatile unsigned long data;
+    volatile unsigned long data2;
 } __attribute__ ((packed));
 
-struct DrawableProgram programs[MAX_PROGRAM_COUNT];
+volatile struct DrawableProgram programs[MAX_PROGRAM_COUNT];
 
 int timerticks = 0;
 int enable_window_manager = 0;
@@ -137,7 +141,7 @@ void handle_window_manager_interrupt(Register *r){
                                 }
                             }
                             drawstringat((char*)cmp->info,cmp->x,cmp->y,0);
-                        }else if(dw.has_focus==1){
+                        }else if(((unsigned char*)&((struct DrawableProgram*)&programs)[i].has_focus)[0]==1){
                             if(cmp->shape==SHAPE_BUTTON){
                                 for(int w = 0 ; w < cmp->w ;w++){
                                     for(int h = 0 ; h < cmp->h ;h++){
@@ -145,6 +149,9 @@ void handle_window_manager_interrupt(Register *r){
                                     }
                                 }
                                 drawstringat((char*)cmp->info,cmp->x,TASKBAR_HEIGHT + 5 + cmp->y,0);
+                            }else if(cmp->shape==SHAPE_CONSOLE){
+                                // debugf("shape_console: %s \n",(volatile char*)getSTDOUTBuffer());
+                                drawstringat((char*)getSTDOUTBuffer(),cmp->x,TASKBAR_HEIGHT + 5 + cmp->y,0);
                             }
                         }
                         // debugf("curx=%x cury=%x butx=%x buty=%x butxw=%x butyh=%x \n",curx,cury,cmp->x,cmp->y,cmp->x+cmp->w,cmp->y+cmp->h);
@@ -163,31 +170,32 @@ void handle_window_manager_interrupt(Register *r){
                                         }
                                     }else{
                                         
-                                        ((struct DrawableProgram*)&programs)[i].has_focus = 0;
-                                        ((struct DrawableProgram*)&programs)[z-1].has_focus = 1;
-                                        debugf("Switch to task %x (original=%x) \n",z-1,i);
-                                        if(dw.registers.eflags!=0){
+                                        ((unsigned char*)&((struct DrawableProgram*)&programs)[i].has_focus)[0] = 0;
+                                        ((unsigned char*)&((struct DrawableProgram*)&programs)[z-1].has_focus)[0] = 1;
+                                        struct DrawableProgram bs = ((struct DrawableProgram*)&programs)[z-1];
+                                        debugf("Switch to task %x (original=%x) EIP=%x \n",z-1,i,bs.registers.eip);
+                                        if(bs.registers.eflags!=0){
                                             debugf("return to previous state\n");
-                                            r->gs = dw.registers.gs; 
-                                            r->fs = dw.registers.fs; 
-                                            r->es = dw.registers.es;
-                                            r->ds = dw.registers.ds;
-                                            r->edi = dw.registers.edi;
-                                            r->esi = dw.registers.esi;
-                                            r->ebp = dw.registers.ebp;
-                                            r->esp = dw.registers.esp;
-                                            r->ebx = dw.registers.ebx;
-                                            r->edx = dw.registers.edx;
-                                            r->ecx = dw.registers.ecx;
-                                            r->eax = dw.registers.eax;
-                                            r->eip = dw.registers.eip;
-                                            r->cs = dw.registers.cs;
-                                            r->eflags = dw.registers.eflags;
-                                            r->useresp = dw.registers.useresp;
-                                            r->ss = dw.registers.ss;
+                                            r->gs = bs.registers.gs; 
+                                            r->fs = bs.registers.fs; 
+                                            r->es = bs.registers.es;
+                                            r->ds = bs.registers.ds;
+                                            r->edi = bs.registers.edi;
+                                            r->esi = bs.registers.esi;
+                                            r->ebp = bs.registers.ebp;
+                                            r->esp = bs.registers.esp;
+                                            r->ebx = bs.registers.ebx;
+                                            r->edx = bs.registers.edx;
+                                            r->ecx = bs.registers.ecx;
+                                            r->eax = bs.registers.eax;
+                                            r->eip = bs.registers.eip;
+                                            r->cs = bs.registers.cs;
+                                            r->eflags = bs.registers.eflags;
+                                            r->useresp = bs.registers.useresp;
+                                            r->ss = bs.registers.ss;
                                         }else{
                                             debugf("apply new state\n");
-                                            r->eip = dw.registers.eip;
+                                            r->eip = bs.registers.eip;
                                         }
                                     }
                                     return;
@@ -203,20 +211,20 @@ void handle_window_manager_interrupt(Register *r){
         // drawing cursor
         
         unsigned short pointer[12];
-        pointer[0x00] = switch_endian16( 0b1000000000000000 );
-        pointer[0x01] = switch_endian16( 0b1100000000000000 );
-        pointer[0x02] = switch_endian16( 0b1110000000000000 );
-        pointer[0x03] = switch_endian16( 0b1111000000000000 );
-        pointer[0x04] = switch_endian16( 0b1111100000000000 );
-        pointer[0x05] = switch_endian16( 0b1111110000000000 );
-        pointer[0x06] = switch_endian16( 0b1111111000000000 );
-        pointer[0x07] = switch_endian16( 0b1111111100000000 );
-        pointer[0x08] = switch_endian16( 0b1111111110000000 );
-        pointer[0x09] = switch_endian16( 0b1100110011000000 );
-        pointer[0x0a] = switch_endian16( 0b1000011000100000 );
-        pointer[0x0b] = switch_endian16( 0b0000001100000000 );
-        pointer[0x0c] = switch_endian16( 0b0000000110000000 );
-        pointer[0x0d] = switch_endian16( 0b0000000011000000 );
+        pointer[0x00] = ( 0b0000000000000001 );
+        pointer[0x01] = ( 0b0000000000000011 );
+        pointer[0x02] = ( 0b0000000000000111 );
+        pointer[0x03] = ( 0b0000000000001111 );
+        pointer[0x04] = ( 0b0000000000011111 );
+        pointer[0x05] = ( 0b0000000000111111 );
+        pointer[0x06] = ( 0b0000000001111111 );
+        pointer[0x07] = ( 0b0000000011111111 );
+        pointer[0x08] = ( 0b0000000111111111 );
+        pointer[0x09] = ( 0b0000001100110011 );
+        pointer[0x0a] = ( 0b0000010000110001 );
+        pointer[0x0b] = ( 0b0000000001100000 );
+        pointer[0x0c] = ( 0b0000000011000000 );
+        pointer[0x0d] = ( 0b0000000110000000 );
         for(int y = 0 ; y < 12 ; y++){
             unsigned short pd = pointer[y];
             for(int x = 0 ; x < 16 ; x++){
@@ -230,17 +238,80 @@ void handle_window_manager_interrupt(Register *r){
     }
 }
 
+int initialiseProgramTab(char* name,unsigned long ep){
+    struct DrawableProgram* program = (struct DrawableProgram*)&programs;
+    int i = 0;
+    for(i = 0 ; i < MAX_PROGRAM_COUNT ; i++){
+        if(program[i].is_active==0){
+            break;
+        }
+    }
+    struct DrawableProgram *pg = (struct DrawableProgram *)&programs[i];
+    pg->is_active = 1;
+    for(int z = 0 ; z < 10 ; z++){
+        pg->name[z] = name[z];
+        if(name[z]==0){
+            break;
+        }
+    }
+    pg->registers.eip = ep;
+    struct DrawableComponent* dc = (struct DrawableComponent*) &pg->drawable[0];
+    dc->active = 1;
+    dc->h = 500;
+    dc->shape = SHAPE_CONSOLE;
+    dc->x = 1;
+    dc->y = 1;
+    return i;
+}
+
 void browser2();
 
-unsigned long handlebrowserclick(struct DrawableComponent *a){
+void loadandexecprog(){
     struct DrawableProgram* program = (struct DrawableProgram*)&programs;
-    unsigned char *filename = (unsigned char*) a->info;
-    unsigned char *path = (unsigned char*) program->data;
+    debugf("program loaded!\n");
+    unsigned char* buffer = (unsigned char*)0x2000;
+    char* pt = (char*) program[0].data2;
+    if(fexists((unsigned char*)pt) && fread(pt,buffer)){
+        unsigned long loc = 0;
+        if(iself(buffer)){
+            debugf("ELF: program is ELF!\n");
+            loc = loadelf(buffer);
+        }else{
+            loc = 0x2000;
+        }
+        initialiseProgramTab(pt,loc);
+    }
+    for(;;);
+}
+
+unsigned long handlebrowserclick(struct DrawableComponent *a){
+    volatile struct DrawableProgram* program = (struct DrawableProgram*)&programs;
+    volatile char *filename = (volatile char*) a->info;
+    volatile char *path = (volatile char*) program->data;
     char* res;
     if(path[0]=='@'){
         res = sprintf("%c@",filename[0]);
+    }else if(strlen((char*)path)==2){
+        res = sprintf("%s%s",path,filename);
     }else{
         res = sprintf("%s/%s",path,filename);
+    }
+    // debugf("path=%s filename=%s res=%s \n",path,filename,res);
+    int fileorfolder = 0;
+    for(int i = 0 ; i < strlen((char*)filename) ; i++){
+        if(filename[i]=='.'){
+            fileorfolder = 1;
+        }
+    }
+    // this is a file
+    if(fileorfolder==1){
+        program->data2 = (unsigned long)res;
+        return (unsigned long)&loadandexecprog;
+    }
+    // this is a folder
+    if(fileorfolder==0){
+        program->data = (unsigned long)res;
+        return (unsigned long)&browser2;
     }
     program->data = (unsigned long)res;
     return (unsigned long)&browser2;
@@ -249,6 +320,7 @@ unsigned long handlebrowserclick(struct DrawableComponent *a){
 void browser2(){
     struct DrawableProgram* program = (struct DrawableProgram*)&programs;
     char *browserpath = dir((char*)program[0].data);
+    debugf("browser: now opening %s \n",(char*)program[0].data);
     int l = strlen(browserpath);
     int t = 0;
     int z = 10;

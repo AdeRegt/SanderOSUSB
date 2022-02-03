@@ -1352,6 +1352,7 @@ unsigned char font[4000] = {
 
 void drawcharraw(unsigned char c, int offsetX, int offsetY, int fgcolor, int bgcolor) {
 	int selector = (c-'(')*6;
+	fgcolor |= bgcolor;
 	for(int i = 0 ; i < 6 ; i++){
 		unsigned char font_sector = font[selector+i];
 		if(font_sector  & 0b10000000){
@@ -1381,11 +1382,27 @@ void drawcharraw(unsigned char c, int offsetX, int offsetY, int fgcolor, int bgc
 	}
 }
 
-void drawstringat(char* str,int x,int y,int color){
+
+#define SCREEN_WIDTH_Z 340
+#define SCREEN_HEIGHT_Z 200
+
+int drawstringat(char* str,int x,int y,int color){
 	int len = strlen(str);
+	int ax = x;
+	int ay = y;
 	for(int i = 0 ; i < len ; i++){
-		drawcharraw(str[i],x + (i*8) ,y,color,0);
+		char deze = str[i];
+		if(deze=='\n'||(ax==SCREEN_WIDTH_Z||ax>SCREEN_WIDTH_Z)){
+			ay += 8;
+			ax = x;
+		}else if(ay==SCREEN_HEIGHT_Z||ay>SCREEN_HEIGHT_Z){
+			return i;
+		}else{
+			drawcharraw(deze,ax,ay,color,0);
+			ax += 8;
+		}
 	}
+	return -1;
 }
 
 void drawchar(unsigned char c, int x, int y, int fgcolor, int bgcolor)
@@ -1403,21 +1420,17 @@ void setForeGroundBackGround(unsigned char fg,unsigned char bg){
 	u_background = bg;
 }
 
+volatile char *textbuffer = (volatile char*)NULL;
+volatile char *getSTDOUTBuffer(){
+	return textbuffer;
+}
+
 void putc(char a){
 	if(isgraphics==1){
-		if(cury==27){
-			cls();
-			curx = 0;
-			cury = 1;
-		}else if(curx==40||a=='\n'){
-			curx=0;
-			cury++;
-		}else if(a==' '){
-			curx++;
-		}else{
-			drawchar(a,curx,cury,u_foreground,u_background);
-			curx++;
+		if(!textbuffer){
+			textbuffer = malloc(1);
 		}
+		textbuffer = sprintf("%s%c",textbuffer,a);
 	}else{
 		if(a!='\n'){
 			vidpnt = (curx*2)+(160*cury);
