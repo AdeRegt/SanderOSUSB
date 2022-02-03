@@ -13,10 +13,6 @@ unsigned char* getIPFromName(char* t);
 
 void recievemessage(unsigned long addr,unsigned long count){
     write(1, (const char *)addr, count);
-    unsigned char t[2];
-    t[0] = '\n';
-    t[1] = 0x00;
-    write(1, (const char *)&t, 1);
     unsigned char* buffer = (unsigned char*) addr;
     if(buffer[0]=='P'&&buffer[1]=='I'&&buffer[2]=='N'&&buffer[3]=='G'&&buffer[4]==' '){
         buffer[1] = 'O';
@@ -73,10 +69,6 @@ int main(int argc, char** argv){
         }
         sendnetworkpackage(2,sizeline,t4,(int)z,DEFAULT_IRC_PORT);
         free(z);
-        unsigned char t[2];
-        t[0] = '\n';
-        t[1] = 0x00;
-        write(1, (const char *)&t, 1);
     }
     return EXIT_SUCCESS;
 }

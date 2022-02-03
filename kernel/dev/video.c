@@ -1392,10 +1392,10 @@ int drawstringat(char* str,int x,int y,int color){
 	int ay = y;
 	for(int i = 0 ; i < len ; i++){
 		char deze = str[i];
-		if(deze=='\n'||(ax==SCREEN_WIDTH_Z||ax>SCREEN_WIDTH_Z)){
+		if(deze=='\n'||(ax==(SCREEN_WIDTH_Z-10)||ax>(SCREEN_WIDTH_Z-10))){
 			ay += 8;
 			ax = x;
-		}else if(ay==SCREEN_HEIGHT_Z||ay>SCREEN_HEIGHT_Z){
+		}else if(ay==(SCREEN_HEIGHT_Z-10)||ay>(SCREEN_HEIGHT_Z-10)){
 			return i;
 		}else{
 			drawcharraw(deze,ax,ay,color,0);
