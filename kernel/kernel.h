@@ -666,3 +666,4 @@ void handle_window_manager_interrupt(Register *r);
 int drawstringat(char* str,int x,int y,int color);
 void browser();
 volatile char *getSTDOUTBuffer();
+void destroyCurrentProgram();

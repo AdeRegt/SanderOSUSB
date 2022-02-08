@@ -58,6 +58,24 @@ volatile struct DrawableProgram programs[MAX_PROGRAM_COUNT];
 
 int timerticks = 0;
 int enable_window_manager = 0;
+
+void destroyCurrentProgram(){
+    struct DrawableProgram* program = (struct DrawableProgram*)&programs;
+    for(int i = 0 ; i < MAX_PROGRAM_COUNT ; i++){
+        struct DrawableProgram dw = program[i];
+        if(dw.is_active){
+            if(dw.has_focus){
+                program[i].has_focus = 0;
+                program[i].is_active = 0;
+                for(int z = 0 ; z < 10 ; z++){
+                    program[i].name[z] = 0;
+                }
+            }
+        }
+    }
+    program[0].has_focus = 1;
+}
+
 void handle_window_manager_interrupt(Register *r){
     if(((int*)enable_window_manager)[0]!=1){
         return;
@@ -137,7 +155,13 @@ void handle_window_manager_interrupt(Register *r){
                         if(cmp->shape==SHAPE_TASKBAR){
                             for(int w = 0 ; w < cmp->w ;w++){
                                 for(int h = 0 ; h < cmp->h ;h++){
-                                    putpixel(cmp->x+w,cmp->y+h,TASKBAR_COLOR);
+                                    unsigned char color = TASKBAR_COLOR;
+                                    if(z>0&&z<4){
+                                        if(program[z-1].has_focus){
+                                            color = DESKTOP_COLOR;
+                                        }
+                                    }
+                                    putpixel(cmp->x+w,cmp->y+h,color);
                                 }
                             }
                             drawstringat((char*)cmp->info,cmp->x,cmp->y,0);
@@ -281,7 +305,7 @@ void loadandexecprog(){
         }
         initialiseProgramTab(pt,loc);
     }
-    for(;;);
+    browser2();
 }
 
 unsigned long handlebrowserclick(struct DrawableComponent *a){
@@ -320,7 +344,7 @@ unsigned long handlebrowserclick(struct DrawableComponent *a){
 void browser2(){
     struct DrawableProgram* program = (struct DrawableProgram*)&programs;
     char *browserpath = dir((char*)program[0].data);
-    debugf("browser: now opening %s \n",(char*)program[0].data);
+    debugf("browser: now opening %s resulting in %s \n",(char*)program[0].data,browserpath);
     int l = strlen(browserpath);
     int t = 0;
     int z = 10;
@@ -346,7 +370,7 @@ void browser2(){
             program[0].drawable[h].onclick  = (unsigned long)&handlebrowserclick;
             program[0].drawable[h].info     = (unsigned long)(browserpath+i);
             program[0].drawable[h].selected = 0;
-
+            debugf("browser: creating button for %s \n",(char*)program[0].drawable[h].info);
             t+= 80;
             h++;
             if(t==320){

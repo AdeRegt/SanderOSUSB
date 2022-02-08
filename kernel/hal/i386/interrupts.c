@@ -108,7 +108,7 @@ void irq_handler(){
 //
 // EAX
 extern char keyword;
-extern void browser();
+extern void browser2();
 
 void exit_program_and_wait_for_keypress(){
 	printf("End of program, press any key to return\n");
@@ -139,7 +139,8 @@ void special_handler(Register *r){
 			if(r->ebx){
 				r->eip = (unsigned long)exit_program_and_wait_for_keypress;
 			}else{
-				r->eip = (unsigned long)browser;
+				destroyCurrentProgram();
+				r->eip = (unsigned long)browser2;
 			}
 	}
 	else if(r->eax==0x03){ // F-READ
