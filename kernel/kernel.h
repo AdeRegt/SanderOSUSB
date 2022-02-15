@@ -165,6 +165,7 @@ unsigned short getDefaultSerialPort();
 #define VK_LEFT 0xCC
 #define VK_RIGHT 0xCD
 #define VK_DOWN 0xCE
+#define VK_SHIFT 0xCF
 
 typedef struct{
 	int mouse_x;
@@ -659,3 +660,6 @@ void pciConfigWriteWord (unsigned char bus, unsigned char slot, unsigned char fu
 
 void init_cmos();
 unsigned char* cmos_update_datetime_to_variables();
+
+void init_tty();
+void tty_loop();

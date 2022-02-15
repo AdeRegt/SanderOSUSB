@@ -136,10 +136,14 @@ void special_handler(Register *r){
 
 	if(r->eax==0x01){ // EXIT
     		printf("INT0x80: PROGRAM FINISHED\n");
-			if(r->ebx){
-				r->eip = (unsigned long)exit_program_and_wait_for_keypress;
+			if(isGraphicsMode()){
+				if(r->ebx){
+					r->eip = (unsigned long)exit_program_and_wait_for_keypress;
+				}else{
+					r->eip = (unsigned long)browser;
+				}
 			}else{
-				r->eip = (unsigned long)browser;
+				r->eip = (unsigned long)tty_loop;
 			}
 	}
 	else if(r->eax==0x03){ // F-READ

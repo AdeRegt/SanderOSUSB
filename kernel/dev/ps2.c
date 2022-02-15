@@ -267,9 +267,48 @@ unsigned char kbdus[128] ={
   't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n',	/* Enter key */
     0,			/* 29   - Control */
   'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';',	/* 39 */
- '\'', '`',   0,		/* Left shift */
+ '\'', '`',   VK_SHIFT,		/* Left shift */
  '\\', 'z', 'x', 'c', 'v', 'b', 'n',			/* 49 */
-  'm', ',', '.', '/',   0,				/* Right shift */
+  'm', ',', '.', '/',   VK_SHIFT,				/* Right shift */
+  '*',
+    0,	/* Alt */
+  ' ',	/* Space bar */
+    0,	/* Caps lock */
+    0,	/* 59 - F1 key ... > */
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,	/* < ... F10 */
+    0,	/* 69 - Num lock*/
+    0,	/* Scroll Lock */
+    0,	/* Home key */
+    VK_UP,	/* Up Arrow */
+    0,	/* Page Up */
+  '-',
+    VK_LEFT,	/* Left Arrow */
+    0,
+    VK_RIGHT,	/* Right Arrow */
+  '+',
+    1,	/* 79 - End key*/
+    VK_DOWN,	/* Down Arrow */
+    0,	/* Page Down */
+    0,	/* Insert Key */
+    0,	/* Delete Key */
+    0,   0,   0,
+    0,	/* F11 Key */
+    0,	/* F12 Key */
+    0,	/* All other keys are undefined */
+};	
+
+unsigned char KBDUS[128] ={
+    0,  27, '!', '@', '#', '$', '%', '^', '&', '*',	/* 9 */
+  '(', ')', '_', '+', '\b',	/* Backspace */
+  '\t',			/* Tab */
+  'Q', 'W', 'E', 'R',	/* 19 */
+  'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', '\n',	/* Enter key */
+    0,			/* 29   - Control */
+  'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ':',	/* 39 */
+ '\"', '~',   VK_SHIFT,		/* Left shift */
+ '|', 'Z', 'X', 'C', 'V', 'B', 'N',			/* 49 */
+  'M', '<', '>', '?',   VK_SHIFT,				/* Right shift */
   '*',
     0,	/* Alt */
   ' ',	/* Space bar */
@@ -299,12 +338,17 @@ unsigned char kbdus[128] ={
 };	
 
 unsigned volatile char keyword = 0;
+unsigned volatile char keyword_shift = 0;
 void irq_keyboard(){
 	unsigned volatile char x = inportb(PS2_DATA);
 	if((x&0x80)==0){
-		unsigned volatile char tkeyword = kbdus[x];
-		keyword = tkeyword;
-		//((unsigned char*)keyword)[0] = tkeyword;
+		unsigned volatile char tkeyword = (keyword_shift==0?kbdus:KBDUS)[x];
+		if(tkeyword==VK_SHIFT){
+			keyword_shift = 1;
+		}else{
+			keyword_shift = 0;
+			keyword = tkeyword;
+		}
 	}
 	outportb(0x20,0x20);
 }
