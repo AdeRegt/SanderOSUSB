@@ -1841,6 +1841,13 @@ int init_graph_vga(unsigned int width, unsigned int height,int chain4)
 	return 1;
 }
 
+int* curget(){
+	int *elf = (int*)malloc(sizeof(int)*2);
+	elf[0] = curx;
+	elf[1] = cury;
+	return elf;
+}
+
 void curset(int x,int y){
 	curx = x;
 	cury = y;

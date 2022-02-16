@@ -1,7 +1,7 @@
 #include "../kernel.h"
 
 #define MAX_COMMAND_SIZE 10
-#define MAX_COMMAND_STACK 5
+#define MAX_COMMAND_STACK 10
 #define MAX_COMMAND_COMMAND_SIZE 50
 
 struct terminal_cmd{
@@ -14,8 +14,19 @@ struct terminal_cmd term_commands[MAX_COMMAND_STACK];
 char* read_line(int maxsize){
 	char* buffer = (char*) malloc(maxsize);
 	int i = 0;
+    int* curhi = curget();
 	for(i = 0 ; i < maxsize ; i++){
-		buffer[i] = (char)getch();
+        char deze = (char)getch();
+        if(deze=='\b'){
+            buffer[i] = 0;
+            buffer[i-1] = 0;
+            i -= 2;
+            curset(curhi[0]+i+1,curhi[1]);
+		    putc(' ');
+            curset(curhi[0]+i+1,curhi[1]);
+            continue;
+        }
+		buffer[i] = deze;
 		putc(buffer[i]);
 		if(buffer[i]=='\n'){
 			break;
@@ -84,6 +95,8 @@ void tty_dir(char* argv){
     printf("DIR %s : %s \n",cmd,dir(cmd));
 }
 
+volatile char* last_tty_command;
+
 void tty_exec(char* argv){
     char* cmd;
     char* tuv = getcwd();
@@ -99,13 +112,16 @@ void tty_exec(char* argv){
     int exparam = 0;
     for(int i = 0 ; i < strlen(cmd) ; i++){
         if(cmd[i]==' '){
-            exparam = i+1;
+            exparam = i;
+            break;
         }
     }
     if(exparam==0){
         exparam = strlen(cmd);
     }
     cmd[exparam] = 0;
+    last_tty_command = (char*)cmd+exparam+1;
+
     unsigned char* buffer = (unsigned char*)0x2000;
 	if(fexists((unsigned char *)cmd) && fread(cmd,buffer)){
         if(iself(buffer)){
@@ -179,7 +195,7 @@ int handle_tty_command(char* prompt){
 }
 
 void tty_loop(){
-    setpwd("@");
+    setpwd("A@PRGS");
     while(1){
         printf("[%s]-> ",getcwd());
         char* prompt = read_line(MAX_COMMAND_COMMAND_SIZE);

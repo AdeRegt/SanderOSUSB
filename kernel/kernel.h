@@ -150,6 +150,7 @@ void drawcharraw(unsigned char c, int offsetX, int offsetY, int fgcolor, int bgc
  **/
 unsigned char getch();
 void curset(int x,int y);
+int* curget();
 void setForeGroundBackGround(unsigned char fg,unsigned char bg);
 
 char* vsprintf(char* format,va_list arg);
