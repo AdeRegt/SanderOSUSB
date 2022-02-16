@@ -128,6 +128,7 @@ typedef struct {
 
 #define MAX_FILE_SYMBOLS 10
 FileSymbol filesymboltable[MAX_FILE_SYMBOLS];
+extern volatile char* last_tty_command;
 
 void special_handler(Register *r){
 	outportb(0xA0,0x20);
@@ -135,12 +136,17 @@ void special_handler(Register *r){
 	debugf("INT0x80: EIP=%x \n",r->eip);
 
 	if(r->eax==0x01){ // EXIT
-    		printf("INT0x80: PROGRAM FINISHED\n");
+		printf("INT0x80: PROGRAM FINISHED\n");
+		debugf("INT0x80: PROGRAM FINISHED\n");
+		if(isGraphicsMode()){
 			if(r->ebx){
 				r->eip = (unsigned long)exit_program_and_wait_for_keypress;
 			}else{
 				r->eip = (unsigned long)browser;
 			}
+		}else{
+			r->eip = (unsigned long)tty_loop;
+		}
 	}
 	else if(r->eax==0x03){ // F-READ
 		debugf("INT0x80: READ\n");
@@ -418,6 +424,27 @@ void special_handler(Register *r){
 		}
 		create_tcp_session(getOurIpAsLong(),((unsigned long*)addr)[0],port & 0xFFFF,port & 0xFFFF,func);
 		r->eax = 0;
+	}
+	else if(r->eax==0xCB){ // PRGS::ARG
+		debugf("INT0x80: GETPARAMS\n");
+		int argcount = 0; // we always start with 1, this is the object itself
+		unsigned long *args = (unsigned long *)malloc(sizeof(unsigned long)*10);
+		args[argcount++] = (unsigned long)"example"; // example -m 10 test test
+		if(strlen((char*)last_tty_command)){
+			args[argcount++] = (unsigned long) (last_tty_command);
+			int z = strlen((char*)last_tty_command);
+			for(int i = 0 ; i < z ; i++){
+				if(last_tty_command[i]==' '){
+					last_tty_command[i] = 0;
+					args[argcount++] = (unsigned long) (last_tty_command+i+1);
+				}
+			}
+		}
+		for(int i = 0 ; i < argcount ; i++){
+			debugf("INT0x80: serving on arg %x the value %s \n",i,(char*)args[i]);
+		}
+		r->eax = (unsigned long)args; // arguments
+		r->ebx = argcount; // argumentcount
 	}
 	else{
 		printf("INT0x80: UNKNOWN SYSCALL %x \n",r->eax);

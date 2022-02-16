@@ -196,24 +196,59 @@ void kernel_main(GRUBMultiboot *grub, unsigned long magic){
 		curset(27+i,12);
 		putc(' ');
 	}
-	setForeGroundBackGround(4,1);
+	setForeGroundBackGround(7,0);
+	unsigned char dec = 0;
+	while(1){
+		cls();
+		setForeGroundBackGround(7,0);
+		printf("What do you want to use?\n\n");
+		setForeGroundBackGround(0,0);
+		printf("......");
+		if(dec==0){
+			setForeGroundBackGround(0,7);
+			printf(" GUI ");
+		}else{
+			setForeGroundBackGround(7,0);
+			printf(" GUI ");
+		}
+		if(dec==1){
+			setForeGroundBackGround(0,7);
+			printf(" CONSOLE ");
+		}else{
+			setForeGroundBackGround(7,0);
+			printf(" CONSOLE ");
+		}
+		unsigned char t = getch();
+		if(dec==1&&t==VK_LEFT){
+			dec = 0;
+		}else if(dec==0&&t==VK_RIGHT){
+			dec = 1;
+		}else if(t=='\n'){
+			break;
+		}
+	}
 	cls();
 	
-	if(init_graph_vga(320, 200, 1)==0) {
-		printf("VGA: failed to set!\nPress any key to reboot\n");
-		getch();
-		poweroff();
-	}
-	
-	if(confirm("kernel created by sander de regt, shashwat shagun, johan gericke, daniel mccarthy, jark clim, pablo narvaja, nelson cole") == 0) {
-		poweroff();
-	};
+	if(dec==0){
+		if(init_graph_vga(320, 200, 1)==0) {
+			printf("VGA: failed to set!\nPress any key to reboot\n");
+			getch();
+			poweroff();
+		}
+		
+		if(confirm("kernel created by sander de regt, shashwat shagun, johan gericke, daniel mccarthy, jark clim, pablo narvaja, nelson cole") == 0) {
+			poweroff();
+		};
 
-	if(!getDeviceCount()) {
-		no_usefull_hardware();
+		if(!getDeviceCount()) {
+			no_usefull_hardware();
+		}
+		
+		browser();
+	}else if(dec==1){
+		init_tty();
+		tty_loop();
 	}
-	
-	browser();
 
 	for(;;);
 }

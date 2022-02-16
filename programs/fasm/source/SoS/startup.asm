@@ -9,9 +9,18 @@
 section '.text' executable
 	
 _start:
-	push _char_c
-	push 5
+;	push _char_c
+;	push 5
+	; get params
+	mov eax,0xCB
+	int 0x80
+	push eax 
+	push ebx
+	; call main
 	call main
+	; quit
+	mov eax,0x01
+	int 0x80
 	ret
 
 filenamebuffer: db 'A@PRGS/TEGT.ASM', 0
