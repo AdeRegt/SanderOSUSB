@@ -2,6 +2,7 @@
 #include "../kernel.h"
 
 #define MAX_RING_SIZE 16
+#define TRB_TYPE_ENABLE_SLOT 9
 
 struct XHCI_64bit {
     unsigned long ptr_low;
@@ -64,6 +65,8 @@ struct XHCI_TRB{
 	unsigned long arg4;
 }__attribute__((packed));
 
+#define WANTED_RING_SIZE (sizeof(struct XHCI_TRB)*MAX_RING_SIZE)
+
 void xhci_write_long(unsigned long location,unsigned long value){
 	printf("[XHCI] Writing %x to %x \n",value,location);
 	((unsigned long*)location)[0] = value;
@@ -74,11 +77,11 @@ volatile struct XHCI_OperationalRegisters *operational;
 volatile struct XHCI_OperationalPortRegisters *operational_port;
 volatile struct XHCI_RuntimeRegisters *runtime;
 struct XHCI_64bit *DCBAAP;
-volatile void *command_ring;
-volatile void *event_ring;
+volatile struct XHCI_TRB *command_ring;
+volatile struct XHCI_TRB *event_ring;
+volatile unsigned long *doorbell;
 
-unsigned char offset_port = 0;
-unsigned char offset_count = 0;
+int ring_queue_index = 0;
 
 extern void xhciirq();
 
@@ -111,6 +114,22 @@ void xhci_dump_capibility(struct XHCI_CapibilityRegisters *capability){
 	printf("[XHCI] DBOFF       = %x \n",capability->DBOFF);
 	printf("[XHCI] RTSOFF      = %x \n",capability->RTSOFF);
 	printf("[XHCI] HCCPARAMS2  = %x \n",capability->HCCPARAMS2);
+}
+
+void xhci_dump_event_ring(){
+	printf("=========EVENT=RING=============\n");
+	for(int i = 0 ; i < MAX_RING_SIZE ; i++){
+		unsigned long bar1 = event_ring[i].arg1;
+		unsigned long bar2 = event_ring[i].arg2;
+		unsigned long bar3 = event_ring[i].arg3;
+		unsigned long bar4 = event_ring[i].arg4;
+		if(bar1||bar2||bar3||bar4){
+			printf("[XHCI] Ring element %x : %x %x %x %x \n",i,bar1,bar2,bar3,bar4);
+			printf(" - Address %x %x | Transferlength %x | Completioncode %x \n",bar1,bar2,bar3 & 0b111111111111111111111111,(bar3>>24)&&0b11111111);
+			printf(" - Cyclebit %x | EventData %x | TRBType %x | EndpointID %x | SlotID %x \n", bar4 & 1 , (bar4>>2) & 1, (bar4>>10) & 0b11111 , (bar4>>16) & 0b11111 , (bar4>>24) & 0b11111111 );
+		}
+	}
+	printf("[XHCI] USBSTS %x \n",operational->USBSTS);
 }
 
 void xhci_wait_for_hostcontroller(){
@@ -146,7 +165,7 @@ void xhci_reset(){
 
 	//
 	// Set table
-	event_ring = malloc_align(0x100,0xFF);
+	event_ring = (volatile struct XHCI_TRB *)malloc_align(WANTED_RING_SIZE,0xFF);
 	unsigned long event_ring_descriptor_table[20] __attribute__ ((aligned (0x100)));
 	xhci_write_long((unsigned long)&event_ring_descriptor_table[0],(unsigned long) event_ring);
 	xhci_write_long((unsigned long)&event_ring_descriptor_table[1],(unsigned long) 0);
@@ -161,7 +180,7 @@ void xhci_reset(){
 
 	//
 	// CRCR
-	command_ring = malloc_align(MaxSlotsEn*(sizeof(unsigned long)*2),0xFF);
+	command_ring = malloc_align(WANTED_RING_SIZE,0xFF);
 	xhci_write_long((unsigned long)&operational->CRCR1,(unsigned long)command_ring | 1);
 	xhci_write_long((unsigned long)&operational->CRCR2,0);
 
@@ -205,6 +224,50 @@ void xhci_reset(){
 
 unsigned char portspeed_strings[11][11] = {"","FULLSPEED","LOWSPEED","HIGHSPEED","SUPERSPEED"};
 
+void xhci_ring_doorbell(unsigned long slotid,unsigned long value){
+	printf("[XHCI] Doorbell: ringing slotid %x with value %x \n",slotid,value);
+	doorbell[slotid] = value;
+}
+
+struct XHCI_TRB *waitForEvent(unsigned long addr){
+	printf("[XHCI] Wait for event %x \n",addr);
+	while(1){
+		for(int i = 0 ; i < MAX_RING_SIZE ; i++){
+			if(event_ring[i].arg1==addr){
+				return (struct XHCI_TRB*)&event_ring[i];
+			}
+		}
+	}
+}
+
+struct XHCI_TRB *setupTRBPackage(struct XHCI_TRB *ring,int queue_index,void *data,unsigned long xferlength, unsigned long flags){
+	ring[queue_index].arg1 = (unsigned long)data;
+	ring[queue_index].arg2 = 0;
+	ring[queue_index].arg3 = xferlength;
+	ring[queue_index].arg4 = flags | 1;
+	printf("[XHCI] TRB Created: prt=%x %x status=%x control=%x located at=%x \n",ring[queue_index].arg1,ring[queue_index].arg2,ring[queue_index].arg3,ring[queue_index].arg4,(unsigned long)&ring[queue_index]);
+	return &ring[queue_index];
+}
+
+struct XHCI_TRB *setupCommandRingPackage(void* data,unsigned long xferlength, unsigned long flags){
+	struct XHCI_TRB *res = setupTRBPackage((struct XHCI_TRB*)command_ring, ring_queue_index, data, xferlength, flags); // create TRB
+	ring_queue_index++; // ring queue index +1
+	return res;
+}
+
+unsigned char enable_port(){
+	struct XHCI_TRB *trb = setupCommandRingPackage(NULL, 0, TRB_TYPE_ENABLE_SLOT<<10); // create required TRB...
+	xhci_ring_doorbell(0 ,0); // ring that we are here
+	struct XHCI_TRB *result_trb = waitForEvent((unsigned long)trb);
+	unsigned char resultcode = (result_trb->arg3>>24)&&0b11111111;
+	if(resultcode==1){
+		return (result_trb->arg4>>24) & 0b11111111;
+	}else{
+		printf("[XHCI] Unwanted resultcode: %x \n",resultcode);
+		return 0;
+	}
+}
+
 void xhci_setup_port(volatile struct XHCI_OperationalPortRegisters portreg,unsigned char portnumber){
 	if(portreg.PORTSC==0){
 		return;
@@ -212,12 +275,22 @@ void xhci_setup_port(volatile struct XHCI_OperationalPortRegisters portreg,unsig
 	portnumber++;
 	// printf("[XHCI] Portscan : port %x has value %x state %x \n",portnumber,portreg.PORTSC,(portreg.PORTSC>>5)&0b111);
 	if(portreg.PORTSC & (1<<17)){ // is there a connect chance?
+		operational->USBSTS |= 0x18; // acknowledge interrupts!
 		portreg.PORTSC |= (1<<17); // acknowledge chance!
 		if(portreg.PORTSC & 1){
 			printf("[XHCI] Port %x: There is a device present %x \n",portnumber,portreg.PORTSC);
 			// lets find out the portspeed
 			unsigned char portspeed_probe = (portreg.PORTSC >> 10) & 0b111;
 			printf("[XHCI] Port %x: This is a %s port with the status of %x and the rest is !\n",portnumber,portspeed_strings[portspeed_probe],(portreg.PORTSC>>5)&0b111,portreg.PORTSC);
+
+			//
+			// enable port
+			unsigned char enable_port_result = enable_port();
+			if(!enable_port_result){
+				return;
+			}
+			printf("[XHCI] Port %x: We have the following portnumber assigned: %x ",portnumber,enable_port_result);
+			for(;;);
 		}
 	}
 }
@@ -257,6 +330,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	operational = (volatile struct XHCI_OperationalRegisters *) (bar1 + capability->CAPLENGTH);
 	operational_port = (volatile struct XHCI_OperationalPortRegisters *) (bar1 + capability->CAPLENGTH + 0x400 );
 	runtime = (volatile struct XHCI_RuntimeRegisters *) (bar1 + (capability->RTSOFF&0xFFFFFFE0) );
+	doorbell = (unsigned long*) (bar1 + capability->DBOFF);
 	xhci_dump_operational(operational);
 	printf("[XHCI] We have %x ports available to us!\n",(capability->HCCPARAMS1 >> 24) & 0xFF );
 
@@ -294,10 +368,6 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				unsigned long fault2 = ((volatile unsigned long*)(extcappoint+8))[0];
 				unsigned char comoffset = (fault2) & 0xFF;
 				unsigned char comcount = (fault2>>8) & 0xFF;
-				if(revision_major==3){
-					offset_port = comoffset;
-					offset_count = comcount;
-				}
 				printf("[XHCI] Revision %x %x , offset %x , count %x \n",revision_major,revision_minor,comoffset,comcount);
 			}
 			else if(capid==0x03){
@@ -335,6 +405,17 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	// detect devices
 
 	xhci_detect_ports();
+
+	//
+	// lets us print the event ring
+	xhci_dump_event_ring();
+
+	//
+	// This message should never ever occur
+	if(operational->USBSTS&4){ // serious error bit set
+		printf("[XHCI] An serious error occured\n");
+		for(;;);
+	}
 	
 	printf("[XHCI] Hang....\n");
 	for(;;);
