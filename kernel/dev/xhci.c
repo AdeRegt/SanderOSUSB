@@ -3,6 +3,7 @@
 
 #define MAX_RING_SIZE 16
 #define TRB_TYPE_ENABLE_SLOT 9
+#define TRB_TYPE_SET_ADDRESS 11
 
 struct XHCI_64bit {
     unsigned long ptr_low;
@@ -66,6 +67,27 @@ struct XHCI_TRB{
 }__attribute__((packed));
 
 #define WANTED_RING_SIZE (sizeof(struct XHCI_TRB)*MAX_RING_SIZE)
+
+struct XHCI_InputControlContext{
+	unsigned long D;
+	unsigned long A;
+	unsigned long reserved[5];
+	unsigned char configuration_value;
+	unsigned char interface_number;
+	unsigned char alternate_setting;
+	unsigned char reserved2;
+}__attribute__((packed));
+
+struct XHCI_Context{
+	unsigned long arg1;
+	unsigned long arg2;
+	unsigned long arg3;
+	unsigned long arg4;
+	unsigned long arg5;
+	unsigned long arg6;
+	unsigned long arg7;
+	unsigned long arg8;
+}__attribute__((packed));
 
 void xhci_write_long(unsigned long location,unsigned long value){
 	printf("[XHCI] Writing %x to %x \n",value,location);
@@ -264,6 +286,14 @@ unsigned char enable_port(){
 	}
 }
 
+unsigned char addressdevice(unsigned char device,unsigned long structure){
+	struct XHCI_TRB *trb = setupCommandRingPackage(NULL, structure, TRB_TYPE_SET_ADDRESS<<10 | (device << 24)); // create required TRB...
+	xhci_ring_doorbell(0 ,0); // ring that we are here
+	struct XHCI_TRB *result_trb = waitForEvent((unsigned long)trb);
+	unsigned char resultcode = (result_trb->arg3>>24)&&0b11111111;
+	return resultcode;
+}
+
 void xhci_setup_port(volatile struct XHCI_OperationalPortRegisters portreg,unsigned char portnumber){
 	if(portreg.PORTSC==0){
 		return;
@@ -294,19 +324,42 @@ void xhci_setup_port(volatile struct XHCI_OperationalPortRegisters portreg,unsig
 			if(!enable_port_result){
 				return;
 			}
-			printf("[XHCI] Port %x: We have the following portnumber assigned: %x ",portnumber,enable_port_result);
+			printf("[XHCI] Port %x: We have the following portnumber assigned: %x \n",portnumber,enable_port_result);
 
 			//
 			// create structures for next steps
 			// input context data structure
 			// input control context
+			struct XHCI_InputControlContext* icc = (struct XHCI_InputControlContext*) malloc_align(sizeof(struct XHCI_InputControlContext) * 4 ,0xFF);
+			icc->A = 0b11;
 			// input slot context
+			struct XHCI_Context* isc = (struct XHCI_Context*) (icc + sizeof(struct XHCI_Context));
+			isc->arg1 |= (1<<27); // context entries: 1
+			isc->arg1 |= (3<<20); // speed: 3 highspeed
+			isc->arg2 |= (portnumber<<16);
+			isc->arg3 |= enable_port_result; // id of the port
+			isc->arg3 |= (portnumber<<8); // portnumber
 			// allocate transfer ring
+			volatile struct XHCI_TRB *transfer_ring = (volatile struct XHCI_TRB *) malloc_align(WANTED_RING_SIZE,0xFF);
 			// input default control endpoint
+			struct XHCI_Context* idc = (struct XHCI_Context*) (icc + sizeof(struct XHCI_Context) + sizeof(struct XHCI_Context));
+			idc->arg2 |= (4<<3); // set ep type to control
+			idc->arg2 |= (3<<1); // set cerr to 3
+			idc->arg2 |= (64<<16); // max packet size
+			idc->arg3 |= (unsigned long)transfer_ring; // transfer ring
+			idc->arg3 |= 1; // dequeue cycle state
 			// output device context
+			struct XHCI_Context* odc = (struct XHCI_Context*) (icc + sizeof(struct XHCI_Context) + sizeof(struct XHCI_Context) + sizeof(struct XHCI_Context));
 			// attach dcbaa
+			DCBAAP[enable_port_result].ptr_low = (unsigned long)odc;
+			DCBAAP[enable_port_result].ptr_high = 0;
 			// address device command
-
+			unsigned char addressdevice_result = addressdevice(enable_port_result,(unsigned long)icc);
+			if(addressdevice_result!=1){
+				printf("[XHCI] Port %x: set_address failed with %x \n",portnumber,addressdevice_result);
+				for(;;);
+			}
+			printf("[XHCI] Port %x: set_address succeed\n",portnumber);
 			for(;;);
 		}
 	}
