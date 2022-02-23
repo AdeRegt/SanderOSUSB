@@ -160,10 +160,6 @@ void xhci_reset(){
 	xhci_write_long((unsigned long)&operational->CONFIG,MaxSlotsEn);
 
 	//
-	// Set DNCTRL
-	xhci_write_long((unsigned long)&operational->DNCTRL,0b1111111111111111);
-
-	//
 	// Set table
 	event_ring = (volatile struct XHCI_TRB *)malloc_align(WANTED_RING_SIZE,0xFF);
 	unsigned long event_ring_descriptor_table[20] __attribute__ ((aligned (0x100)));
@@ -281,7 +277,16 @@ void xhci_setup_port(volatile struct XHCI_OperationalPortRegisters portreg,unsig
 			printf("[XHCI] Port %x: There is a device present %x \n",portnumber,portreg.PORTSC);
 			// lets find out the portspeed
 			unsigned char portspeed_probe = (portreg.PORTSC >> 10) & 0b111;
-			printf("[XHCI] Port %x: This is a %s port with the status of %x and the rest is !\n",portnumber,portspeed_strings[portspeed_probe],(portreg.PORTSC>>5)&0b111,portreg.PORTSC);
+			unsigned char portstat = (portreg.PORTSC>>5)&0b111;
+			if(portstat==7){
+				printf("[XHCI] Port %x: This is a USB2.0 port, Requires portreset\n");
+				operational_port[portnumber-1].PORTSC |= (1<<4);
+				sleep(50);
+				portreg = operational_port[portnumber-1];
+				portspeed_probe = (portreg.PORTSC >> 10) & 0b111;
+				portstat = (portreg.PORTSC>>5)&0b111;
+			}
+			printf("[XHCI] Port %x: This is a %s port with the status of %x and the rest is %x !\n",portnumber,portspeed_strings[portspeed_probe],portstat,portreg.PORTSC);
 
 			//
 			// enable port
@@ -290,6 +295,18 @@ void xhci_setup_port(volatile struct XHCI_OperationalPortRegisters portreg,unsig
 				return;
 			}
 			printf("[XHCI] Port %x: We have the following portnumber assigned: %x ",portnumber,enable_port_result);
+
+			//
+			// create structures for next steps
+			// input context data structure
+			// input control context
+			// input slot context
+			// allocate transfer ring
+			// input default control endpoint
+			// output device context
+			// attach dcbaa
+			// address device command
+
 			for(;;);
 		}
 	}
