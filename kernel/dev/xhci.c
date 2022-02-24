@@ -258,6 +258,17 @@ struct XHCI_TRB *waitForEvent(unsigned long addr){
 	}
 }
 
+struct XHCI_TRB *waitForPortAndEndpoint(unsigned char port,unsigned char endpoint){
+	printf("[XHCI] Wait for port %x and endpoint %x \n",port,endpoint);
+	while(1){
+		for(int i = 0 ; i < MAX_RING_SIZE ; i++){
+			if(((event_ring[i].arg4>>16) & 0b11111)==endpoint&&((event_ring[i].arg4>>24) & 0b11111111)==port){
+				return (struct XHCI_TRB*)&event_ring[i];
+			}
+		}
+	}
+}
+
 struct XHCI_TRB *setupTRBPackage(struct XHCI_TRB *ring,int queue_index,void *data,unsigned long xferlength, unsigned long flags){
 	ring[queue_index].arg1 = (unsigned long)data;
 	ring[queue_index].arg2 = 0;
@@ -362,6 +373,19 @@ void xhci_setup_port(volatile struct XHCI_OperationalPortRegisters portreg,unsig
 			}
 			printf("[XHCI] Port %x: set_address succeed\n",portnumber);
 
+			//
+			// check with a NOOP command
+			struct XHCI_TRB *trb = setupTRBPackage((struct XHCI_TRB*)transfer_ring,transferringpointer,NULL, 0, (8<<10) ); // create required TRB...
+			xhci_ring_doorbell(enable_port_result ,1); // ring that we are here
+			struct XHCI_TRB *pingres = waitForPortAndEndpoint(enable_port_result, 1);
+			unsigned char pingrescod = (pingres->arg3>>24)&&0b11111111;
+			if(pingrescod!=1){
+				printf("[XHCI] Port %x: noopcmd failed with %x \n",portnumber,pingrescod);
+				for(;;);
+			}
+			printf("[XHCI] Port %x: get_noop succeed\n",portnumber);
+
+			for(;;);
 		}
 	}
 }
