@@ -330,7 +330,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 001100c0 g     F .text	0000026c init_acpi
 0010b5b0 g     F .text	000001a8 choose
 00107ff0 g     F .text	0000017d sfs_write
-0010fb74 g     F .text	00000494 init_xhci
+0010fb7b g     F .text	0000048f init_xhci
 0010e080 g     F .text	0000012a iso_9660_exists
 001075b0 g     F .text	00000051 ata_write_raw
 00124040 g     O .data	00000080 KBDUS
@@ -376,7 +376,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 0015fa2e g     O .bss	00000001 old02z
 001240c0 g     O .data	00000080 kbdus
 00145d74 g     O .bss	00000004 runtime
-0010fae2 g     F .text	00000092 xhci_detect_ports
+0010fae9 g     F .text	00000092 xhci_detect_ports
 00145ce0 g     O .bss	00000024 vbox_m
 00124148 g     O .data	00000004 ccr_x
 0010140f g     F .text	000000e9 e1000_send_package
@@ -635,7 +635,7 @@ e4524ffb l       *ABS*	00000000 CHECKSUM
 0010e9f0 g     F .text	00000095 vb_enable_shared_folders_lib
 0010e980 g     F .text	00000066 vb_report_existance
 00109b70 g     F .text	0000005b free
-0010f798 g     F .text	0000034a xhci_setup_port
+0010f798 g     F .text	00000351 xhci_setup_port
 0012301c g     O .data	00000006 ata2
 001099b0 g     F .text	0000007d memcleanup
 0010cb01 g       .text	00000000 isr_special_stub

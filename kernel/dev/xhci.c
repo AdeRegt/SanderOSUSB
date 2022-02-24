@@ -341,6 +341,7 @@ void xhci_setup_port(volatile struct XHCI_OperationalPortRegisters portreg,unsig
 			isc->arg3 |= (portnumber<<8); // portnumber
 			// allocate transfer ring
 			volatile struct XHCI_TRB *transfer_ring = (volatile struct XHCI_TRB *) malloc_align(WANTED_RING_SIZE,0xFF);
+			int transferringpointer = 0;
 			// input default control endpoint
 			struct XHCI_Context* idc = (struct XHCI_Context*) (icc + sizeof(struct XHCI_Context) + sizeof(struct XHCI_Context));
 			idc->arg2 |= (4<<3); // set ep type to control
@@ -357,10 +358,10 @@ void xhci_setup_port(volatile struct XHCI_OperationalPortRegisters portreg,unsig
 			unsigned char addressdevice_result = addressdevice(enable_port_result,(unsigned long)icc);
 			if(addressdevice_result!=1){
 				printf("[XHCI] Port %x: set_address failed with %x \n",portnumber,addressdevice_result);
-				for(;;);
+				return;
 			}
 			printf("[XHCI] Port %x: set_address succeed\n",portnumber);
-			for(;;);
+
 		}
 	}
 }
@@ -475,10 +476,6 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	// detect devices
 
 	xhci_detect_ports();
-
-	//
-	// lets us print the event ring
-	xhci_dump_event_ring();
 
 	//
 	// This message should never ever occur
