@@ -89,6 +89,13 @@ struct XHCI_Context{
 	unsigned long arg8;
 }__attribute__((packed));
 
+struct XHCI_RingManager{
+	int pointer;
+	char cs;
+	int event_count;
+	volatile struct XHCI_TRB *ring;
+}__attribute__((packed));
+
 void xhci_write_long(unsigned long location,unsigned long value){
 	printf("[XHCI] Writing %x to %x \n",value,location);
 	((unsigned long*)location)[0] = value;
@@ -108,7 +115,7 @@ int ring_queue_index = 0;
 extern void xhciirq();
 
 void irq_xhci(){
-	printf("[XHCI] Interrupt\n");
+	printf("[XHCI] Interrupt %x \n", operational->USBSTS);
 
 	outportb(0xA0,0x20);
 	outportb(0x20,0x20);
@@ -258,12 +265,17 @@ struct XHCI_TRB *waitForEvent(unsigned long addr){
 	}
 }
 
-struct XHCI_TRB *waitForPortAndEndpoint(unsigned char port,unsigned char endpoint){
+struct XHCI_TRB *waitForPortAndEndpoint(unsigned char port,unsigned char endpoint,int event_count){
 	printf("[XHCI] Wait for port %x and endpoint %x \n",port,endpoint);
 	while(1){
+		int cx = event_count;
 		for(int i = 0 ; i < MAX_RING_SIZE ; i++){
 			if(((event_ring[i].arg4>>16) & 0b11111)==endpoint&&((event_ring[i].arg4>>24) & 0b11111111)==port){
-				return (struct XHCI_TRB*)&event_ring[i];
+				if(cx==0){
+					return (struct XHCI_TRB*)&event_ring[i];
+				}else{
+					cx--;
+				}
 			}
 		}
 	}
@@ -305,6 +317,76 @@ unsigned char addressdevice(unsigned char device,unsigned long structure){
 	return resultcode;
 }
 
+unsigned char sendNOOPCommand(struct XHCI_RingManager* ringstat,unsigned char port){
+	setupTRBPackage((struct XHCI_TRB*)ringstat->ring,ringstat->pointer,NULL, 0, (8<<10) ); // create required TRB...
+	xhci_ring_doorbell(port ,1); // ring that we are here
+	struct XHCI_TRB *pingres = waitForPortAndEndpoint(port, 1, ringstat->event_count);
+	ringstat->pointer++;
+	ringstat->event_count++;
+	return (pingres->arg3>>24)&&0b11111111;
+}
+
+unsigned char* xhci_get_device_configuration(struct XHCI_RingManager* ringstat,unsigned char port,unsigned char size){
+	void* buffer = malloc(size);
+	EhciCMD* commando = (EhciCMD*) malloc_align(sizeof(EhciCMD),0x1FF);
+	commando->bRequest = 0x06; // get_descriptor
+    commando->bRequestType |= 0x80; // dir=IN
+    commando->wIndex = 0; // windex=0
+    commando->wLength = size; // getlength=8
+    commando->wValue = 2 << 8; // get config info
+	unsigned long *cmx = (unsigned long*) commando;
+
+	struct XHCI_TRB *tx = setupTRBPackage((struct XHCI_TRB*)ringstat->ring,ringstat->pointer,commando, 8, (2<<10) | (1<<6) | (3<<16) ); // SETUP
+	tx->arg1 = cmx[0];
+	tx->arg2 = cmx[1];
+	ringstat->pointer++;
+	setupTRBPackage((struct XHCI_TRB*)ringstat->ring,ringstat->pointer,buffer, size, (3<<10) | (1<<16) ); // DATA
+	ringstat->pointer++;
+	setupTRBPackage((struct XHCI_TRB*)ringstat->ring,ringstat->pointer,NULL, 0, (4<<10) | (0<<16) ); // STATUS
+	ringstat->pointer++;
+	
+	xhci_ring_doorbell(port, 1); // ring that we are here
+	struct XHCI_TRB *pingres = waitForPortAndEndpoint(port, 1, ringstat->event_count);
+	ringstat->event_count++;
+
+	// cleanup crapas
+	free(commando);
+	if(((pingres->arg3>>24)&&0b11111111)==1){
+		return buffer;
+	}else{
+		return NULL;
+	}
+}
+
+unsigned char* xhci_get_device_descriptor(struct XHCI_RingManager* ringstat,unsigned char port,unsigned char size){
+	void* buffer = malloc(size);
+	EhciCMD* commando = (EhciCMD*) malloc_align(sizeof(EhciCMD),0x1FF);
+	commando->bRequest = 0x06; // get_descriptor
+    commando->bRequestType |= 0x80; // dir=IN
+    commando->wIndex = 0; // windex=0
+    commando->wLength = size; // getlength=8
+    commando->wValue = 1 << 8; // get device info
+
+	setupTRBPackage((struct XHCI_TRB*)ringstat->ring,ringstat->pointer,commando, 8, (2<<10) | (1<<6) | (3<<16) ); // SETUP
+	ringstat->pointer++;
+	setupTRBPackage((struct XHCI_TRB*)ringstat->ring,ringstat->pointer,buffer, size, (3<<10) | (1<<16) ); // DATA
+	ringstat->pointer++;
+	setupTRBPackage((struct XHCI_TRB*)ringstat->ring,ringstat->pointer,NULL, 0, (4<<10) | (1<<5) | (0<<16) ); // STATUS
+	ringstat->pointer++;
+	
+	xhci_ring_doorbell(port ,1); // ring that we are here
+	struct XHCI_TRB *pingres = waitForPortAndEndpoint(port, 1, ringstat->event_count);
+	ringstat->event_count++;
+
+	// cleanup crapas
+	free(commando);
+	if(((pingres->arg3>>24)&&0b11111111)==1){
+		return buffer;
+	}else{
+		return NULL;
+	}
+}
+
 void xhci_setup_port(volatile struct XHCI_OperationalPortRegisters portreg,unsigned char portnumber){
 	if(portreg.PORTSC==0){
 		return;
@@ -321,11 +403,13 @@ void xhci_setup_port(volatile struct XHCI_OperationalPortRegisters portreg,unsig
 			unsigned char portstat = (portreg.PORTSC>>5)&0b111;
 			if(portstat==7){
 				printf("[XHCI] Port %x: This is a USB2.0 port, Requires portreset\n");
+				operational->USBSTS |= 0x10;
 				operational_port[portnumber-1].PORTSC |= (1<<4);
-				sleep(50);
+				while((operational->USBSTS & 0x10)==0);
 				portreg = operational_port[portnumber-1];
 				portspeed_probe = (portreg.PORTSC >> 10) & 0b111;
 				portstat = (portreg.PORTSC>>5)&0b111;
+				operational->USBSTS |= 0x10;
 			}
 			printf("[XHCI] Port %x: This is a %s port with the status of %x and the rest is %x !\n",portnumber,portspeed_strings[portspeed_probe],portstat,portreg.PORTSC);
 
@@ -352,7 +436,6 @@ void xhci_setup_port(volatile struct XHCI_OperationalPortRegisters portreg,unsig
 			isc->arg3 |= (portnumber<<8); // portnumber
 			// allocate transfer ring
 			volatile struct XHCI_TRB *transfer_ring = (volatile struct XHCI_TRB *) malloc_align(WANTED_RING_SIZE,0xFF);
-			int transferringpointer = 0;
 			// input default control endpoint
 			struct XHCI_Context* idc = (struct XHCI_Context*) (icc + sizeof(struct XHCI_Context) + sizeof(struct XHCI_Context));
 			idc->arg2 |= (4<<3); // set ep type to control
@@ -373,17 +456,49 @@ void xhci_setup_port(volatile struct XHCI_OperationalPortRegisters portreg,unsig
 			}
 			printf("[XHCI] Port %x: set_address succeed\n",portnumber);
 
+			struct XHCI_RingManager* ringstat = (struct XHCI_RingManager*) malloc(sizeof(struct XHCI_RingManager));
+			ringstat->cs = 1;
+			ringstat->pointer = 0;
+			ringstat->event_count = 0;
+			ringstat->ring = transfer_ring;
+
 			//
 			// check with a NOOP command
-			struct XHCI_TRB *trb = setupTRBPackage((struct XHCI_TRB*)transfer_ring,transferringpointer,NULL, 0, (8<<10) ); // create required TRB...
-			xhci_ring_doorbell(enable_port_result ,1); // ring that we are here
-			struct XHCI_TRB *pingres = waitForPortAndEndpoint(enable_port_result, 1);
-			unsigned char pingrescod = (pingres->arg3>>24)&&0b11111111;
+			unsigned char pingrescod = sendNOOPCommand(ringstat,enable_port_result);
 			if(pingrescod!=1){
 				printf("[XHCI] Port %x: noopcmd failed with %x \n",portnumber,pingrescod);
-				for(;;);
+				return;
 			}
-			printf("[XHCI] Port %x: get_noop succeed\n",portnumber);
+			printf("[XHCI] Port %x: get_noop succeed \n",portnumber);
+
+			// unsigned char* desc = xhci_get_device_descriptor(ringstat,enable_port_result,8);
+			// if(!desc){
+			// 	printf("[XHCI] Port %x: xhci_get_device_descriptor failed with %x \n",portnumber,desc);
+			// 	return;
+			// }
+			// printf("[XHCI] Port %x: xhci_get_device_descriptor succeed \n",portnumber);
+			// if(!(desc[0]==0x12&&desc[1]==0x1)){
+			// 	printf("[XHCI] Port %x: Invalid device descriptor! \n");
+			// 	for(;;);
+			// }
+			// unsigned char maxpacketsize = desc[7];
+			// printf("[XHCI] Port %x: maxpacketsize=%x \n",portnumber,maxpacketsize);
+			// for(;;);
+
+			usb_config_descriptor* sec = (usb_config_descriptor*)xhci_get_device_configuration(ringstat,enable_port_result,sizeof(usb_interface_descriptor) + sizeof(usb_config_descriptor)+(sizeof(EHCI_DEVICE_ENDPOINT)*2));
+			if(!sec){
+				printf("[XHCI] Port %x: xhci_get_device_configuration failed with %x \n",portnumber,sec);
+				return;
+			}
+			printf("[XHCI] Port %x: xhci_get_device_configuration succeed \n",portnumber);
+        	usb_interface_descriptor* desc2 = (usb_interface_descriptor*)(((unsigned long)sec)+sizeof(usb_config_descriptor));
+			printf("[XHCI] Port %x: deviceclass is %x \n",portnumber,desc2->bInterfaceClass);
+			for(;;);
+
+			USB_DEVICE *device = (USB_DEVICE*) malloc(sizeof(USB_DEVICE));
+			device->drivertype = 3;
+
+			usb_device_install(device);
 
 			for(;;);
 		}
@@ -489,7 +604,6 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 
 	//
 	// reset
-
 	xhci_reset();
 	if(operational->USBSTS&4){ // serious error bit set
 		printf("[XHCI] An serious error occured\n");
@@ -498,7 +612,6 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 
 	//
 	// detect devices
-
 	xhci_detect_ports();
 
 	//
