@@ -340,11 +340,8 @@ unsigned char* xhci_get_device_configuration(struct XHCI_RingManager* ringstat,u
     commando->wIndex = 0; // windex=0
     commando->wLength = size; // getlength=8
     commando->wValue = 2 << 8; // get config info
-	unsigned long *cmx = (unsigned long*) commando;
 
-	struct XHCI_TRB *tx = setupTRBPackage((struct XHCI_TRB*)ringstat->ring,ringstat->pointer,commando, 8, (2<<10) | (1<<6) | (3<<16) ); // SETUP
-	tx->arg1 = cmx[0];
-	tx->arg2 = cmx[1];
+	setupTRBPackage((struct XHCI_TRB*)ringstat->ring,ringstat->pointer,commando, 8, (2<<10) | (1<<6) | (3<<16) ); // SETUP
 	ringstat->pointer++;
 	setupTRBPackage((struct XHCI_TRB*)ringstat->ring,ringstat->pointer,buffer, size, (3<<10) | (1<<16) ); // DATA
 	ringstat->pointer++;
@@ -373,7 +370,7 @@ unsigned char* xhci_get_device_descriptor(struct XHCI_RingManager* ringstat,unsi
     commando->wLength = size; // getlength=8
     commando->wValue = 1 << 8; // get device info
 
-	struct XHCI_TRB *tv = setupTRBPackage((struct XHCI_TRB*)ringstat->ring,ringstat->pointer,commando, 8, (2<<10) | (1<<6) | (3<<16) ); // SETUP
+	setupTRBPackage((struct XHCI_TRB*)ringstat->ring,ringstat->pointer,commando, 8, (2<<10) | (1<<6) | (3<<16) ); // SETUP
 	ringstat->pointer++;
 	setupTRBPackage((struct XHCI_TRB*)ringstat->ring,ringstat->pointer,buffer, size, (3<<10) | (1<<16) ); // DATA
 	ringstat->pointer++;
