@@ -96,6 +96,11 @@ struct XHCI_RingManager{
 	volatile struct XHCI_TRB *ring;
 }__attribute__((packed));
 
+unsigned long xhci_read_long(unsigned long location){
+	printf("[XHCI] Reading %x \n",location);
+	return ((unsigned long*)location)[0];
+}
+
 void xhci_write_long(unsigned long location,unsigned long value){
 	printf("[XHCI] Writing %x to %x \n",value,location);
 	((unsigned long*)location)[0] = value;
@@ -486,6 +491,7 @@ void xhci_setup_port(volatile struct XHCI_OperationalPortRegisters portreg,unsig
 			}
 			unsigned char maxpacketsize = desc[7];
 			printf("[XHCI] Port %x: maxpacketsize=%x \n",portnumber,maxpacketsize);
+			for(;;);
 
 			usb_config_descriptor* sec = (usb_config_descriptor*)xhci_get_device_configuration(ringstat,enable_port_result,sizeof(usb_interface_descriptor) + sizeof(usb_config_descriptor)+(sizeof(EHCI_DEVICE_ENDPOINT)*2));
 			if(!sec){
@@ -508,7 +514,7 @@ void xhci_setup_port(volatile struct XHCI_OperationalPortRegisters portreg,unsig
 }
 
 void xhci_detect_ports(){
-	for(unsigned char i = 0 ; i < ((capability->HCCPARAMS1 >> 24) & 0xFF) ; i++){
+	for(unsigned char i = 0 ; i < ((xhci_read_long((unsigned long)&capability->HCCPARAMS1) >> 24) & 0xFF) ; i++){
 		volatile struct XHCI_OperationalPortRegisters x = operational_port[ i ];
 		xhci_setup_port(x,i);
 	}
@@ -539,12 +545,12 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	// what is our default state?
 	capability = (struct XHCI_CapibilityRegisters*) bar1;
 	xhci_dump_capibility(capability);
-	operational = (volatile struct XHCI_OperationalRegisters *) (bar1 + capability->CAPLENGTH);
-	operational_port = (volatile struct XHCI_OperationalPortRegisters *) (bar1 + capability->CAPLENGTH + 0x400 );
-	runtime = (volatile struct XHCI_RuntimeRegisters *) (bar1 + (capability->RTSOFF&0xFFFFFFE0) );
-	doorbell = (unsigned long*) (bar1 + capability->DBOFF);
+	operational = (volatile struct XHCI_OperationalRegisters *) (bar1 + (xhci_read_long((unsigned long)&capability->CAPLENGTH)&0xFF));
+	operational_port = (volatile struct XHCI_OperationalPortRegisters *) (bar1 + (xhci_read_long((unsigned long)&capability->CAPLENGTH)&0xFF) + 0x400 );
+	runtime = (volatile struct XHCI_RuntimeRegisters *) (bar1 + (xhci_read_long((unsigned long)&capability->RTSOFF)&0xFFFFFFE0) );
+	doorbell = (unsigned long*) (bar1 + xhci_read_long((unsigned long)&capability->DBOFF));
 	xhci_dump_operational(operational);
-	printf("[XHCI] We have %x ports available to us!\n",(capability->HCCPARAMS1 >> 24) & 0xFF );
+	printf("[XHCI] We have %x ports available to us!\n",(xhci_read_long((unsigned long)&capability->HCCPARAMS1) >> 24) & 0xFF );
 
 	//
 	// detecting extended capabilities
