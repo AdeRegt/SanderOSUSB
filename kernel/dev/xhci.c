@@ -1430,24 +1430,15 @@ void xhci_probe_port(unsigned char i){
 				dc5->bar1 = 0;
 				dc5->bar2 = 0;
 				dc5->bar3 = 0;
-				dc5->bar4 = 1 | (4<<10) | 0x20 | (1 << 16);
+				dc5->bar4 = 1 | (4<<10) | (1<<5);
 				device->localringoffset+=0x10;
 			
-				((unsigned long*)doorbel)[assignedSloth] = 1;
-				sleep(100);
-				
-				while(1){
-					unsigned long r = ((unsigned long*)iman_addr)[0];
-					if(r&1){
-						break;
-					}
-					if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
-						break;
-					}
+				completioncode = xhci_ring_and_wait(assignedSloth,1);
+				printf("[XHCI] Port %x : complection code is %x \n",device->portnumber,completioncode);
+				if(completioncode!=1){
+					printf("[XHCI] Port %x : completioncode is not 1 but %x\n",device->portnumber,completioncode);
+					goto disabledevice;
 				}
-				sleep(100);
-				
-				((volatile unsigned long*)&interrupter_1)[0] = 0;
 				event_ring_offset += 0x10;
 				
 				usb_device_install(device);
