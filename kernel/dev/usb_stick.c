@@ -409,14 +409,14 @@ void usb_stick_init(USB_DEVICE *device){
 			printf("[SMSD] Error info collected\n");
 			printf("[SMSD] Sense key %x \n",d.key);
 			printf("[SMSD] Additional sense code %x \n",d.code);
-			printf("[SMSD] Additional sense code qualifier %x \n",d.qualifier);
+			printf("[SMSD] Additional sense code qualifier %x \n",d.qualifier);for(;;);
 			return;
 		}
 		if(t[0]==0x55&&t[1]==0x53&&t[2]==0x42&&t[3]==0x53){
-			printf("[SMSD] Known bug rissen: Statuswrapper at begin instead of end\n");
+			printf("[SMSD] Known bug rissen: Statuswrapper at begin instead of end\n");for(;;);
 			return;
 		}
-		printf("[SMSD] Reading testsector succeed\n");
+		printf("[SMSD] Reading testsector succeed\n");for(;;);
 	}
 
 	// setup bootdevice

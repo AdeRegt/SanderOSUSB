@@ -845,14 +845,14 @@ unsigned int xhci_disable_slot(unsigned long assignedSloth){
  * \returns the portnumber which is assigned
 */
 int xhci_enable_slot(){
-	unsigned char cs = deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU?1:0;
+	unsigned char cs = getCycleBit();//deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU?1:0;
 	int stot = xhci_seek_end_event_queue();
 	TRB* trb2 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	trb2->bar1 = 0;
 	trb2->bar2 = 0;
 	trb2->bar3 = 0;
 	trb2->bar4 = (9<<10) | cs; // 9 for enable slot command
-	trb2->bar4 |= (1<<16); // slottype 1
+	// trb2->bar4 |= (1<<16); // slottype 1
 	
 	command_ring_offset += 0x10;
 	
@@ -878,7 +878,10 @@ int xhci_enable_slot(){
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	sleep(10);
 	stot = stot + 1;
-	xhci_wait(stot);
+	int x = xhci_wait(stot);
+	if(x==0){
+		return -1;
+	}
 	
 	volatile TRB *trbres = xhci_get_last_event();
 	volatile unsigned char completioncode = (trbres->bar3 & 0b111111100000000000000000000000) >> 24;
@@ -1058,6 +1061,11 @@ unsigned char xhci_dump_port_info(unsigned char assignedSloth){
 }
 
 unsigned long portcount;
+/**
+ * @brief get portcount
+ * 
+ * @return unsigned char the portcount
+ */
 unsigned char xhci_get_port_count(){
 	unsigned char result = 0;
 	if(portcount==0){
@@ -1066,6 +1074,52 @@ unsigned char xhci_get_port_count(){
 		result = portcount;
 	}
 	return result;
+}
+
+unsigned char* xhci_send_and_recieve_command(USB_DEVICE *device,EhciCMD* commando,void *buffer){
+	TRB *dc4 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
+	dc4->bar1 = 0;
+	dc4->bar2 = 0;
+	dc4->bar3 = 0;
+	dc4->bar4 = 0;
+	
+	dc4->bar1 |= commando->bRequestType; // reqtype=0x80
+	dc4->bar1 |= (commando->bRequest <<8); // req=6
+	dc4->bar1 |= (commando->wValue << 16); // wValue = 0100
+	dc4->bar2 |= commando->wIndex; // windex=0
+	dc4->bar2 |= (commando->wLength << 16); // 8 0x15 wlength=0 // 0x80000
+	dc4->bar3 |= 8; // trbtransferlength
+	dc4->bar3 |= (0 << 22); // interrupetertrager
+	dc4->bar4 |= 1; // cyclebit
+	// dc4->bar4 |= (0<<5); // ioc=0		0
+	dc4->bar4 |= (1<<6); // idt=1
+	dc4->bar4 |= (2<<10); // trbtype
+	dc4->bar4 |= (3<<16); // trt = 3;
+	dc4->bar4 |= 0x40;
+	device->localringoffset += 0x10;
+	
+	// single date stage
+	TRB *dc5 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
+	dc5->bar1 = (unsigned long)buffer;
+	dc5->bar2 = 0b00000000000000000000000000000000;
+	dc5->bar3 = 0x15;
+	dc5->bar4 = 1 | 0b00000000000000010000110001000000;
+	device->localringoffset+=0x10;
+	
+	TRB *dc6 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
+	dc6->bar1 = 0;
+	dc6->bar2 = 0;
+	dc6->bar3 = 0;
+	dc6->bar4 = 1 | (4<<10) | (1<<5);
+	device->localringoffset+=0x10;
+
+	int completioncode = xhci_ring_and_wait(device->assignedSloth,1);
+	printf("[XHCI] Port %x : complection code is %x \n",device->portnumber,completioncode);
+	if(completioncode!=1){
+		printf("[XHCI] Port %x : completioncode is not 1 but %x\n",device->portnumber,completioncode);
+		return (unsigned char *)EHCI_ERROR;
+	}
+	return (unsigned char*)buffer;
 }
 
 /**
@@ -1414,44 +1468,17 @@ void xhci_probe_port(unsigned char i){
 				printf("[XHCI] Port %x : Failed to detect deviceclass\n",device->portnumber);
 				goto disabledevice;
 			}else{ 
-				
-				//
-				// Set config
-				xhci_seek_end_event_queue();
-				((volatile unsigned long*)&interrupter_1)[0] = 0;
-				TRB *dc4 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
-				dc4->bar1 = 0x10900; 
-				dc4->bar2 = 0;
-				dc4->bar3 = 0x8;
-				dc4->bar4 = 0x841;
-				device->localringoffset += 0x10;
-				
-				TRB *dc5 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
-				dc5->bar1 = 0;
-				dc5->bar2 = 0;
-				dc5->bar3 = 0;
-				dc5->bar4 = 1 | (4<<10) | (1<<5);
-				device->localringoffset+=0x10;
-			
-				completioncode = xhci_ring_and_wait(assignedSloth,1);
-				printf("[XHCI] Port %x : complection code is %x \n",device->portnumber,completioncode);
-				if(completioncode!=1){
-					printf("[XHCI] Port %x : completioncode is not 1 but %x\n",device->portnumber,completioncode);
-					goto disabledevice;
-				}
-				event_ring_offset += 0x10;
-				
+				printf("[XHCI] Port %x : Install deviceclass\n",device->portnumber);
 				usb_device_install(device);
 			}
 			
 			printf("[XHCI] Port %x : Finished installing port\n",i);
-			for(;;);
-			return;
 			
 			disabledevice:
-			printf("[XHCI] Port %x : Disabling port\n",i);
-			xhci_disable_slot(assignedSloth);
-			for(;;);
+			// printf("[XHCI] Port %x : Disabling port\n",i);
+			// xhci_disable_slot(assignedSloth);
+			// for(;;);
+			return;
 		}else{
 			printf("[XHCI] Port %x : No device attached!\n",i);
 		}
@@ -1603,7 +1630,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 				unsigned long protid = ((unsigned long*)tx)[3] & 0x0000000F;
 				printf("[XHCI] Porttype [%x] \n",protid);
 				if(protid!=0){
-					printf("[XHCI] XHCI protocol not supported!\n");
+					printf("[XHCI] XHCI protocol not supported!\n");for(;;);
 				}
 				unsigned char nE = (fault & 0xFF000000) >> 24;
 				unsigned char nF = (fault & 0x00FF0000) >> 16;

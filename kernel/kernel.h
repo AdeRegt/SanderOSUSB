@@ -639,6 +639,7 @@ unsigned char* ehci_send_and_recieve_bulk(USB_DEVICE *device,unsigned char* out,
 unsigned char* ehci_recieve_bulk(USB_DEVICE *device,unsigned long expectedIN,void *buffer);
 unsigned long ehci_send_bulk(USB_DEVICE *device,unsigned char* out,unsigned long expectedOut);
 unsigned char* ehci_get_device_configuration(unsigned char addr,unsigned char size);
+unsigned char* xhci_send_and_recieve_command(USB_DEVICE *device,EhciCMD* commando,void *buffer);
 
 unsigned long usb_send_bulk(USB_DEVICE *device,unsigned long count,void *buffer);
 unsigned long usb_recieve_bulk(USB_DEVICE *device,unsigned long count,void *commando);

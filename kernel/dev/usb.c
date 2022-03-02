@@ -32,13 +32,14 @@ void *usb_send_and_recieve_control(USB_DEVICE *device,void *commando,void *buffe
 	}else if(device->drivertype==2){
 		return (void *) ehci_send_and_recieve_command(device->portnumber,commando,buffer);
 	}else if(device->drivertype==3){
-		return (void *)EHCI_ERROR;
+		return (void *) xhci_send_and_recieve_command(device,commando,buffer);
 	}else{
 		return (void *)EHCI_ERROR;
 	}
 }
 
 void usb_device_install(USB_DEVICE *device){
+	// https://www.usb.org/defined-class-codes
 	if(device->class==8){
         debugf("[USB] Port %x : Mass Storage Device detected!\n",device->portnumber);
         usb_stick_init(device);
@@ -48,6 +49,5 @@ void usb_device_install(USB_DEVICE *device){
     }else{
         debugf("[USB] Port %x : Unable to understand deviceclass: %x \n",device->portnumber,device->class);
         printf("[USB] Port %x : Unable to understand deviceclass: %x \n",device->portnumber,device->class);
-		for(;;);
     }
 }
