@@ -264,11 +264,6 @@ unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
 	unsigned int sectorcount = 1;//1;
 	usb_stick_preform_on_sector_2_times = 0;
 
-	if(lba>0&&usb_stick_preform_on_sector_2==1){
-		sectorcount = 2;
-		lba--;
-	}
-
 	unsigned long bufinsize = USB_STORAGE_SECTOR_SIZE * sectorcount; 
 	unsigned char opcode = 0x28;
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);

@@ -1076,6 +1076,14 @@ unsigned char xhci_get_port_count(){
 	return result;
 }
 
+/**
+ * @brief Send and recieve a command on the local command ring
+ * 
+ * @param device target device 
+ * @param commando commandblock
+ * @param buffer buffer to fill
+ * @return unsigned* the same as the buffer
+ */
 unsigned char* xhci_send_and_recieve_command(USB_DEVICE *device,EhciCMD* commando,void *buffer){
 	TRB *dc4 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 	dc4->bar1 = 0;
@@ -1186,7 +1194,7 @@ void xhci_probe_port(unsigned char i){
 			int assignedSloth = xhci_enable_slot();
 			if(assignedSloth==-1){
 				printf("[XHCI] Port %x : Assignation of device slot failed!\n",i);
-				goto disabledevice;
+				return;
 			}
 			printf("[XHCI] Port %x : Device device slot: %x \n",i,assignedSloth);
 
@@ -1208,7 +1216,7 @@ void xhci_probe_port(unsigned char i){
 			unsigned char offsetB = uses_context_64==0?64:128;
 			
 			printf("[XHCI] Port %x : Setting up input controll\n",i);
-			unsigned long t[0x60] __attribute__ ((aligned(0x1000)));
+			unsigned long t[0x400] __attribute__ ((aligned(0x1000)));
 	
 			printf("[XHCI] Port %x : Setting up DCBAAP for port \n",i);
 			unsigned long bse = (unsigned long)(((unsigned long)&t)+offsetA);//malloc_align(0x420,0xFF);//malloc(0x420);
@@ -1264,10 +1272,10 @@ void xhci_probe_port(unsigned char i){
 			int sares = xhci_set_address(assignedSloth,(unsigned long*)&t,1);
 			if(sares==5){
 				printf("[XHCI] Port %x : Local ring not defined as it should be....\n",i);
-				goto disabledevice;
+				return;
 			}else if(sares!=1){
 				printf("[XHCI] Port %x : Assignation of device slot address failed with %x !\n",i,sares);
-				goto disabledevice;
+				return;
 			}
 			
 			USB_DEVICE* device = (USB_DEVICE*) malloc(sizeof(USB_DEVICE));
@@ -1294,7 +1302,7 @@ void xhci_probe_port(unsigned char i){
 				TRB *checkbit2 = ((TRB*)((unsigned long)(device->localring)+(i*0x10)));
 				if(checkbitset!=(checkbit2->bar4&1)){
 					printf("[XHCI] empty localring is not empty at all!\n");
-					goto disabledevice;
+					return;
 				}
 			}
 
@@ -1304,14 +1312,14 @@ void xhci_probe_port(unsigned char i){
 			printf("[XHCI] Port %x : Slot state should be 1 and is %x \n",device->portnumber,slotstate);
 			if(slotstate!=1){
 				printf("[XHCI] Unexpected slotstate!\n");
-				goto disabledevice;
+				return;
 			}
 
 			unsigned long *yu = (unsigned long*)(((unsigned long)&t)+offsetB);
 			unsigned char endpointstate = xhci_dump_endpoint_context(yu);
 			if(endpointstate!=1){
 				printf("[XHCI] Unexpected endpointstate!\n");
-				goto disabledevice;
+				return;
 			}
 
 			//
@@ -1384,7 +1392,7 @@ void xhci_probe_port(unsigned char i){
 			printf("[XHCI] Port %x : complection code is %x \n",device->portnumber,completioncode);
 			if(completioncode!=1){
 				printf("[XHCI] Port %x : completioncode is not 1 but %x\n",device->portnumber,completioncode);
-				goto disabledevice;
+				return;
 			}
 			event_ring_offset += 0x10;
 			
@@ -1392,7 +1400,7 @@ void xhci_probe_port(unsigned char i){
 			unsigned long maxpackagesize = 0;
 			if(!(sigma2[0]==0x12&&sigma2[1]==1)){
 				printf("[XHCI] Port %x : Deviceclass cannot be 0! \n",device->portnumber);
-				goto disabledevice;
+				return;
 			}
 			if(sigma2[7]==8||sigma2[7]==16||sigma2[7]==32||sigma2[7]==64){
 				maxpackagesize = sigma2[7];
@@ -1403,7 +1411,8 @@ void xhci_probe_port(unsigned char i){
 				
 			//
 			// Demand configuration data...
-			unsigned char deviceconfig[0x15];
+			unsigned char sizeofdeviceconfig = sizeof(usb_config_descriptor)+sizeof(usb_interface_descriptor)+(sizeof(EHCI_DEVICE_ENDPOINT)*2);
+			unsigned char deviceconfig[sizeofdeviceconfig];
 			xhci_seek_end_event_queue();
 			((volatile unsigned long*)&interrupter_1)[0] = 0;
 			TRB *dc4 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
@@ -1416,7 +1425,7 @@ void xhci_probe_port(unsigned char i){
 			dc4->bar1 |= (0x06<<8); // req=6
 			dc4->bar1 |= (0x200 << 16); // wValue = 0100
 			dc4->bar2 |= 0; // windex=0
-			dc4->bar2 |= (0x15 << 16); // 8 0x15 wlength=0 // 0x80000
+			dc4->bar2 |= (sizeofdeviceconfig << 16); // 8 0x15 wlength=0 // 0x80000
 			dc4->bar3 |= 8; // trbtransferlength
 			dc4->bar3 |= (0 << 22); // interrupetertrager
 			dc4->bar4 |= 1; // cyclebit
@@ -1431,7 +1440,7 @@ void xhci_probe_port(unsigned char i){
 			TRB *dc5 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
 			dc5->bar1 = (unsigned long)&deviceconfig;
 			dc5->bar2 = 0b00000000000000000000000000000000;
-			dc5->bar3 = 0x15;
+			dc5->bar3 = sizeofdeviceconfig;
 			dc5->bar4 = 1 | 0b00000000000000010000110001000000;
 			device->localringoffset+=0x10;
 			
@@ -1446,7 +1455,7 @@ void xhci_probe_port(unsigned char i){
 			printf("[XHCI] Port %x : complection code is %x \n",device->portnumber,completioncode);
 			if(completioncode!=1){
 				printf("[XHCI] Port %x : completioncode is not 1 but %x\n",device->portnumber,completioncode);
-				goto disabledevice;
+				return;
 			}
 			
 			sleep(100);
@@ -1454,31 +1463,32 @@ void xhci_probe_port(unsigned char i){
 			event_ring_offset += 0x10;
 			
 			unsigned char* sigma3 = (unsigned char*)&deviceconfig;
-			printf("[XHCI] Port %x : There are %x interfaces supported by this device\n",device->portnumber,sigma3[4]);
-			unsigned char deviceclass = sigma3[8+6];
-			unsigned char devsubclass = sigma3[8+7];
-			unsigned char devprotocol = sigma3[8+8];
-			printf("[XHCI] Port %x : Deviceclass = %x \n",device->portnumber,deviceclass);
-			
+			usb_config_descriptor* desc1 = (usb_config_descriptor*) sigma3;
+			usb_interface_descriptor* desc2 = (usb_interface_descriptor*) ( sigma3 + sizeof(usb_config_descriptor) );
+			printf("[XHCI] Port %x : There are %x interfaces supported by this device\n",device->portnumber,desc1->bNumInterfaces);
+			unsigned char deviceclass = desc2->bInterfaceClass; //sigma3[8+6];
+			unsigned char devsubclass = desc2->bInterfaceSubClass; //sigma3[8+7];
+			unsigned char devprotocol = desc2->bInterfaceProtocol; //sigma3[8+8];
+			printf("[XHCI] Port %x : Deviceclass = %x Endpoints=%x \n",device->portnumber,deviceclass,desc2->bNumEndpoints);
+			if(desc2->bNumEndpoints==2){
+				EHCI_DEVICE_ENDPOINT *ep1 = (EHCI_DEVICE_ENDPOINT*)(((unsigned long)sigma3)+sizeof(usb_config_descriptor)+sizeof(usb_interface_descriptor));
+				EHCI_DEVICE_ENDPOINT *ep2 = (EHCI_DEVICE_ENDPOINT*)(((unsigned long)sigma3)+sizeof(usb_config_descriptor)+sizeof(usb_interface_descriptor)+7);
+				printf("[XHCI] Port %x : EP1 size=%x type=%x dir=%c num=%x epsize=%x \n",device->portnumber,ep1->bLength,ep1->bDescriptorType,ep1->bEndpointAddress&0x80?'I':'O',ep1->bEndpointAddress&0xF,ep1->wMaxPacketSize&0x7FF);
+				printf("[XHCI] Port %x : EP2 size=%x type=%x dir=%c num=%x epsize=%x \n",device->portnumber,ep2->bLength,ep2->bDescriptorType,ep2->bEndpointAddress&0x80?'I':'O',ep2->bEndpointAddress&0xF,ep2->wMaxPacketSize&0x7FF);
+			}
 			device->class = deviceclass;
 			device->subclass = devsubclass;
 			device->protocol = devprotocol;
 
 			if(device->class==0x00){
 				printf("[XHCI] Port %x : Failed to detect deviceclass\n",device->portnumber);
-				goto disabledevice;
+				return;
 			}else{ 
 				printf("[XHCI] Port %x : Install deviceclass\n",device->portnumber);
 				usb_device_install(device);
 			}
 			
 			printf("[XHCI] Port %x : Finished installing port\n",i);
-			
-			disabledevice:
-			// printf("[XHCI] Port %x : Disabling port\n",i);
-			// xhci_disable_slot(assignedSloth);
-			// for(;;);
-			return;
 		}else{
 			printf("[XHCI] Port %x : No device attached!\n",i);
 		}
