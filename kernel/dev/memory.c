@@ -183,9 +183,11 @@ int memcmp(char *str1,  char *str2, int n){
 	return 0;
 }
 
-void memcpy( char *from,  char *to, int n){
+void memcpy( void *from,  void *to, int n){
+	char* F = (char*)from;
+	char* T = (char*)to;
 	for(int i = 0 ; i < n ; i++){
-		to[i] = from[i];
+		T[i] = F[i];
 	}
 }
 

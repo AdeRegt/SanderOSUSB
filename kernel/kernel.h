@@ -115,7 +115,7 @@ void free(void *loc);
 void *realloc(void *ptr, int size);
 int strlen(char *str);
 int memcmp( char *str1, char *str2, int size);
-void memcpy( char *str1,  char *str2, int size);
+void memcpy( void *from,  void *to, int size);
 void *memdup(void* from,int n);
 
 void cpuid_get_details();
@@ -372,8 +372,10 @@ typedef struct{
 	unsigned long sendBulk;
 	unsigned long recieveBulk;
 	unsigned char endpointControl;
-	unsigned char endpointBulkIN;
-	unsigned char endpointBulkOUT;
+	unsigned long endpointBulkIN;
+	unsigned long localinringoffset;
+	unsigned long endpointBulkOUT;
+	unsigned long localoutringoffset;
 }USB_DEVICE;
 void init_ehci(unsigned long bus,unsigned long slot,unsigned long function);
 void init_usb_hid(USB_DEVICE* device);
@@ -638,6 +640,7 @@ unsigned char* ehci_send_and_recieve_command(unsigned char addr,EhciCMD* command
 unsigned char* ehci_send_and_recieve_bulk(USB_DEVICE *device,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut);
 unsigned char* ehci_recieve_bulk(USB_DEVICE *device,unsigned long expectedIN,void *buffer);
 unsigned long ehci_send_bulk(USB_DEVICE *device,unsigned char* out,unsigned long expectedOut);
+unsigned long xhci_send_bulk(USB_DEVICE *device,unsigned char* out,unsigned long expectedOut);
 unsigned char* ehci_get_device_configuration(unsigned char addr,unsigned char size);
 unsigned char* xhci_send_and_recieve_command(USB_DEVICE *device,EhciCMD* commando,void *buffer);
 

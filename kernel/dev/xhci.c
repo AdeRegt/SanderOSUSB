@@ -1,6 +1,6 @@
 #include "../kernel.h"
 #define XHCI_DEVICE_BOCHS 0x15
-#define XHCI_DEVICE_QEMU 0xD
+#define XHCI_DEVICE_QEMU 0x194
 #define XHCI_SPEED_FULL   1
 #define XHCI_SPEED_LOW    2
 #define XHCI_SPEED_HI     3
@@ -458,7 +458,7 @@ int xhci_wait_for_ready(){
  * \returns the cyclebit which must be used
  */
 unsigned char getCycleBit(){
-	return (deviceid==XHCI_DEVICE_BOCHS||deviceid==XHCI_DEVICE_QEMU)?1:0;
+	return 1;
 }
 
 /**
@@ -840,6 +840,26 @@ unsigned int xhci_disable_slot(unsigned long assignedSloth){
 	return xhci_ring_and_wait(0,0);
 }
 
+int xhci_evaluate_address(unsigned long assignedSloth,unsigned long* t){
+	// Address Device Command BSR1
+	TRB* trb = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
+	XHCI_TRB_SET_ADDRESS set_address;
+	set_address.input_context = (unsigned long) t;
+	set_address.cyclebit = getCycleBit();
+	set_address.bsr = 0;
+	set_address.trbtype = 13;
+	set_address.slotid = assignedSloth;
+	xhci_trb_set_address_to_trb(set_address,trb);
+	
+	command_ring_offset += 0x10;
+	
+	// stop codon
+	TRB *trb6 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
+	xhci_stop_codon_to_trb(trb6);
+	command_ring_offset += 0x10;
+	return xhci_ring_and_wait(0,0);
+}
+
 /**
  * Issue enable slot command
  * \returns the portnumber which is assigned
@@ -865,17 +885,18 @@ int xhci_enable_slot(){
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	xhci_wait_for_ready();
 	((unsigned long*)doorbel)[0] = 0;
-	sleep(10);
-	while(1){
-		volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
-		if(r&1){
-			break;
-		}
-		if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
-			break;
-		}
-	}
-	((volatile unsigned long*)&interrupter_1)[0] = 0;
+	// sleep(10);
+	// resetTicks();
+	// while(1){
+	// 	volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
+	// 	if(r&1){
+	// 		break;
+	// 	}
+	// 	if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
+	// 		break;
+	// 	}
+	// }
+	// ((volatile unsigned long*)&interrupter_1)[0] = 0;
 	sleep(10);
 	stot = stot + 1;
 	int x = xhci_wait(stot);
@@ -1124,10 +1145,26 @@ unsigned char* xhci_send_and_recieve_command(USB_DEVICE *device,EhciCMD* command
 	int completioncode = xhci_ring_and_wait(device->assignedSloth,1);
 	printf("[XHCI] Port %x : complection code is %x \n",device->portnumber,completioncode);
 	if(completioncode!=1){
-		printf("[XHCI] Port %x : completioncode is not 1 but %x\n",device->portnumber,completioncode);
+		printf("[XHCI] Port %x : completioncode is not 1 but %x\n",device->portnumber,completioncode);for(;;);
 		return (unsigned char *)EHCI_ERROR;
 	}
 	return (unsigned char*)buffer;
+}
+
+unsigned long xhci_send_bulk(USB_DEVICE *device,unsigned char* out,unsigned long expectedOut){
+	TRB *dc4 = ((TRB*)((unsigned long)(device->endpointBulkOUT)+device->localoutringoffset));
+	dc4->bar1 = (unsigned long)out;
+	dc4->bar2 = 0;
+	dc4->bar3 = 0;
+	dc4->bar3 |= expectedOut;
+	dc4->bar4 = 1 | (1<<5) | (1<<10);
+
+	int completioncode = xhci_ring_and_wait(device->assignedSloth,2);
+	if(completioncode==1){
+		return (unsigned long) out;
+	}else{
+		return EHCI_ERROR;
+	}
 }
 
 /**
@@ -1211,9 +1248,13 @@ void xhci_probe_port(unsigned char i){
 			printf("[XHCI] Port %x : Device Slot Initialisation BSR1 \n",i);
 			
 			TRB *local_ring_control = (TRB*)malloc_align(sizeof(TRB)*20,0xFF);//[20] __attribute__ ((aligned (0x100)));
-			printf("[XHCI] Port %x : Local ring at %x \n",i,local_ring_control);
+			TRB *local_bulk_in_ring_control = (TRB*)malloc_align(sizeof(TRB)*20,0xFF);
+			TRB *local_bulk_out_ring_control = (TRB*)malloc_align(sizeof(TRB)*20,0xFF);
+			printf("[XHCI] Port %x : Local ring at %x bulk IN at  %x bulkOUT at %x \n",i,local_ring_control,local_bulk_in_ring_control,local_bulk_out_ring_control);
 			unsigned char offsetA = uses_context_64==0?32:64;
 			unsigned char offsetB = uses_context_64==0?64:128;
+			// unsigned char offsetC = uses_context_64==0?(64+32):128;
+			// unsigned char offsetD = uses_context_64==0?(64+64):128;
 			
 			printf("[XHCI] Port %x : Setting up input controll\n",i);
 			unsigned long t[0x400] __attribute__ ((aligned(0x1000)));
@@ -1278,13 +1319,15 @@ void xhci_probe_port(unsigned char i){
 				return;
 			}
 			
-			USB_DEVICE* device = (USB_DEVICE*) malloc(sizeof(USB_DEVICE));
+			USB_DEVICE* device = (USB_DEVICE*) malloc_align(sizeof(USB_DEVICE),0xFF);
 			device->drivertype = 3;
 			device->portnumber = i;
 			device->localring = (unsigned long)local_ring_control;
 			device->localringoffset = 0;
 			device->sendMessage = (unsigned long)&xhci_send_message;
 			device->assignedSloth = assignedSloth;
+			device->endpointBulkOUT = (unsigned long)local_bulk_out_ring_control;
+			device->endpointBulkIN = (unsigned long)local_bulk_in_ring_control;
 			
 			//
 			// check if the bit is set by default or not
@@ -1470,12 +1513,17 @@ void xhci_probe_port(unsigned char i){
 			unsigned char devsubclass = desc2->bInterfaceSubClass; //sigma3[8+7];
 			unsigned char devprotocol = desc2->bInterfaceProtocol; //sigma3[8+8];
 			printf("[XHCI] Port %x : Deviceclass = %x Endpoints=%x \n",device->portnumber,deviceclass,desc2->bNumEndpoints);
+			Device dv;
+			memcpy(device,(Device*)&dv,sizeof(Device));
 			if(desc2->bNumEndpoints==2){
+
 				EHCI_DEVICE_ENDPOINT *ep1 = (EHCI_DEVICE_ENDPOINT*)(((unsigned long)sigma3)+sizeof(usb_config_descriptor)+sizeof(usb_interface_descriptor));
 				EHCI_DEVICE_ENDPOINT *ep2 = (EHCI_DEVICE_ENDPOINT*)(((unsigned long)sigma3)+sizeof(usb_config_descriptor)+sizeof(usb_interface_descriptor)+7);
 				printf("[XHCI] Port %x : EP1 size=%x type=%x dir=%c num=%x epsize=%x \n",device->portnumber,ep1->bLength,ep1->bDescriptorType,ep1->bEndpointAddress&0x80?'I':'O',ep1->bEndpointAddress&0xF,ep1->wMaxPacketSize&0x7FF);
 				printf("[XHCI] Port %x : EP2 size=%x type=%x dir=%c num=%x epsize=%x \n",device->portnumber,ep2->bLength,ep2->bDescriptorType,ep2->bEndpointAddress&0x80?'I':'O',ep2->bEndpointAddress&0xF,ep2->wMaxPacketSize&0x7FF);
+
 			}
+			memcpy((Device*)&dv,device,sizeof(Device));
 			device->class = deviceclass;
 			device->subclass = devsubclass;
 			device->protocol = devprotocol;
@@ -1775,7 +1823,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	
 	// setting up "Command Ring Control Register (CRCR)"
 	printf("[XHCI] Setting up Command Ring Control Register\n");
-	((unsigned long*)crcr)[0] |= ((unsigned long)&command_ring_control);
+	((unsigned long*)crcr)[0] |= ((unsigned long)&command_ring_control) | 1;
 	((unsigned long*)crcr)[1] = 0;
 	
 	// DCBAAP
@@ -1792,15 +1840,17 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	btc[0] 	= (unsigned long)bse;
 	btc[1] 	= 0;
 
+	// if(deviceid==XHCI_DEVICE_QEMU){
 	// unsigned long iman_addr = rtsoff + 0x020;
-	// setting first interrupt enabled.
+	// // setting first interrupt enabled.
 	// printf("[XHCI] Setting up First Interrupter\n");
 	// ((unsigned long*)iman_addr)[0] |= 0b11; // Interrupt Enable (IE) – RW
 	// sleep(50);
 	// printf("[XHCI] Use interrupts\n");
 	// ((unsigned long*)usbcmd)[0] |= 4;
 	// sleep(50);
-	// TELL XHCI TO USE INTERRUPTS
+	// // TELL XHCI TO USE INTERRUPTS
+	// }
 	
 	if(xhci_seek_end_event_queue()!=0){
 		printf("[XHCI] PANIC: should be 0!\n");for(;;);

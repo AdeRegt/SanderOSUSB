@@ -8,7 +8,7 @@ unsigned long usb_send_bulk(USB_DEVICE *device,unsigned long count,void *buffer)
 	}else if(device->drivertype==2){
 		return (unsigned long) ehci_send_bulk(device,buffer,count);
 	}else if(device->drivertype==3){
-		return EHCI_ERROR;
+		return (unsigned long) xhci_send_bulk(device,buffer,count);
 	}else{
 		return EHCI_ERROR;
 	}
@@ -34,6 +34,7 @@ void *usb_send_and_recieve_control(USB_DEVICE *device,void *commando,void *buffe
 	}else if(device->drivertype==3){
 		return (void *) xhci_send_and_recieve_command(device,commando,buffer);
 	}else{
+		printf("[USB] PANIC: invalid drivertype %x \n",device->drivertype);
 		return (void *)EHCI_ERROR;
 	}
 }

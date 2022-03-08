@@ -343,7 +343,7 @@ void usb_stick_init(USB_DEVICE *device){
 	// get maxlun
 	unsigned char maxlun = usb_stick_get_max_lun(device);
 	if(maxlun==(EHCI_ERROR&0xFF)){
-		printf("[SMSD] An error occured while getting max lun \n");	
+		printf("[SMSD] An error occured while getting max lun \n");	for(;;);
 		return;
 	}
 
