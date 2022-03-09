@@ -1809,7 +1809,7 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	// setting up "Event Ring Segment Table Size Register (ERSTSZ)"
 	printf("[XHCI] Setting up Event Ring Segment Size Register\n");
 	unsigned long erstsz_addr = rtsoff + 0x028;
-	((unsigned long*)erstsz_addr)[0] |= 16; // keep only 1 open
+	((unsigned long*)erstsz_addr)[0] |= 1; // keep only 1 open
 	
 	// setting up "Event Ring Dequeue Pointer Register (ERDP)"
 	printf("[XHCI] Setting up Event Ring Dequeue Pointer Register\n");
@@ -1879,5 +1879,4 @@ void init_xhci(unsigned long bus,unsigned long slot,unsigned long function){
 	if(((unsigned long*)crcr)[0]==0x8){
 		printf("[XHCI] circulair command ring is running\n");
 	}
-	for(;;);
 }

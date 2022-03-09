@@ -50,5 +50,6 @@ void usb_device_install(USB_DEVICE *device){
     }else{
         debugf("[USB] Port %x : Unable to understand deviceclass: %x \n",device->portnumber,device->class);
         printf("[USB] Port %x : Unable to understand deviceclass: %x \n",device->portnumber,device->class);
+		for(;;);
     }
 }
