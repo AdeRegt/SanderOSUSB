@@ -8,7 +8,7 @@ unsigned long usb_send_bulk(USB_DEVICE *device,unsigned long count,void *buffer)
 	}else if(device->drivertype==2){
 		return (unsigned long) ehci_send_bulk(device,buffer,count);
 	}else if(device->drivertype==3){
-		return EHCI_ERROR;
+		return (unsigned long) xhci_send_bulk(device,buffer,count);
 	}else{
 		return EHCI_ERROR;
 	}
@@ -32,13 +32,15 @@ void *usb_send_and_recieve_control(USB_DEVICE *device,void *commando,void *buffe
 	}else if(device->drivertype==2){
 		return (void *) ehci_send_and_recieve_command(device->portnumber,commando,buffer);
 	}else if(device->drivertype==3){
-		return (void *)EHCI_ERROR;
+		return (void *) xhci_send_and_recieve_command(device,commando,buffer);
 	}else{
+		printf("[USB] PANIC: invalid drivertype %x \n",device->drivertype);
 		return (void *)EHCI_ERROR;
 	}
 }
 
 void usb_device_install(USB_DEVICE *device){
+	// https://www.usb.org/defined-class-codes
 	if(device->class==8){
         debugf("[USB] Port %x : Mass Storage Device detected!\n",device->portnumber);
         usb_stick_init(device);
@@ -47,6 +49,7 @@ void usb_device_install(USB_DEVICE *device){
 		init_usb_hid(device);
     }else{
         debugf("[USB] Port %x : Unable to understand deviceclass: %x \n",device->portnumber,device->class);
+        printf("[USB] Port %x : Unable to understand deviceclass: %x \n",device->portnumber,device->class);
 		for(;;);
     }
 }
