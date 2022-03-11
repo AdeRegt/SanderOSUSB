@@ -32,12 +32,13 @@ Currently the following devices are supported:
 * :question: unknown
 * :x: not supported
 * :white_check_mark: works
+* :bug: partly working
 
 Devicename | VirtualBox | Qemu | Bochs | Real hardware
 ----------|---------- | ---- | ----- | -------------
 IDE - ATA | :white_check_mark: | :white_check_mark: | :white_check_mark: | :question:
 IDE - ATAPI | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
-AHCI - ATA | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+AHCI - ATA | :white_check_mark: | :white_check_mark: | :white_check_mark: | :bug:
 AHCI - ATAPI | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x:
 PS/2 keyboard | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
 PS/2 mouse | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
@@ -46,7 +47,8 @@ PCI | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_chec
 ACPI | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
 USB - HID - Keyboard | :white_check_mark: | :white_check_mark: | :white_check_mark: | :question:
 USB - Mass Storage Device | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x:
-EHCI - Basic support | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+EHCI (USB2.0) - Basic support | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
+XHCI (USB3.0) - Basic support | :x: | :white_check_mark: | :question: | :bug:
 RTL8169 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
 E1000 | :white_check_mark: | :question: | :question: | :question: 
 Soundblaster 16 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:

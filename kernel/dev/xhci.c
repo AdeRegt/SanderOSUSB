@@ -885,18 +885,18 @@ int xhci_enable_slot(){
 	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	xhci_wait_for_ready();
 	((unsigned long*)doorbel)[0] = 0;
-	// sleep(10);
-	// resetTicks();
-	// while(1){
-	// 	volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
-	// 	if(r&1){
-	// 		break;
-	// 	}
-	// 	if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
-	// 		break;
-	// 	}
-	// }
-	// ((volatile unsigned long*)&interrupter_1)[0] = 0;
+	sleep(10);
+	resetTicks();
+	while(1){
+		volatile unsigned long r = ((volatile unsigned long*)iman_addr)[0];
+		if(r&1){
+			break;
+		}
+		if(((volatile unsigned long*)&interrupter_1)[0]==0xCD){
+			break;
+		}
+	}
+	((volatile unsigned long*)&interrupter_1)[0] = 0;
 	sleep(10);
 	stot = stot + 1;
 	int x = xhci_wait(stot);
@@ -1132,7 +1132,7 @@ unsigned char* xhci_send_and_recieve_command(USB_DEVICE *device,EhciCMD* command
 	dc5->bar1 = (unsigned long)buffer;
 	dc5->bar2 = 0b00000000000000000000000000000000;
 	dc5->bar3 = 0x15;
-	dc5->bar4 = 1 | 0b00000000000000010000110001000000;
+	dc5->bar4 = 1 | 0b00000000000000010000110000000000;
 	device->localringoffset+=0x10;
 	
 	TRB *dc6 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
@@ -1421,7 +1421,7 @@ void xhci_probe_port(unsigned char i){
 			dc2->bar1 = (unsigned long)&devicedescriptor;
 			dc2->bar2 = 0b00000000000000000000000000000000;
 			dc2->bar3 = 0b00000000000000000000000000001000;
-			dc2->bar4 = 1/*getCycleBit()*/ | 0b00000000000000010000110001000000 ;//| (1<<5); // 0b00000000000000010000110000000001       1
+			dc2->bar4 = 1/*getCycleBit()*/ | 0b00000000000000010000110000000000 ;//| (1<<5); // 0b00000000000000010000110000000001       1
 			device->localringoffset+=0x10;
 			
 			volatile TRB *dc3 = ((volatile TRB*)((volatile unsigned long)(device->localring)+device->localringoffset));
@@ -1484,7 +1484,7 @@ void xhci_probe_port(unsigned char i){
 			dc5->bar1 = (unsigned long)&deviceconfig;
 			dc5->bar2 = 0b00000000000000000000000000000000;
 			dc5->bar3 = sizeofdeviceconfig;
-			dc5->bar4 = 1 | 0b00000000000000010000110001000000;
+			dc5->bar4 = 1 | 0b00000000000000010000110000000000;
 			device->localringoffset+=0x10;
 			
 			TRB *dc6 = ((TRB*)((unsigned long)(device->localring)+device->localringoffset));
