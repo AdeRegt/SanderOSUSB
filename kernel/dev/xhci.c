@@ -814,7 +814,6 @@ int xhci_set_address(unsigned long assignedSloth,unsigned long* t,unsigned char 
 	// stop codon
 	TRB *trb6 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	xhci_stop_codon_to_trb(trb6);
-	command_ring_offset += 0x10;
 	return xhci_ring_and_wait(0,0);
 }
 
@@ -857,6 +856,23 @@ int xhci_evaluate_address(unsigned long assignedSloth,unsigned long* t){
 	TRB *trb6 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
 	xhci_stop_codon_to_trb(trb6);
 	command_ring_offset += 0x10;
+	return xhci_ring_and_wait(0,0);
+}
+
+
+int xhci_configure_endpoint(unsigned long assignedSloth,void* t){
+	// Address Device Command BSR1
+	TRB* trb = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
+	trb->bar1 = (unsigned long)t;
+	trb->bar2 = 0;
+	trb->bar3 = 0;
+	trb->bar4 = XHCI_TRB_SET_SLOT(assignedSloth) | XHCI_TRB_SET_TRB_TYPE(12) | XHCI_TRB_SET_CYCLE_BIT(getCycleBit());
+	
+	command_ring_offset += 0x10;
+	
+	// stop codon
+	TRB *trb6 = ((TRB*)((unsigned long)(&command_ring_control)+command_ring_offset));
+	xhci_stop_codon_to_trb(trb6);
 	return xhci_ring_and_wait(0,0);
 }
 
@@ -942,6 +958,10 @@ int xhci_noop(){
  * Handle interrupt
 */
 void irq_xhci(){
+	
+	outportb(0xA0,0x20);
+	outportb(0x20,0x20);
+
 	volatile unsigned long xhci_usbsts = ((volatile unsigned long*)usbsts)[0];
 	if(xhci_usbsts&4){
 		printf("[XHCI] Host system error interrupt\n");
@@ -965,9 +985,6 @@ void irq_xhci(){
 	if(((volatile unsigned long*)iman_addr)[0]&1){
 		printf("[XHCI] Event interrupts detected in device specific ring\n");
 	}
-	
-	outportb(0xA0,0x20);
-	outportb(0x20,0x20);
 }
 
 /**
@@ -1152,14 +1169,16 @@ unsigned char* xhci_send_and_recieve_command(USB_DEVICE *device,EhciCMD* command
 }
 
 unsigned long xhci_send_bulk(USB_DEVICE *device,unsigned char* out,unsigned long expectedOut){
-	TRB *dc4 = ((TRB*)((unsigned long)(device->endpointBulkOUT)+device->localoutringoffset));
+	TRB *dc4 = ((TRB*)((unsigned long)(device->endpointBulkIN)+device->localoutringoffset));
 	dc4->bar1 = (unsigned long)out;
 	dc4->bar2 = 0;
 	dc4->bar3 = 0;
 	dc4->bar3 |= expectedOut;
 	dc4->bar4 = 1 | (1<<5) | (1<<10);
 
-	int completioncode = xhci_ring_and_wait(device->assignedSloth,2);
+	device->localoutringoffset += 0x10;
+
+	int completioncode = xhci_ring_and_wait(device->assignedSloth,4);
 	if(completioncode==1){
 		return (unsigned long) out;
 	}else{
@@ -1251,10 +1270,10 @@ void xhci_probe_port(unsigned char i){
 			TRB *local_bulk_in_ring_control = (TRB*)malloc_align(sizeof(TRB)*20,0xFF);
 			TRB *local_bulk_out_ring_control = (TRB*)malloc_align(sizeof(TRB)*20,0xFF);
 			printf("[XHCI] Port %x : Local ring at %x bulk IN at  %x bulkOUT at %x \n",i,local_ring_control,local_bulk_in_ring_control,local_bulk_out_ring_control);
-			unsigned char offsetA = uses_context_64==0?32:64;
-			unsigned char offsetB = uses_context_64==0?64:128;
-			// unsigned char offsetC = uses_context_64==0?(64+32):128;
-			// unsigned char offsetD = uses_context_64==0?(64+64):128;
+			unsigned char offsetA = 0x20;
+			unsigned char offsetB = 0x40;
+			unsigned char offsetC = 0x60;
+			unsigned char offsetD = 0x80;
 			
 			printf("[XHCI] Port %x : Setting up input controll\n",i);
 			unsigned long t[0x400] __attribute__ ((aligned(0x1000)));
@@ -1309,8 +1328,8 @@ void xhci_probe_port(unsigned char i){
 			//
 			//
 			
-			printf("[XHCI] Port %x : Obtaining SETADDRESS(BSR=1)\n",i);
-			int sares = xhci_set_address(assignedSloth,(unsigned long*)&t,1);
+			printf("[XHCI] Port %x : Obtaining SETADDRESS(BSR=0)\n",i); 
+			int sares = xhci_set_address(assignedSloth,(unsigned long*)&t,0); //1
 			if(sares==5){
 				printf("[XHCI] Port %x : Local ring not defined as it should be....\n",i);
 				return;
@@ -1352,8 +1371,8 @@ void xhci_probe_port(unsigned char i){
 			sleep(100);
 			// 8400000 10000 0 8000000
 			unsigned char slotstate = xhci_dump_port_info(assignedSloth);
-			printf("[XHCI] Port %x : Slot state should be 1 and is %x \n",device->portnumber,slotstate);
-			if(slotstate!=1){
+			printf("[XHCI] Port %x : Slot state should be 2 and is %x \n",device->portnumber,slotstate);
+			if(slotstate!=2){
 				printf("[XHCI] Unexpected slotstate!\n");
 				return;
 			}
@@ -1518,9 +1537,33 @@ void xhci_probe_port(unsigned char i){
 			if(desc2->bNumEndpoints==2){
 
 				EHCI_DEVICE_ENDPOINT *ep1 = (EHCI_DEVICE_ENDPOINT*)(((unsigned long)sigma3)+sizeof(usb_config_descriptor)+sizeof(usb_interface_descriptor));
-				EHCI_DEVICE_ENDPOINT *ep2 = (EHCI_DEVICE_ENDPOINT*)(((unsigned long)sigma3)+sizeof(usb_config_descriptor)+sizeof(usb_interface_descriptor)+7);
+				EHCI_DEVICE_ENDPOINT *ep2 = (EHCI_DEVICE_ENDPOINT*)(((unsigned long)sigma3)+sizeof(usb_config_descriptor)+sizeof(usb_interface_descriptor)+sizeof(EHCI_DEVICE_ENDPOINT));
 				printf("[XHCI] Port %x : EP1 size=%x type=%x dir=%c num=%x epsize=%x \n",device->portnumber,ep1->bLength,ep1->bDescriptorType,ep1->bEndpointAddress&0x80?'I':'O',ep1->bEndpointAddress&0xF,ep1->wMaxPacketSize&0x7FF);
 				printf("[XHCI] Port %x : EP2 size=%x type=%x dir=%c num=%x epsize=%x \n",device->portnumber,ep2->bLength,ep2->bDescriptorType,ep2->bEndpointAddress&0x80?'I':'O',ep2->bEndpointAddress&0xF,ep2->wMaxPacketSize&0x7FF);
+				t[1] = 9;
+
+				// t[0x20] = 0x00000000;
+				// t[0x21] = 0x02000030;
+				// t[0x22] = ((unsigned long)local_bulk_in_ring_control) | 1;
+				// t[0x23] = 0x00000000;
+				// t[0x24] = 0x00000200;
+
+				// Endpoint Context
+				endpoint_context = (XHCI_ENDPOINT_CONTEXT*)malloc(sizeof(XHCI_ENDPOINT_CONTEXT));
+				endpoint_context->endpoint_state = 0;
+				endpoint_context->endpointtype = 2;
+				endpoint_context->maxpstreams = 0;
+				endpoint_context->mult = 0;
+				endpoint_context->cerr = 0;
+				endpoint_context->maxburstsize = 0x200;
+				endpoint_context->maxpacketsize = 0x200;
+				endpoint_context->interval = 0;
+				endpoint_context->dequeuepointer = (unsigned long)local_bulk_in_ring_control;
+				endpoint_context->dcs = 1;
+				unsigned long sigma = ((unsigned long)&t)+offsetD;
+				xhci_endpoint_context_to_addr(endpoint_context,(unsigned long*)(sigma));
+
+				xhci_configure_endpoint(assignedSloth,t);
 
 			}
 			memcpy((Device*)&dv,device,sizeof(Device));

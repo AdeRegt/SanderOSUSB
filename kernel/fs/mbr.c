@@ -129,15 +129,4 @@ void detectFilesystemsOnMBR(Device* device){
 		basex += 16;
 	}
 	debugf("[MBRI] Installed disks: %x \n",amt);
-	if(amt==0){
-		debugf("[MBRI] Entering legacy mode... Trying FAT....\n");
-		Device *fatdevice = getNextFreeDevice();
-		fatdevice->readRawSector 	= device->readRawSector;
-		fatdevice->arg1 = device->arg1;
-		fatdevice->arg2 = 0;
-		fatdevice->arg3 = device->arg3;
-		fatdevice->arg4 = device->arg4;
-		fatdevice->arg5 = device->arg5;
-		initialiseFAT(fatdevice);
-	}
 }

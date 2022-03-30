@@ -503,6 +503,7 @@ unsigned long ehci_send_bulk(USB_DEVICE *device,unsigned char* out,unsigned long
     command->nextlink = 1;
     command->altlink = 1;
     command->token |= (expectedOut << 16); // setup size
+        command->token |= (1 << 31); // toggle
     command->token |= (1 << 7); // actief
     command->token |= (0 << 8); // type is out
     command->token |= (0x3 << 10); // maxerror
@@ -779,8 +780,12 @@ void ehci_probe(){
 
 void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
     printf("[EHCI] Entering EHCI module\n");
-    if(!pci_enable_busmastering_when_needed(bus,slot,function)){
-        // return;
+	unsigned short deviceid = (getBARaddress(bus,slot,function,0) & 0xFFFF0000) >> 16;
+    printf("[EHCI] Deviceid=%x \n",deviceid);
+    if(deviceid != 0x265c){ // ignore busmastering when we are vbox...
+        if(!pci_enable_busmastering_when_needed(bus,slot,function)){
+            // return;
+        }
     }
     unsigned long baseaddress = getBARaddress(bus,slot,function,0x10);
     printf("[EHCI] The base address of EHCI is %x \n",baseaddress);

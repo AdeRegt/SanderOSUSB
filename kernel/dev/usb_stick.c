@@ -6,8 +6,10 @@
 #define USB_STORAGE_ENABLE_CAP 0
 #define USB_STORAGE_ENABLE_SEC 1
 #define USB_STORAGE_ENABLE_SEN 0
+
 #define USB_STORAGE_SECTOR_SIZE 512
 #define USB_STORAGE_CSW_SIGN 0x53425355
+#define USB_STORAGE_CSW_SIZE 31
 
 #warning read sector is not working on real hardware and in emulators
 
@@ -132,7 +134,7 @@ char usb_stick_abort_commands(USB_DEVICE *device){
 	// 	return 1;
 	// }
 	// return 0;
-	unsigned long bufoutsize = 31;
+	unsigned long bufoutsize = USB_STORAGE_CSW_SIZE;
 	unsigned long bufinsize = 0;//252; 
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	bufout->lun = 0;
@@ -152,7 +154,7 @@ char usb_stick_abort_commands(USB_DEVICE *device){
 }
 
 unsigned char* usb_stick_get_inquiry(USB_DEVICE *device){
-	unsigned char bufoutsize = 31;
+	unsigned char bufoutsize = USB_STORAGE_CSW_SIZE;
 	unsigned char bufinsize = 36;//36;//96;//96 36;//sizeof(struct cdbres_inquiry);
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	// 55 53 42 43 e7 3 0 0 24 0 0 0 80 0 c 12 0 0 0 24 0 0 0 0 0 0 0 0 0 0 0
@@ -173,7 +175,7 @@ unsigned char* usb_stick_get_inquiry(USB_DEVICE *device){
 }
 
 unsigned char* usb_stick_get_capacity(USB_DEVICE *device){
-	unsigned char bufoutsize = 31;
+	unsigned char bufoutsize = USB_STORAGE_CSW_SIZE;
 	unsigned char bufinsize = 2;//8;
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	bufout->lun = 0;
@@ -193,7 +195,7 @@ unsigned char* usb_stick_get_capacity(USB_DEVICE *device){
 }
 
 unsigned char* usb_stick_request_sense(USB_DEVICE *device){
-	unsigned long bufoutsize = 31;
+	unsigned long bufoutsize = USB_STORAGE_CSW_SIZE;
 	unsigned long bufinsize = 2;//252; 
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
 	bufout->lun = 0;
@@ -229,7 +231,7 @@ SCSIStatus usb_stick_get_scsi_status(USB_DEVICE *device){
 }
 
 unsigned long usb_stick_check_ready_status(USB_DEVICE *device){
-	unsigned long bufoutsize = 31;
+	unsigned long bufoutsize = USB_STORAGE_CSW_SIZE;
 	unsigned long bufinsize = 0; 
 	unsigned char opcode = 0;
 	struct cbw_t* bufout = (struct cbw_t*)malloc(bufoutsize);
@@ -260,7 +262,7 @@ unsigned char* usb_stick_read_sector(USB_DEVICE *device,unsigned long lba){
 	//
 	// oke, on real hardware there is a issue on the first sector. I see most systems
 	// always use more then 1 sector to read, this seems to be the right solution
-	unsigned long bufoutsize = 32;//31
+	unsigned long bufoutsize = USB_STORAGE_CSW_SIZE;//31
 	unsigned int sectorcount = 1;//1;
 	usb_stick_preform_on_sector_2_times = 0;
 
@@ -411,7 +413,7 @@ void usb_stick_init(USB_DEVICE *device){
 			printf("[SMSD] Known bug rissen: Statuswrapper at begin instead of end\n");for(;;);
 			return;
 		}
-		printf("[SMSD] Reading testsector succeed\n");for(;;);
+		printf("[SMSD] Reading testsector succeed\n");
 	}
 
 	// setup bootdevice
