@@ -27,21 +27,21 @@ void irq_ehci(){
     // what is happening?
     unsigned long status = ((unsigned long*)usbsts_addr)[0];
     if(status&0b000001){
-        printf("[EHCI] Interrupt: transaction completed\n");
+        debugf("[EHCI] Interrupt: transaction completed\n");
     }else if(status&0b000010){
-        printf("[EHCI] Interrupt: error interrupt\n");
+        debugf("[EHCI] Interrupt: error interrupt\n");
         ((unsigned long*)usbcmd_addr)[0] &= ~0b100000;
         ((unsigned long*)usbasc_addr)[0] = 1 ;
     }else if(status&0b000100){
-        printf("[EHCI] Interrupt: portchange\n");
+        debugf("[EHCI] Interrupt: portchange\n");
     }else if(status&0b001000){
-        printf("[EHCI] Interrupt: frame list rollover\n");
+        debugf("[EHCI] Interrupt: frame list rollover\n");
     }else if(status&0b010000){
-        printf("[EHCI] Interrupt: host system error\n");
+        debugf("[EHCI] Interrupt: host system error\n");
     }else if(status&0b100000){
-        printf("[EHCI] Interrupt: interrupt on advance\n");
+        debugf("[EHCI] Interrupt: interrupt on advance\n");
     }else{
-        printf("[EHCI] Interrupt: unknown\n");
+        debugf("[EHCI] Interrupt: unknown\n");
     }
     ((unsigned long*)usbsts_addr)[0] = status;
 }
@@ -54,36 +54,36 @@ unsigned char ehci_wait_for_completion(volatile EhciTD *status){
         volatile unsigned long tstatus = (volatile unsigned long)status->token;
         if(tstatus & (1 << 4)){
             // not anymore active and failed miserably
-            printf("[EHCI] Transmission failed due babble error\n");
+            debugf("[EHCI] Transmission failed due babble error\n");
             lstatus = 0;
             break;
         }
         if(tstatus & (1 << 3)){
             // not anymore active and failed miserably
-            printf("[EHCI] Transmission failed due transaction error\n");
+            debugf("[EHCI] Transmission failed due transaction error\n");
             lstatus = 0;
             break;
         }
         if(tstatus & (1 << 6)){
             // not anymore active and failed miserably
-            printf("[EHCI] Transmission failed due serious error\n");
+            debugf("[EHCI] Transmission failed due serious error\n");
             lstatus = 0;
             break;
         }
         if(tstatus & (1 << 5)){
             // not anymore active and failed miserably
-            printf("[EHCI] Transmission failed due data buffer error\n");
+            debugf("[EHCI] Transmission failed due data buffer error\n");
             lstatus = 0;
             break;
         }
         if(!(tstatus & (1 << 7))){
             // not anymore active and succesfull ended
-            // printf("[EHCI] Transaction succeed\n");
+            // debugf("[EHCI] Transaction succeed\n");
             lstatus = 1;
             break;
         }
         if(getTicks()>40){
-            printf("[EHCI] FAILED: Timeout\n");
+            debugf("[EHCI] FAILED: Timeout\n");
             lstatus = 0;
             break;
         }
@@ -522,7 +522,7 @@ unsigned long ehci_send_bulk(USB_DEVICE *device,unsigned char* out,unsigned long
     head2->characteristics |= device->portnumber; // addr
     head2->characteristics |= device->endpointBulkOUT << 8; // endpoint 2
     head2->capabilities = 0x40000000;
-    //printf("[EHCI] BULK: Sending %x \n",head2->characteristics); //  heeft = 0x2006201 moet = 0x2002201
+    //debugf("[EHCI] BULK: Sending %x \n",head2->characteristics); //  heeft = 0x2006201 moet = 0x2002201
 
     //
     // Eerste commando
@@ -554,7 +554,7 @@ unsigned long ehci_send_bulk(USB_DEVICE *device,unsigned char* out,unsigned long
 unsigned char* ehci_recieve_bulk(USB_DEVICE *device,unsigned long expectedIN,void *buffer){
     //
     // Recieve bulk
-    //printf("[EHCI] BULK: Recieving\n");
+    //debugf("[EHCI] BULK: Recieving\n");
     EhciQH* qh = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
     EhciQH* qh2 = (EhciQH*) malloc_align(sizeof(EhciQH),0x1FF);
     EhciTD* trans = 0;
@@ -575,7 +575,7 @@ unsigned char* ehci_recieve_bulk(USB_DEVICE *device,unsigned long expectedIN,voi
             trans->nextlink = yo;
             trans = (EhciTD*) yo;
         }
-        // printf("pre :: wachtend=%x bytesperkeer=%x expectedin=%x \n",wachtend,bytesperkeer,expectedIN);
+        // debugf("pre :: wachtend=%x bytesperkeer=%x expectedin=%x \n",wachtend,bytesperkeer,expectedIN);
         trans->altlink = 1;
         if(bytesperkeer>expectedIN){
             trans->token |= (expectedIN << 16);
@@ -585,10 +585,10 @@ unsigned char* ehci_recieve_bulk(USB_DEVICE *device,unsigned long expectedIN,voi
             unsigned long twt = expectedIN-wachtend;
             trans->token |= (twt << 16);
             // over = 40 | wachtend = 1b0 | optel = 1f0 | max = 200
-            //printf("over=%x wachtend=%x optel=%x max=%x\n",twt,wachtend,wachtend+twt,expectedIN);
+            //debugf("over=%x wachtend=%x optel=%x max=%x\n",twt,wachtend,wachtend+twt,expectedIN);
         }else{
             trans->token |= (bytesperkeer << 16); // verwachte lengte | expectedIN
-            //printf("RB2=%x \n",bytesperkeer);
+            //debugf("RB2=%x \n",bytesperkeer);
         }
         trans->token |= (1 << 31); // toggle
         trans->token |= (1 << 7); // actief
@@ -597,13 +597,13 @@ unsigned char* ehci_recieve_bulk(USB_DEVICE *device,unsigned long expectedIN,voi
         trans->buffer[0] = (unsigned long)buffer + (tx*bytesperkeer);
         wachtend += bytesperkeer;
         tx++;
-        //printf("post :: wachtend=%x bytesperkeer=%x expectedin=%x \n",wachtend,bytesperkeer,expectedIN);
+        //debugf("post :: wachtend=%x bytesperkeer=%x expectedin=%x \n",wachtend,bytesperkeer,expectedIN);
         if(wachtend>expectedIN&&reject){
             break;
         }else if(wachtend==expectedIN){
             break;
         }else if(forcestop==1){
-            //printf("reached forcestop\n");
+            //debugf("reached forcestop\n");
             break;
         }
     }
@@ -679,48 +679,48 @@ void init_ehci_port(int portnumber){
     ((unsigned long*)avail_port_addr)[0] &= ~0b100000000;
     sleep(20);
     portinfo = ((volatile unsigned long*)avail_port_addr)[0];
-    printf("[EHCI] Port %x : End of port reset with %x \n",portnumber,portinfo);
+    debugf("[EHCI] Port %x : End of port reset with %x \n",portnumber,portinfo);
 
     // check if port is enabled
     if((portinfo&0b100)==0){
-        printf("[EHCI] Port %x : Port is not enabled but connected\n",portnumber);
+        debugf("[EHCI] Port %x : Port is not enabled but connected\n",portnumber);
         return;
     }
 
     // set device address to device
-    printf("[EHCI] Port %x : Setting device address to %x \n",portnumber,deviceaddress);
+    debugf("[EHCI] Port %x : Setting device address to %x \n",portnumber,deviceaddress);
     unsigned char deviceaddressok = ehci_set_device_address(deviceaddress);
     if(deviceaddressok==0){
-        printf("[EHCI] Port %x : Unable to set device address...\n",portnumber);
+        debugf("[EHCI] Port %x : Unable to set device address...\n",portnumber);
         return;
     }
     device->assignedSloth = deviceaddress;
     device->portnumber = deviceaddress;
 
     // get device descriptor
-    printf("[EHCI] Port %x : Getting devicedescriptor...\n",portnumber);
+    debugf("[EHCI] Port %x : Getting devicedescriptor...\n",portnumber);
     unsigned char* desc = ehci_get_device_descriptor(deviceaddress,8);//8
     if(desc==0){
-        printf("[EHCI] Port %x : Unable to get devicedescriptor...\n",portnumber);
+        debugf("[EHCI] Port %x : Unable to get devicedescriptor...\n",portnumber);
         return;
     }
 
     // check result
     if(!(desc[0]==0x12&&desc[1]==0x1)){
-        printf("[EHCI] Port %x : Invalid magic number at descriptor (%x %x)...\n",portnumber,desc[0],desc[1]);
+        debugf("[EHCI] Port %x : Invalid magic number at descriptor (%x %x)...\n",portnumber,desc[0],desc[1]);
         return;
     }
     unsigned char maxpacketsize = desc[7];
-    printf("[EHCI] Port %x : Max Packet Size %x \n",portnumber,maxpacketsize);
+    debugf("[EHCI] Port %x : Max Packet Size %x \n",portnumber,maxpacketsize);
 
     unsigned char deviceclass = desc[4];
     unsigned char deviceSubClass = 0;
     unsigned char deviceProtocol = 0;
     if(deviceclass==0x00){
-        printf("[ECHI] Port %x : No class found! Asking descriptors...\n",portnumber);
+        debugf("[ECHI] Port %x : No class found! Asking descriptors...\n",portnumber);
         usb_config_descriptor* sec = (usb_config_descriptor*)ehci_get_device_configuration(deviceaddress,sizeof(usb_interface_descriptor) + sizeof(usb_config_descriptor)+(sizeof(EHCI_DEVICE_ENDPOINT)*2));
         if(sec==0){
-            printf("[ECHI] Port %x : Failed to read descriptors...\n",portnumber);
+            debugf("[ECHI] Port %x : Failed to read descriptors...\n",portnumber);
             return;
         }
         usb_interface_descriptor* desc = (usb_interface_descriptor*)(((unsigned long)sec)+sizeof(usb_config_descriptor));
@@ -731,31 +731,31 @@ void init_ehci_port(int portnumber){
         device->subclass = deviceSubClass;
         device->protocol = deviceProtocol;
 
-        printf("[EHCI] Port %x : There are %x endpoints available\n",portnumber,desc->bNumEndpoints);
+        debugf("[EHCI] Port %x : There are %x endpoints available\n",portnumber,desc->bNumEndpoints);
         if(desc->bNumEndpoints==2){
             EHCI_DEVICE_ENDPOINT *ep1 = (EHCI_DEVICE_ENDPOINT*)(((unsigned long)sec)+sizeof(usb_config_descriptor)+sizeof(usb_interface_descriptor));
             EHCI_DEVICE_ENDPOINT *ep2 = (EHCI_DEVICE_ENDPOINT*)(((unsigned long)sec)+sizeof(usb_config_descriptor)+sizeof(usb_interface_descriptor)+7);
-            printf("[EHCI] EP1 size=%x type=%x dir=%c num=%x epsize=%x \n",ep1->bLength,ep1->bDescriptorType,ep1->bEndpointAddress&0x80?'I':'O',ep1->bEndpointAddress&0xF,ep1->wMaxPacketSize&0x7FF);
-            printf("[EHCI] EP2 size=%x type=%x dir=%c num=%x epsize=%x \n",ep2->bLength,ep2->bDescriptorType,ep2->bEndpointAddress&0x80?'I':'O',ep2->bEndpointAddress&0xF,ep2->wMaxPacketSize&0x7FF);
+            debugf("[EHCI] EP1 size=%x type=%x dir=%c num=%x epsize=%x \n",ep1->bLength,ep1->bDescriptorType,ep1->bEndpointAddress&0x80?'I':'O',ep1->bEndpointAddress&0xF,ep1->wMaxPacketSize&0x7FF);
+            debugf("[EHCI] EP2 size=%x type=%x dir=%c num=%x epsize=%x \n",ep2->bLength,ep2->bDescriptorType,ep2->bEndpointAddress&0x80?'I':'O',ep2->bEndpointAddress&0xF,ep2->wMaxPacketSize&0x7FF);
             device->endpointBulkIN = ep1->bEndpointAddress&0x80?ep1->bEndpointAddress&0xF:ep2->bEndpointAddress&0xF;
             device->endpointBulkOUT = (ep1->bEndpointAddress&0x80)==0?ep1->bEndpointAddress&0xF:ep2->bEndpointAddress&0xF;
         }else if(desc->bNumEndpoints==1){
             EHCI_DEVICE_ENDPOINT *ep1 = (EHCI_DEVICE_ENDPOINT*)(((unsigned long)sec)+sizeof(usb_config_descriptor)+sizeof(usb_interface_descriptor));
-            printf("[EHCI] EP1 size=%x type=%x dir=%c num=%x epsize=%x \n",ep1->bLength,ep1->bDescriptorType,ep1->bEndpointAddress&0x80?'I':'O',ep1->bEndpointAddress&0xF,ep1->wMaxPacketSize&0x7FF);
+            debugf("[EHCI] EP1 size=%x type=%x dir=%c num=%x epsize=%x \n",ep1->bLength,ep1->bDescriptorType,ep1->bEndpointAddress&0x80?'I':'O',ep1->bEndpointAddress&0xF,ep1->wMaxPacketSize&0x7FF);
             device->endpointBulkIN = ep1->bEndpointAddress&0xF;
         }
     }
 
     if(deviceclass==0x00){
-        printf("[EHCI] Port %x : Still unable to get device class\n",portnumber);
+        debugf("[EHCI] Port %x : Still unable to get device class\n",portnumber);
         return;
     }
-    printf("[EHCI] Port %x : We have a deviceclass. Device class is %x \n",portnumber,deviceclass);
+    debugf("[EHCI] Port %x : We have a deviceclass. Device class is %x \n",portnumber,deviceclass);
 
-    printf("[EHCI] Port %x : Set default configuration for device\n",portnumber);
+    debugf("[EHCI] Port %x : Set default configuration for device\n",portnumber);
     unsigned char setdevconfigresult = ehci_set_device_configuration(deviceaddress,1);
     if(setdevconfigresult==0){
-        printf("[EHCI] Port %x : Unable to set configuration\n",portnumber);
+        debugf("[EHCI] Port %x : Unable to set configuration\n",portnumber);
         return;
     }
 
@@ -766,63 +766,63 @@ void init_ehci_port(int portnumber){
 
 void ehci_probe(){
     // checking all ports
-    printf("[EHCI] Probing devices...\n");
+    debugf("[EHCI] Probing devices...\n");
     for(int i = 0 ; i < available_ports ; i++){
         unsigned long avail_port_addr = portbaseaddress + 0x44 + (i*4);
         unsigned long portinfo = ((unsigned long*)avail_port_addr)[0];
-        printf("[EHCI] Port %x info : %x \n",i,portinfo);
+        debugf("[EHCI] Port %x info : %x \n",i,portinfo);
         if(portinfo&3){
-            printf("[EHCI] Port %x : connection detected!\n",i);
+            debugf("[EHCI] Port %x : connection detected!\n",i);
             init_ehci_port(i);
         }
     }
 }
 
 void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
-    printf("[EHCI] Entering EHCI module\n");
+    debugf("[EHCI] Entering EHCI module\n");
 	unsigned short deviceid = (getBARaddress(bus,slot,function,0) & 0xFFFF0000) >> 16;
-    printf("[EHCI] Deviceid=%x \n",deviceid);
+    debugf("[EHCI] Deviceid=%x \n",deviceid);
     if(deviceid != 0x265c){ // ignore busmastering when we are vbox...
         if(!pci_enable_busmastering_when_needed(bus,slot,function)){
             // return;
         }
     }
     unsigned long baseaddress = getBARaddress(bus,slot,function,0x10);
-    printf("[EHCI] The base address of EHCI is %x \n",baseaddress);
+    debugf("[EHCI] The base address of EHCI is %x \n",baseaddress);
     portbaseaddress = baseaddress + ((unsigned char*)baseaddress)[0];
-    printf("[EHCI] The address to the first EHCI registers is %x \n",portbaseaddress);
+    debugf("[EHCI] The address to the first EHCI registers is %x \n",portbaseaddress);
     unsigned long hci_version_addr = baseaddress+0x02;
     unsigned short hci_version = ((unsigned short*)hci_version_addr)[0];
-    printf("[EHCI] The versionnumber of the EHCI protocol is %x \n",hci_version);
+    debugf("[EHCI] The versionnumber of the EHCI protocol is %x \n",hci_version);
     if(hci_version!=0x100){
-        printf("[EHCI] This driver is not compliant with current EHCIprotocol version\n");
+        debugf("[EHCI] This driver is not compliant with current EHCIprotocol version\n");
         return;
     }
     unsigned long hcsparams_addr = baseaddress+0x04;
     unsigned long hcsparams = ((unsigned long*)hcsparams_addr)[0];
-    printf("[EHCI] HCSParams are %x \n",hcsparams);
+    debugf("[EHCI] HCSParams are %x \n",hcsparams);
     available_ports = hcsparams & 0b1111;
-    printf("[EHCI] We have %x ports available\n",available_ports);
+    debugf("[EHCI] We have %x ports available\n",available_ports);
     unsigned long hccparams_addr = baseaddress+0x08;
     unsigned long hccparams = ((unsigned long*)hccparams_addr)[0];
-    printf("[EHCI] HCCParams are %x \n",hccparams);
+    debugf("[EHCI] HCCParams are %x \n",hccparams);
     unsigned char bit64cap = hccparams & 1;
     if(bit64cap){
-        printf("[EHCI] This controller is 64 bit capable\n");
+        debugf("[EHCI] This controller is 64 bit capable\n");
     }
     unsigned char capabilitypointer = (hccparams & 0b1111111100000000) >> 8;
     if(capabilitypointer){
         unsigned long capabilitypointer_addr =  capabilitypointer;
-        printf("[EHCI] We have capabilitypointers at %x \n",capabilitypointer_addr);
+        debugf("[EHCI] We have capabilitypointers at %x \n",capabilitypointer_addr);
         while(1){
             unsigned long cap = 0;
             cap = getBARaddress(bus,slot,function,capabilitypointer_addr);
             unsigned char cid = cap & 0xFF;
             if(cid==0x01){
-                printf("[EHCI] Legacy support available\n");
+                debugf("[EHCI] Legacy support available\n");
                 if(cap&(1<<16)){
                     unsigned long baraddrnfo = getBARaddress(bus,slot,function,capabilitypointer_addr+4);
-                    printf("[EHCI] BIOS owns controller: A=%x B=%x \n",cap,baraddrnfo);
+                    debugf("[EHCI] BIOS owns controller: A=%x B=%x \n",cap,baraddrnfo);
                     setBARaddress(bus,slot,function,capabilitypointer_addr,0x1000000);
                     recheckbios:
                     sleep(10);
@@ -832,7 +832,7 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
                     //if((cap&(1<<24))==0){goto recheckbios;}
                 }
             }else{
-                printf("[EHCI] Unknown extended cappoint %x : %x \n",cid,cap);
+                debugf("[EHCI] Unknown extended cappoint %x : %x \n",cid,cap);
             } 
             unsigned char cxt = (cap & 0xFF00)>>8;
             if(cxt==0){
@@ -843,7 +843,7 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
     }
 	unsigned long usbint = getBARaddress(bus,slot,function,0x3C) & 0x000000FF;
     setNormalInt(usbint,(unsigned long)ehciirq);
-    printf("[EHCI] Installing interrupts at %x \n",usbint);
+    debugf("[EHCI] Installing interrupts at %x \n",usbint);
 
     //
     // Now, let the hostcontroller do what we are asking.
@@ -858,9 +858,9 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
 
     // stop already running controllers
     unsigned long default_usbcmd_value = ((unsigned long*)usbcmd_addr)[0];
-    printf("[EHCI] Default value USBCMD %x \n",default_usbcmd_value);
+    debugf("[EHCI] Default value USBCMD %x \n",default_usbcmd_value);
     if(default_usbcmd_value & 1){
-        printf("[EHCI] EHCI is already running. Stopping it.\n");
+        debugf("[EHCI] EHCI is already running. Stopping it.\n");
         ((unsigned long*)usbcmd_addr)[0] &= ~1; // stopping
         while(1){
             if((((volatile unsigned long*)usbcmd_addr)[0]&1)==0){
@@ -877,7 +877,7 @@ void init_ehci(unsigned long bus,unsigned long slot,unsigned long function){
             break;
         }
     }
-    printf("[EHCI] Reset of EHCI Host Controller is succeed.\n");
+    debugf("[EHCI] Reset of EHCI Host Controller is succeed.\n");
 
     // clearning periodic_list
     for(int i = 0 ; i < EHCI_PERIODIC_FRAME_SIZE ; i++){

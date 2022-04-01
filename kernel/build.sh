@@ -37,6 +37,7 @@ gcc -c dev/math.c -m32 -o math.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || 
 gcc -c dev/uhci.c -m32 -o uhci.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c dev/ehci.c -m32 -o ehci.o -std=gnu99 -ffreestanding -O0 -Wall -Wextra || exit
 gcc -c dev/usb_hid.c -m32 -o xhci_hid.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
+gcc -c dev/usb_hub.c -m32 -o xhci_hub.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c dev/usb_stick.c -m32 -o ehci_stick.o -std=gnu99 -ffreestanding -O0 -Wall -Wextra || exit
 gcc -c dev/usb.c -m32 -o usb.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c dev/RTL8169.c -m32 -o RTL8169.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
@@ -47,7 +48,7 @@ gcc -c dev/ethernet.c -m32 -o ethernet.o -std=gnu99 -ffreestanding -O2 -Wall -We
 gcc -c dev/terminal.c -m32 -o terminal.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 gcc -c exec/program.c -m32 -o program.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra || exit
 
-gcc -T linker.ld -o myos.bin -m32 -ffreestanding -O2 -nostdlib boot.o kernel.o io_ports.o cpuid.o soundblaster16.o usb.o cmos.o e1000.o ehci.o ehci_stick.o paging.o paging2.o multitasking.o interrupts.o com_port.o ide.o sfs.o pci.o memory.o timer.o video.o videoasm.o isr.o ps2.o device.o iso9660.o elf.o vbox.o xhci.o acpi.o ahci.o mbr.o ext.o fat.o math.o uhci.o xhci_hid.o RTL8169.o ethernet.o tftp.o terminal.o || exit
+gcc -T linker.ld -o myos.bin -m32 -ffreestanding -O2 -nostdlib boot.o kernel.o io_ports.o cpuid.o soundblaster16.o usb.o cmos.o e1000.o ehci.o xhci_hub.o ehci_stick.o paging.o paging2.o multitasking.o interrupts.o com_port.o ide.o sfs.o pci.o memory.o timer.o video.o videoasm.o isr.o ps2.o device.o iso9660.o elf.o vbox.o xhci.o acpi.o ahci.o mbr.o ext.o fat.o math.o uhci.o xhci_hid.o RTL8169.o ethernet.o tftp.o terminal.o || exit
 
 rm *.o
 

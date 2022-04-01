@@ -41,7 +41,10 @@ void *usb_send_and_recieve_control(USB_DEVICE *device,void *commando,void *buffe
 
 void usb_device_install(USB_DEVICE *device){
 	// https://www.usb.org/defined-class-codes
-	if(device->class==8){
+	if(device->class==9){
+		debugf("[USB] Port %x : Hub Device detected!\n",device->portnumber);
+        usb_hub_init(device);
+	}else if(device->class==8){
         debugf("[USB] Port %x : Mass Storage Device detected!\n",device->portnumber);
         usb_stick_init(device);
     }else if(device->class==3){

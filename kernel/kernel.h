@@ -635,6 +635,7 @@ typedef struct __attribute__ ((packed)) {
 }usb_interface_descriptor;
 
 void usb_stick_init(USB_DEVICE *device);//unsigned char addr,unsigned char subclass,unsigned char protocol);
+void usb_hub_init(USB_DEVICE *device);//unsigned char addr,unsigned char subclass,unsigned char protocol);
 #define EHCI_ERROR 0xCAFEBABE
 unsigned char* ehci_send_and_recieve_command(unsigned char addr,EhciCMD* commando, void *buffer);
 unsigned char* ehci_send_and_recieve_bulk(USB_DEVICE *device,unsigned char* out,unsigned long expectedIN,unsigned long expectedOut);

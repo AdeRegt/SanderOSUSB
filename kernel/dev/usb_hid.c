@@ -108,13 +108,13 @@ void init_usb_hid_keyboard(USB_DEVICE* device){
 
 void init_usb_hid(USB_DEVICE* device){
 	
-	printf("[HID] Port %x : Is a Human Interface Device\n",device->portnumber);
+	debugf("[HID] Port %x : Is a Human Interface Device\n",device->portnumber);
 	if(device->subclass==1){
-		printf("[HID] Port %x : HID : bootprotocol supported\n",device->portnumber);
+		debugf("[HID] Port %x : HID : bootprotocol supported\n",device->portnumber);
 	}else if(device->subclass==0){
-		printf("[HID] Port %x : HID : reportprotocol supported\n",device->portnumber);
+		debugf("[HID] Port %x : HID : reportprotocol supported\n",device->portnumber);
 	}else{
-		printf("[HID] Port %x : HID : unknown protocol\n",device->portnumber);
+		debugf("[HID] Port %x : HID : unknown protocol\n",device->portnumber);
 	}
 	
 	//
@@ -128,18 +128,18 @@ void init_usb_hid(USB_DEVICE* device){
 	unsigned char *res = usb_send_and_recieve_control(device,commando,0);
 	free(commando);
 	if((unsigned long)res==EHCI_ERROR){
-		printf("[HID] Unable to set protocol\n");
+		debugf("[HID] Unable to set protocol\n");
 		return;
 	}
 
 	//
 	// Init the rest of the devices
 	if(device->protocol==1){
-		printf("[HID] Port %x : is keyboard\n",device->portnumber);
+		debugf("[HID] Port %x : is keyboard\n",device->portnumber);
 		init_usb_hid_keyboard(device);
 	}else if(device->protocol==2){
-		printf("[HID] Port %x : is mouse\n",device->portnumber);
+		debugf("[HID] Port %x : is mouse\n",device->portnumber);
 	}else{
-		printf("[HID] Port %x : unknown HID type %x \n",device->portnumber,device->protocol);
+		debugf("[HID] Port %x : unknown HID type %x \n",device->portnumber,device->protocol);
 	}
 }

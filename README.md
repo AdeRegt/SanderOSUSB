@@ -46,6 +46,7 @@ PIC | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_chec
 PCI | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ACPI | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
 USB - HID - Keyboard | :white_check_mark: | :white_check_mark: | :white_check_mark: | :question:
+USB - Hub | :white_check_mark: | :white_check_mark: | :white_check_mark: | :question:
 USB - Mass Storage Device | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x:
 EHCI (USB2.0) - Basic support | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark:
 XHCI (USB3.0) - Basic support | :x: | :white_check_mark: | :question: | :bug:

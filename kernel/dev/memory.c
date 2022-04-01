@@ -5,7 +5,7 @@
 //
 //
 
-#define MEMORY_BLOCK_LIMIT 0x2000
+#define MEMORY_BLOCK_LIMIT 0x3000
 typedef struct {
 	void *from;
 	void *to;
