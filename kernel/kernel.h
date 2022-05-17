@@ -379,6 +379,7 @@ typedef struct{
 }USB_DEVICE;
 void init_ehci(unsigned long bus,unsigned long slot,unsigned long function);
 void init_usb_hid(USB_DEVICE* device);
+void usb_hub_init(USB_DEVICE *device);
 unsigned long usb_get_keyboard();
 unsigned char get_usb_hid_keyboard_input(USB_DEVICE* device,unsigned char wait);
 
